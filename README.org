@@ -1,0 +1,27 @@
+#+TITLE: Experiment Log
+Each bitstream will produce 4 results: UnixBench, NPB and also performance counters will be measured in each case:
+* Baseline bitstream :ATTACH:
+:PROPERTIES:
+:ID:       d2932afd-bb0d-4d36-9f4f-4ee70c8ff9ee
+:END:
+This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.fr/nicolas.derumigny/COMPAS-Tutorial.html][COMPAS 2025 tutorial]] with performance counters enabled at: [[~/Documents/HDL/cva6/core/include/cv64a6_imafdch_sv39_config_pkg.sv]]
+
+#+begin_src bash
+   localparam CVA6ConfigPerfCounterEn = 1;
+#+end_src
+
+*** Project Summary
+
+[[attachment:_20251207_131827screenshot.png]]
+
+
+*** Bitstream location
+[[./bitstreams/baseline.bit]]
+*** Implementation utilization
+[[./bitstreams/SoC_wrapper_utilization_placed_base.rpt]]
+*** Implementation timing
+[[./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt]]
+*** Implementation power
+[[./bitstreams/SoC_wrapper_power_routed_base.rpt]]
+
+** UnixBench

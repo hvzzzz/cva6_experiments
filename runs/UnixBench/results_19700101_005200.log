@@ -1,0 +1,106 @@
+==== UnixBench (FPGA Softcore Edition) ====
+Target: PYNQ-Z2 / CVA6
+Working Directory: /scratch/hvzzzz/UnixBench/pgms
+Start: Thu Jan  1 00:52:05 UTC 1970
+
+-------------------------------------------------
+Running: dhry2 10
+COUNT|367846|1|lps
+Elapsed Real Time: 11 sec
+
+-------------------------------------------------
+Running: dhry2reg 10
+COUNT|373116|1|lps
+Elapsed Real Time: 12 sec
+
+-------------------------------------------------
+Running: syscall 10
+COUNT|21277|1|lps
+Elapsed Real Time: 11 sec
+
+-------------------------------------------------
+Running: pipe 10
+COUNT|7798|1|lps
+Elapsed Real Time: 12 sec
+
+-------------------------------------------------
+Running: context1 10
+COUNT|1506|1|lps
+COUNT|1507|1|lps
+Elapsed Real Time: 12 sec
+
+-------------------------------------------------
+Running: spawn 10
+COUNT|79|1|lps
+Elapsed Real Time: 11 sec
+
+-------------------------------------------------
+Running: execl 10
+COUNT|34|1|lps
+Elapsed Real Time: 11 sec
+
+-------------------------------------------------
+Running: whetstone-double 
+COUNT|19.677|0|MWIPS
+TIME|6.607
+Calibrate
+       0.71 Seconds          1   Passes (x 100)
+
+Use 13  passes (x 100)
+
+          Double Precision C/C++ Whetstone Benchmark
+
+Loop content                  Result              MFLOPS      MOPS   Seconds
+
+N1 floating point     -1.12398255667391744         8.417              0.030
+N2 floating point     -1.12187079889295727        11.192              0.156
+N3 if then else        1.00000000000000000                9679.856    0.000
+N4 fixed point        12.00000000000000000               31022.727    0.000
+N5 sin,cos etc.        0.49902937281517734                   0.263    4.111
+N6 floating point      0.99999987890767417         6.081              1.153
+N7 assignments         3.00000000000000000                  12.196    0.197
+N8 exp,sqrt etc.       0.75100163018454191                   0.504    0.960
+
+MWIPS                                             19.677              6.607
+
+Elapsed Real Time: 10 sec
+
+---- Filesystem Tests (fstime) ----
+-------------------------------------------------
+Running: fstime -w -t 10 -b 1024 -m 2000
+COUNT|550|0|KBps
+TIME|10.9
+Write done: 24000 in 10.8896, score 550
+Elapsed Real Time: 17 sec
+
+-------------------------------------------------
+Running: fstime -r -t 10 -b 1024 -m 2000
+COUNT|330|0|KBps
+TIME|6.1
+COUNT|1200|0|KBps
+TIME|10.0
+Write done: 8000 in 6.0548, score 330
+Read done: 48068 in 10.0098, score 1200
+Elapsed Real Time: 80 sec
+
+-------------------------------------------------
+Running: fstime -c -t 10 -b 1024 -m 2000
+COUNT|208|0|KBps
+TIME|9.6
+COUNT|1198|0|KBps
+TIME|2.0
+COUNT|277|0|KBps
+TIME|10.0
+Write done: 8000 in 9.5745, score 208
+Read done: 9640 in 2.0101, score 1198
+Copy done: 11120 in 10.0099, score 277
+Elapsed Real Time: 86 sec
+
+---- Shell Script Test (shell1) ----
+Generating dummy sort.src file...
+-------------------------------------------------
+Running: looper 30 ./multi.sh 1
+COUNT|0|60|lpm
+Elapsed Real Time: 146 sec
+
+==== Finished at: Thu Jan  1 01:00:27 UTC 1970 ====
