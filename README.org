@@ -191,6 +191,28 @@ else:
     print("❌ No valid test data found in the file.")
 #+end_src
 
+#+RESULTS:
+:RESULTS:
+: ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
+[[file:./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
+:
+: === Parsed Benchmark Data ===
+|    | Test                | Category    | IPC      | Instructions | Score           | Unit  |
+|----+---------------------+-------------+----------+--------------+-----------------+-------|
+| 0  | Arithmetic_Overhead | Integer/ALU | 0.388300 | 96160360     | 22607716.000000 | lps   |
+| 1  | Arithmetic_Register | Integer/ALU | 0.568500 | 140705146    | 658341.000000   | lps   |
+| 2  | Arithmetic_Short    | Integer/ALU | 0.569000 | 140859170    | 659170.000000   | lps   |
+| 3  | Arithmetic_Int      | Integer/ALU | 0.568700 | 140769091    | 658720.000000   | lps   |
+| 4  | Dhrystone           | Integer/ALU | 0.447600 | 81389671     | 259837.000000   | lps   |
+| 5  | Arithmetic_Double   | Integer/ALU | 0.568800 | 140675372    | 658256.000000   | lps   |
+| 6  | Whetstone           | Float/FPU   | 0.410800 | 103499392    | 19.449000       | MWIPS |
+| 7  | Syscall_Mix         | System/OS   | 0.174900 | 43254593     | 22651.000000    | lps   |
+| 8  | Syscall_GetPID      | System/OS   | 0.225900 | 55509267     | 205011.000000   | lps   |
+| 9  | Syscall_Exec        | System/OS   | 0.119100 | 2620492      | 20.000000       | lps   |
+| 10 | Pipe_Throughput     | System/OS   | 0.140400 | 34742090     | 8840.000000     | lps   |
+| 11 | Context_Switching   | System/OS   | 0.116900 | 14197502     | 856.000000      | lps   |
+:END:
+
 : ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
 [[./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
 :
