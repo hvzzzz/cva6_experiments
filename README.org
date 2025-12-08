@@ -195,7 +195,7 @@ else:
 #+RESULTS:
 :RESULTS:
 : ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
-[[file:./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
+[[./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
 :
 : === Parsed Benchmark Data ===
 |    | Test                | Category    | IPC      | Instructions | Score           | Unit  |
