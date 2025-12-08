@@ -14,7 +14,6 @@ This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.f
 
 [[./images/Screenshot from 2025-12-07 13-42-17.png]]
 
-
 *** Bitstream location
 [[./bitstreams/baseline.bit]]
 *** Implementation utilization
@@ -23,5 +22,194 @@ This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.f
 [[./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt]]
 *** Implementation power
 [[./bitstreams/SoC_wrapper_power_routed_base.rpt]]
-
 ** UnixBench
+[[./runs/UnixBench/unixbench_19700101_064547_base.txt]]
+** NAS Parallel Benchmark
+[[./runs/NPB/NPB_19700101_081823_base.txt]]
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+
+# Path to your specific log file
+LOG_FILE_PATH = "./runs/UnixBench/unixbench_19700101_064547_base.txt"
+
+
+# ==========================================
+# 2. DATA LOADING & PARSING
+# ==========================================
+
+def load_data(path):
+    if os.path.exists(path):
+        print(f"✅ Loading data from: {path}")
+        with open(path, "r") as f:
+            return f.read()
+    else:
+        print(f"⚠️ File not found at {path}. Using Sample Data for demonstration.")
+        return SAMPLE_DATA
+
+def parse_log_data(raw_text):
+    data = []
+    current_test = {}
+    in_test = False
+
+    lines = raw_text.split('\n')
+
+    for line in lines:
+        line = line.strip()
+
+        # Detect Start of Test
+        if ">>>BEGIN_TEST" in line:
+            test_name = line.split("|")[1]
+            current_test = {
+                'Test': test_name,
+                'Instructions': 0,
+                'Cycles': 0,
+                'IPC': 0.0,
+                'Score': 0.0,
+                'Unit': 'N/A',
+                'Category': 'Other'
+            }
+
+            # Categorize for better plotting
+            if 'Arith' in test_name or 'Dhrystone' in test_name or 'Register' in test_name:
+                current_test['Category'] = 'Integer/ALU'
+            elif 'Whetstone' in test_name or 'Double' in test_name:
+                current_test['Category'] = 'Float/FPU'
+            elif 'Syscall' in test_name or 'Context' in test_name or 'Pipe' in test_name:
+                current_test['Category'] = 'System/OS'
+
+            in_test = True
+            continue
+
+        if in_test:
+            # Parse PAPI Headers
+            if "[PAPI] Instructions:" in line:
+                current_test['Instructions'] = int(line.split(":")[1].strip())
+            elif "[PAPI] Cycles:" in line:
+                current_test['Cycles'] = int(line.split(":")[1].strip())
+            elif "[PAPI] IPC:" in line:
+                current_test['IPC'] = float(line.split(":")[1].strip())
+
+            # Parse UnixBench Scores (COUNT|score|...|unit)
+            elif line.startswith("COUNT|"):
+                parts = line.split("|")
+                try:
+                    current_test['Score'] = float(parts[1])
+                    current_test['Unit'] = parts[3].strip()
+                except IndexError:
+                    pass
+
+            # Parse Whetstone specific format (MWIPS at end of line)
+            elif "MWIPS" in line and "COUNT" not in line:
+                 parts = line.split()
+                 if len(parts) >= 2:
+                     try:
+                         # Usually formatted like: MWIPS   19.449   9.769
+                         current_test['Score'] = float(parts[1])
+                         current_test['Unit'] = 'MWIPS'
+                     except ValueError:
+                         pass
+
+            # Detect End
+            elif ">>>END_TEST" in line:
+                # Cleanup Label name
+                current_test['Label'] = current_test['Test'].replace('Arithmetic_', '').replace('Syscall_', '').replace('UB_', '')
+                data.append(current_test)
+                in_test = False
+
+    return pd.DataFrame(data)
+
+# Load and Parse
+log_content = load_data(LOG_FILE_PATH)
+df = parse_log_data(log_content)
+
+# ==========================================
+# 3. VISUALIZATION
+# ==========================================
+
+if not df.empty:
+    # Set Style
+    sns.set_theme(style="whitegrid")
+    plt.rcParams.update({'figure.figsize': (14, 10), 'font.size': 12})
+
+    fig, axes = plt.subplots(2, 1, height_ratios=[1, 1.2])
+
+    # --- PLOT 1: Efficiency (IPC) ---
+    sns.barplot(
+        data=df.sort_values('IPC', ascending=False),
+        x='IPC',
+        y='Label',
+        hue='Category',
+        dodge=False,
+        palette='viridis',
+        ax=axes[0]
+    )
+    axes[0].set_title('CVA6 Architectural Efficiency (Instructions Per Cycle)', fontsize=16, pad=15)
+    axes[0].set_xlabel('IPC (Higher is Better)')
+    axes[0].set_ylabel('')
+    axes[0].set_xlim(0, 0.7)
+    axes[0].legend(title='Workload Type', loc='lower right')
+
+    for container in axes[0].containers:
+        axes[0].bar_label(container, fmt='%.2f', padding=3)
+
+    # --- PLOT 2: Benchmark Scores ---
+    sns.barplot(
+        data=df.sort_values('Score', ascending=False),
+        x='Score',
+        y='Label',
+        hue='Unit',
+        dodge=False,
+        palette='magma',
+        ax=axes[1]
+    )
+    axes[1].set_xscale('log')
+    axes[1].set_title('UnixBench Scores (Log Scale)', fontsize=16, pad=15)
+    axes[1].set_xlabel('Score (Log Scale) - Note Different Units!')
+    axes[1].set_ylabel('')
+    axes[1].legend(title='Metric Unit', loc='lower right')
+
+    for container in axes[1].containers:
+        axes[1].bar_label(container, fmt='%.1e', padding=3)
+
+    plt.tight_layout()
+    plt.show()
+
+    # --- DATA TABLE ---
+    print("\n=== Parsed Benchmark Data ===")
+    display_cols = ['Test', 'Category', 'IPC', 'Instructions', 'Score', 'Unit']
+    # Use Pandas styling for Jupyter
+    display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
+
+else:
+    print("❌ No valid test data found in the file.")
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+: ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
+[[file:./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
+:
+: === Parsed Benchmark Data ===
+|    | Test                | Category    | IPC      | Instructions | Score           | Unit  |
+|----+---------------------+-------------+----------+--------------+-----------------+-------|
+| 0  | Arithmetic_Overhead | Integer/ALU | 0.388300 | 96160360     | 22607716.000000 | lps   |
+| 1  | Arithmetic_Register | Integer/ALU | 0.568500 | 140705146    | 658341.000000   | lps   |
+| 2  | Arithmetic_Short    | Integer/ALU | 0.569000 | 140859170    | 659170.000000   | lps   |
+| 3  | Arithmetic_Int      | Integer/ALU | 0.568700 | 140769091    | 658720.000000   | lps   |
+| 4  | Dhrystone           | Integer/ALU | 0.447600 | 81389671     | 259837.000000   | lps   |
+| 5  | Arithmetic_Double   | Integer/ALU | 0.568800 | 140675372    | 658256.000000   | lps   |
+| 6  | Whetstone           | Float/FPU   | 0.410800 | 103499392    | 19.449000       | MWIPS |
+| 7  | Syscall_Mix         | System/OS   | 0.174900 | 43254593     | 22651.000000    | lps   |
+| 8  | Syscall_GetPID      | System/OS   | 0.225900 | 55509267     | 205011.000000   | lps   |
+| 9  | Syscall_Exec        | System/OS   | 0.119100 | 2620492      | 20.000000       | lps   |
+| 10 | Pipe_Throughput     | System/OS   | 0.140400 | 34742090     | 8840.000000     | lps   |
+| 11 | Context_Switching   | System/OS   | 0.116900 | 14197502     | 856.000000      | lps   |
+:END:
