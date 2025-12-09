@@ -244,25 +244,22 @@ import os
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-
-# Path to your specific log file
 LOG_FILE_PATH = "./runs/UnixBench/unixbench_19700101_064547_base.txt"
-
+FPGA_CLOCK_HZ = 50_000_000  # 50 MHz
 
 # ==========================================
-# 2. DATA LOADING & PARSING
+# 2. PARSER LOGIC
 # ==========================================
-
 def load_data(path):
     if os.path.exists(path):
         print(f"\n✅ Loading data from: {path}")
-        with open(path, "r") as f:
+        with open(path, "r", encoding='utf-8', errors='ignore') as f:
             return f.read()
     else:
-        print(f"⚠️ File not found at {path}. Using Sample Data for demonstration.")
+        print(f"⚠️ File not found at {path}. Using Sample Data.")
         return SAMPLE_DATA
 
-def parse_log_data(raw_text):
+def parse_unixbench_log(raw_text):
     data = []
     current_test = {}
     in_test = False
@@ -272,32 +269,35 @@ def parse_log_data(raw_text):
     for line in lines:
         line = line.strip()
 
-        # Detect Start of Test
+        # 1. Detect Start
         if ">>>BEGIN_TEST" in line:
             test_name = line.split("|")[1]
             current_test = {
                 'Test': test_name,
+                'Label': test_name.replace('Arithmetic_', 'Arith ').replace('Syscall_', 'Sys ').replace('UB_', ''),
+                'Category': 'Other',
                 'Instructions': 0,
                 'Cycles': 0,
                 'IPC': 0.0,
                 'Score': 0.0,
                 'Unit': 'N/A',
-                'Category': 'Other'
+                'Time_s': 0.0
             }
 
-            # Categorize for better plotting
-            if 'Arith' in test_name or 'Dhrystone' in test_name or 'Register' in test_name:
-                current_test['Category'] = 'Integer/ALU'
-            elif 'Whetstone' in test_name or 'Double' in test_name:
-                current_test['Category'] = 'Float/FPU'
-            elif 'Syscall' in test_name or 'Context' in test_name or 'Pipe' in test_name:
-                current_test['Category'] = 'System/OS'
+            # Categorize
+            name = current_test['Test']
+            if 'Arith' in name or 'Dhrystone' in name or 'Register' in name:
+                current_test['Category'] = 'Integer / ALU'
+            elif 'Whetstone' in name or 'Double' in name:
+                current_test['Category'] = 'Float / FPU'
+            else:
+                current_test['Category'] = 'System / OS'
 
             in_test = True
             continue
 
         if in_test:
-            # Parse PAPI Headers
+            # 2. Parse PAPI Headers
             if "[PAPI] Instructions:" in line:
                 current_test['Instructions'] = int(line.split(":")[1].strip())
             elif "[PAPI] Cycles:" in line:
@@ -305,7 +305,7 @@ def parse_log_data(raw_text):
             elif "[PAPI] IPC:" in line:
                 current_test['IPC'] = float(line.split(":")[1].strip())
 
-            # Parse UnixBench Scores (COUNT|score|...|unit)
+            # 3. Parse Scores
             elif line.startswith("COUNT|"):
                 parts = line.split("|")
                 try:
@@ -314,90 +314,55 @@ def parse_log_data(raw_text):
                 except IndexError:
                     pass
 
-            # Parse Whetstone specific format (MWIPS at end of line)
-            elif "MWIPS" in line and "COUNT" not in line:
-                 parts = line.split()
-                 if len(parts) >= 2:
-                     try:
-                         # Usually formatted like: MWIPS   19.449   9.769
-                         current_test['Score'] = float(parts[1])
-                         current_test['Unit'] = 'MWIPS'
-                     except ValueError:
-                         pass
-
-            # Detect End
+            # 4. Detect End
             elif ">>>END_TEST" in line:
-                # Cleanup Label name
-                current_test['Label'] = current_test['Test'].replace('Arithmetic_', '').replace('Syscall_', '').replace('UB_', '')
+                # Calculate Time from Cycles
+                if current_test['Cycles'] > 0:
+                    current_test['Time_s'] = current_test['Cycles'] / FPGA_CLOCK_HZ
+
                 data.append(current_test)
                 in_test = False
 
     return pd.DataFrame(data)
 
-# Load and Parse
+# ==========================================
+# 3. EXECUTION & VISUALIZATION
+# ==========================================
 log_content = load_data(LOG_FILE_PATH)
-df = parse_log_data(log_content)
-
-# ==========================================
-# 3. VISUALIZATION
-# ==========================================
+df = parse_unixbench_log(log_content)
 
 if not df.empty:
-    # Set Style
+    # 1. Visualization (IPC)
     sns.set_theme(style="whitegrid")
-    plt.rcParams.update({'figure.figsize': (14, 10), 'font.size': 12})
+    plt.figure(figsize=(12, 6))
 
-    fig, axes = plt.subplots(2, 1, height_ratios=[1, 1.2])
-
-    # --- PLOT 1: Efficiency (IPC) ---
     sns.barplot(
         data=df.sort_values('IPC', ascending=False),
-        x='IPC',
-        y='Label',
-        hue='Category',
-        dodge=False,
-        palette='viridis',
-        ax=axes[0]
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis'
     )
-    axes[0].set_title('CVA6 Architectural Efficiency (Instructions Per Cycle)', fontsize=16, pad=15)
-    axes[0].set_xlabel('IPC (Higher is Better)')
-    axes[0].set_ylabel('')
-    axes[0].set_xlim(0, 0.7)
-    axes[0].legend(title='Workload Type', loc='lower right')
-
-    for container in axes[0].containers:
-        axes[0].bar_label(container, fmt='%.2f', padding=3)
-
-    # --- PLOT 2: Benchmark Scores ---
-    sns.barplot(
-        data=df.sort_values('Score', ascending=False),
-        x='Score',
-        y='Label',
-        hue='Unit',
-        dodge=False,
-        palette='magma',
-        ax=axes[1]
-    )
-    axes[1].set_xscale('log')
-    axes[1].set_title('UnixBench Scores (Log Scale)', fontsize=16, pad=15)
-    axes[1].set_xlabel('Score (Log Scale) - Note Different Units!')
-    axes[1].set_ylabel('')
-    axes[1].legend(title='Metric Unit', loc='lower right')
-
-    for container in axes[1].containers:
-        axes[1].bar_label(container, fmt='%.1e', padding=3)
-
+    plt.title('CVA6 Architectural Efficiency (UnixBench IPC)', fontsize=14)
+    plt.xlabel('Instructions Per Cycle')
+    plt.xlim(0, 0.7)
+    plt.legend(title='Category', loc='lower right')
     plt.tight_layout()
     plt.show()
 
-    # --- DATA TABLE ---
-    print("\n=== Parsed Benchmark Data ===")
-    display_cols = ['Test', 'Category', 'IPC', 'Instructions', 'Score', 'Unit']
-    # Use Pandas styling for Jupyter
+    # 2. Detailed Data Table (Now with Time & Cycles)
+    print("\n=== UnixBench Results (Detailed) ===")
+
+    # Selecting ALL important columns
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Unit']
+
+    # Display with gradient on IPC
     display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
 
+    # 3. Export CSV
+    csv_filename = "unixbench_results_final.csv"
+    df[display_cols].to_csv(csv_filename, index=False)
+    print(f"\n✅ Data exported to {csv_filename}")
+
 else:
-    print("❌ No valid test data found in the file.")
+    print("❌ No valid data found.")
 #+end_src
 
 #+RESULTS:
@@ -405,47 +370,51 @@ else:
 #+begin_example
 ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
 #+end_example
-[[file:./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
+[[file:./.ob-jupyter/5dc1bd1f49c23865a5455de0268ca0612b7b5dc7.png]]
 #+begin_example
 
-=== Parsed Benchmark Data ===
+=== UnixBench Results (Detailed) ===
 #+end_example
-|    | Test                | Category    | IPC      | Instructions | Score           | Unit  |
-|----+---------------------+-------------+----------+--------------+-----------------+-------|
-| 0  | Arithmetic_Overhead | Integer/ALU | 0.388300 | 96160360     | 22607716.000000 | lps   |
-| 1  | Arithmetic_Register | Integer/ALU | 0.568500 | 140705146    | 658341.000000   | lps   |
-| 2  | Arithmetic_Short    | Integer/ALU | 0.569000 | 140859170    | 659170.000000   | lps   |
-| 3  | Arithmetic_Int      | Integer/ALU | 0.568700 | 140769091    | 658720.000000   | lps   |
-| 4  | Dhrystone           | Integer/ALU | 0.447600 | 81389671     | 259837.000000   | lps   |
-| 5  | Arithmetic_Double   | Integer/ALU | 0.568800 | 140675372    | 658256.000000   | lps   |
-| 6  | Whetstone           | Float/FPU   | 0.410800 | 103499392    | 19.449000       | MWIPS |
-| 7  | Syscall_Mix         | System/OS   | 0.174900 | 43254593     | 22651.000000    | lps   |
-| 8  | Syscall_GetPID      | System/OS   | 0.225900 | 55509267     | 205011.000000   | lps   |
-| 9  | Syscall_Exec        | System/OS   | 0.119100 | 2620492      | 20.000000       | lps   |
-| 10 | Pipe_Throughput     | System/OS   | 0.140400 | 34742090     | 8840.000000     | lps   |
-| 11 | Context_Switching   | System/OS   | 0.116900 | 14197502     | 856.000000      | lps   |
+|    | Label             | Category      | IPC      | Instructions | Cycles    | Time_s   | Score           | Unit  |
+|----+-------------------+---------------+----------+--------------+-----------+----------+-----------------+-------|
+| 0  | Arith Overhead    | Integer / ALU | 0.388300 | 96160360     | 247619804 | 4.952396 | 22607716.000000 | lps   |
+| 1  | Arith Register    | Integer / ALU | 0.568500 | 140705146    | 247489519 | 4.949790 | 658341.000000   | lps   |
+| 2  | Arith Short       | Integer / ALU | 0.569000 | 140859170    | 247565240 | 4.951305 | 659170.000000   | lps   |
+| 3  | Arith Int         | Integer / ALU | 0.568700 | 140769091    | 247527031 | 4.950541 | 658720.000000   | lps   |
+| 4  | Dhrystone         | Integer / ALU | 0.447600 | 81389671     | 181828082 | 3.636562 | 259837.000000   | lps   |
+| 5  | Arith Double      | Integer / ALU | 0.568800 | 140675372    | 247333099 | 4.946662 | 658256.000000   | lps   |
+| 6  | Whetstone         | Float / FPU   | 0.410800 | 103499392    | 251932322 | 5.038646 | 19.449000       | MWIPS |
+| 7  | Sys Mix           | System / OS   | 0.174900 | 43254593     | 247366131 | 4.947323 | 22651.000000    | lps   |
+| 8  | Sys GetPID        | System / OS   | 0.225900 | 55509267     | 245775079 | 4.915502 | 205011.000000   | lps   |
+| 9  | Sys Exec          | System / OS   | 0.119100 | 2620492      | 21995437  | 0.439909 | 20.000000       | lps   |
+| 10 | Pipe_Throughput   | System / OS   | 0.140400 | 34742090     | 247521360 | 4.950427 | 8840.000000     | lps   |
+| 11 | Context_Switching | System / OS   | 0.116900 | 14197502     | 121473123 | 2.429462 | 856.000000      | lps   |
+#+begin_example
+
+✅ Data exported to unixbench_results_final.csv
+#+end_example
 :end:
 
 ** NAS Parallel Benchmark
 Experiment metadata
-[[./runs/NPB/NPB_19700101_081823_base.txt]]
+[[./runs/NPB/NPB_19700101_002113_base.txt]]
 
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+import re
 
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-
-LOG_FILE_PATH = "runs/NPB/NPB_19700101_081823_base.txt"
+LOG_FILE_PATH = "runs/NPB/NPB_19700101_002113_base.txt"
+FPGA_CLOCK_HZ = 50_000_000
 
 # ==========================================
-# 2. PARSING LOGIC
+# 2. PARSER LOGIC
 # ==========================================
-
 def load_data(path):
     if os.path.exists(path):
         print(f"\n✅ Loading data from: {path}")
@@ -453,11 +422,15 @@ def load_data(path):
             return f.read()
     else:
         print(f"⚠️ File not found at {path}. Using Sample Data.")
+        return SAMPLE_DATA
 
 def parse_npb_log(raw_text):
     data = []
     current_test = {}
     in_test = False
+
+    size_pattern = re.compile(r"Size:\s+(\d+)")
+    iter_pattern = re.compile(r"Iterations:\s+(\d+)")
 
     lines = raw_text.split('\n')
 
@@ -468,28 +441,34 @@ def parse_npb_log(raw_text):
             test_name = line.split("|")[1]
             current_test = {
                 'Test': test_name,
-                'Label': test_name.replace('NPB_', '').replace('_S', ''), # Clean name
+                'Label': test_name.replace('NPB_', '').replace('_S', '').replace('_W', ''),
+                'Category': 'Other',
                 'Instructions': 0,
                 'Cycles': 0,
                 'IPC': 0.0,
                 'Score': 0.0,
-                'Category': 'Other'
+                'Time_s': 0.0,
+                'Method': 'Reported',
+                'Work_Keys': 0,
+                'Work_Iter': 0
             }
 
-            # Categorize based on workload type
-            label = current_test['Label']
-            if label == 'EP':
-                current_test['Category'] = 'Compute Bound'
-            elif label in ['IS', 'CG', 'MG']:
-                current_test['Category'] = 'Memory Bound'
-            elif label in ['FT', 'LU', 'SP', 'BT']:
-                current_test['Category'] = 'Mixed / Streaming'
+            lbl = current_test['Label']
+            if lbl == 'EP': current_test['Category'] = 'Compute Bound'
+            elif lbl in ['IS', 'CG', 'MG']: current_test['Category'] = 'Memory Bound'
+            elif lbl in ['FT', 'LU', 'SP', 'BT']: current_test['Category'] = 'Mixed / Streaming'
 
             in_test = True
             continue
 
         if in_test:
-            # Parse PAPI
+            if "Size:" in line:
+                m = size_pattern.search(line)
+                if m: current_test['Work_Keys'] = int(m.group(1))
+            if "Iterations:" in line:
+                m = iter_pattern.search(line)
+                if m: current_test['Work_Iter'] = int(m.group(1))
+
             if "[PAPI] Instructions:" in line:
                 current_test['Instructions'] = int(line.split(":")[1].strip())
             elif "[PAPI] Cycles:" in line:
@@ -497,109 +476,105 @@ def parse_npb_log(raw_text):
             elif "[PAPI] IPC:" in line:
                 current_test['IPC'] = float(line.split(":")[1].strip())
 
-            # Parse Score (Mop/s)
             elif "Mop/s total" in line:
                 try:
-                    # Format: Mop/s total      =                    2.15
-                    parts = line.split("=")
-                    current_test['Score'] = float(parts[1].strip())
+                    val_str = line.split("=")[1].strip()
+                    if val_str.lower() in ['inf', 'nan']:
+                        current_test['Score'] = 0.0
+                    else:
+                        current_test['Score'] = float(val_str)
                 except:
                     pass
 
-            # Detect End
             elif ">>>END_TEST" in line:
-                # Handle IS crash if present
-                if current_test['IPC'] == 0 and current_test['Cycles'] == 0:
-                    current_test['Label'] += " (Failed)"
+                # Calculate Time from Cycles (Most Accurate)
+                if current_test['Cycles'] > 0:
+                    current_test['Time_s'] = current_test['Cycles'] / FPGA_CLOCK_HZ
+
+                # Repair IS Score
+                if current_test['Label'] == 'IS' and current_test['Score'] == 0.0:
+                    keys = current_test['Work_Keys']
+                    iters = current_test['Work_Iter']
+                    time_s = current_test['Time_s']
+
+                    if keys > 0 and time_s > 0:
+                        total_ops = keys * iters
+                        new_score = (total_ops / 1_000_000.0) / time_s
+                        current_test['Score'] = new_score
+                        current_test['Method'] = 'Recalculated'
 
                 data.append(current_test)
                 in_test = False
 
     return pd.DataFrame(data)
 
-# Load
+# ==========================================
+# 3. EXECUTION & DISPLAY
+# ==========================================
 log_content = load_data(LOG_FILE_PATH)
 df = parse_npb_log(log_content)
 
-# Filter out failed tests (like IS if it segfaulted)
-df = df[df['Cycles'] > 0]
-
-# ==========================================
-# 3. VISUALIZATION
-# ==========================================
-
 if not df.empty:
+    # 1. Visualization
     sns.set_theme(style="whitegrid")
-    plt.rcParams.update({'figure.figsize': (14, 10), 'font.size': 12})
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10))
 
-    fig, axes = plt.subplots(2, 1, height_ratios=[1, 1])
-
-    # --- PLOT 1: Efficiency (IPC) ---
+    # Plot IPC
     sns.barplot(
         data=df.sort_values('IPC', ascending=False),
-        x='IPC',
-        y='Label',
-        hue='Category',
-        dodge=False,
-        palette='viridis',
-        ax=axes[0]
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis', ax=axes[0]
     )
-    axes[0].set_title('CVA6 Performance on NPB Class S (IPC)', fontsize=16, pad=15)
-    axes[0].set_xlabel('Instructions Per Cycle (Higher is Better)')
-    axes[0].set_ylabel('')
-    axes[0].legend(title='Workload Type', loc='lower right')
-    axes[0].set_xlim(0, 0.4) # Adjust limit based on max value (EP is ~0.3)
+    axes[0].set_title('CVA6 Architectural Efficiency (IPC)', fontsize=14)
+    axes[0].set_xlabel('Instructions Per Cycle')
+    axes[0].set_xlim(0, 0.4)
 
-    for container in axes[0].containers:
-        axes[0].bar_label(container, fmt='%.3f', padding=3)
-
-    # --- PLOT 2: MFLOPS Scores ---
+    # Plot Score
     sns.barplot(
         data=df.sort_values('Score', ascending=False),
-        x='Score',
-        y='Label',
-        hue='Category',
-        dodge=False,
-        palette='magma',
-        ax=axes[1]
+        x='Score', y='Label', hue='Category', dodge=False, palette='magma', ax=axes[1]
     )
-    axes[1].set_title('Absolute Performance (Mop/s)', fontsize=16, pad=15)
+    axes[1].set_title('Performance Score (Mop/s)', fontsize=14)
     axes[1].set_xlabel('Million Operations Per Second')
-    axes[1].set_ylabel('')
-    axes[1].legend(title='Workload Type', loc='lower right')
-
-    for container in axes[1].containers:
-        axes[1].bar_label(container, fmt='%.2f', padding=3)
 
     plt.tight_layout()
     plt.show()
 
-    # --- DATA TABLE ---
+    # 2. Detailed Data Table (With Instructions & Cycles)
     print("\n=== NAS Parallel Benchmark Results ===")
-    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Score']
+
+    # Selecting ALL important columns
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Method']
+
+    # Display with gradient on IPC to highlight efficiency
     display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
 
+    # 3. Export to CSV
+    # csv_filename = "npb_results_final.csv"
+    # df[display_cols].to_csv(csv_filename, index=False)
+    # print(f"\n✅ Data exported to {csv_filename}")
+
 else:
-    print("❌ No valid data found. Check the log file path.")
+    print("❌ No valid data found.")
 #+end_src
 
 #+RESULTS:
 :results:
 #+begin_example
-✅ Loading data from: runs/NPB/NPB_19700101_081823_base.txt
+✅ Loading data from: runs/NPB/NPB_19700101_002113_base.txt
 #+end_example
-[[file:./.ob-jupyter/d551c1b9487672ade4da408129495ec5f7d8f13e.png]]
+[[file:./.ob-jupyter/7da0c1dac06256c0f67247c031c3cb99bb9f8332.png]]
 #+begin_example
 
 === NAS Parallel Benchmark Results ===
 #+end_example
-|   | Label | Category          | IPC      | Instructions | Cycles     | Score    |
-|---+-------+-------------------+----------+--------------+------------+----------|
-| 0 | EP    | Compute Bound     | 0.296600 | 2091610366   | 7052575499 | 0.120000 |
-| 2 | CG    | Memory Bound      | 0.167400 | 355809507    | 2125967585 | 0.780000 |
-| 3 | MG    | Memory Bound      | 0.193000 | 33938262     | 175850655  | 1.070000 |
-| 4 | FT    | Mixed / Streaming | 0.159500 | 586546054    | 3678139437 | 1.190000 |
-| 5 | BT    | Mixed / Streaming | 0.209400 | 549647248    | 2625329283 | 2.150000 |
-| 6 | SP    | Mixed / Streaming | 0.181100 | 357286022    | 1972775720 | 1.210000 |
-| 7 | LU    | Mixed / Streaming | 0.230000 | 200279517    | 870961646  | 2.900000 |
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Method       |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+--------------|
+| 0 | EP    | Compute Bound     | 0.296600 | 2091494568   | 7051840628 | 141.036813 | 0.120000 | Reported     |
+| 1 | IS    | Memory Bound      | 0.214400 | 7563104      | 35267690   | 0.705354   | 0.929122 | Recalculated |
+| 2 | CG    | Memory Bound      | 0.168000 | 355640156    | 2117107268 | 42.342145  | 0.780000 | Reported     |
+| 3 | MG    | Memory Bound      | 0.192600 | 33926533     | 176124045  | 3.522481   | 1.070000 | Reported     |
+| 4 | FT    | Mixed / Streaming | 0.159800 | 586395665    | 3670402373 | 73.408047  | 1.190000 | Reported     |
+| 5 | BT    | Mixed / Streaming | 0.209600 | 549479226    | 2621152419 | 52.423048  | 2.160000 | Reported     |
+| 6 | SP    | Mixed / Streaming | 0.181900 | 357024090    | 1962313810 | 39.246276  | 1.220000 | Reported     |
+| 7 | LU    | Mixed / Streaming | 0.230400 | 200137752    | 868497471  | 17.369949  | 2.910000 | Reported     |
 :end:
