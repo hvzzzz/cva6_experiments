@@ -70,7 +70,7 @@ def parse_vivado_report_full(content):
 
 # 1. Load Data
 if os.path.exists(REPORT_PATH):
-    print(f"✅ Reading report from: {REPORT_PATH}")
+    print(f"\n✅ Reading report from: {REPORT_PATH}")
     with open(REPORT_PATH, 'r') as f:
         content = f.read()
 else:
@@ -125,10 +125,12 @@ plt.show()
 
 #+RESULTS:
 :results:
-#+begin_example✅ Reading report from: ./bitstreams/SoC_wrapper_utilization_placed_base.rpt
+#+begin_example
+✅ Reading report from: ./bitstreams/SoC_wrapper_utilization_placed_base.rpt
 #+end_example
 [[file:./.ob-jupyter/80f69f1fc27fac1f504bac7de189b99ab81f522b.png]]
 :end:
+
 
 
 *** Implementation Timing
@@ -597,9 +599,15 @@ else:
 | 7 | LU    | Mixed / Streaming | 0.230000 | 200279517    | 870961646  | 2.900000 |
 :END:
 
-#+begin_src jupyter-python :results output drawer
+#+begin_src jupyter-python :results
 print('sfasdf')
 #+end_src
+
+#+RESULTS:
+:results:
+#+begin_examplesfasdf
+#+end_example
+:end:
 
 
 
