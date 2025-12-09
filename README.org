@@ -12,7 +12,7 @@ This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.f
 
 ** Project Summary
 *** Implementation Utilization
-#+begin_src jupyter-python :exports results
+#+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -124,10 +124,13 @@ plt.show()
 #+end_src
 
 #+RESULTS:
-:RESULTS:
-: ✅ Reading report from: ./bitstreams/SoC_wrapper_utilization_placed_base.rpt
+:results:
+#+begin_example✅ Reading report from: ./bitstreams/SoC_wrapper_utilization_placed_base.rpt
+#+end_example
 [[file:./.ob-jupyter/80f69f1fc27fac1f504bac7de189b99ab81f522b.png]]
-:END:
+:end:
+
+
 *** Implementation Timing
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
