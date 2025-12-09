@@ -10,17 +10,233 @@ This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.f
    localparam CVA6ConfigPerfCounterEn = 1;
 #+end_src
 
-*** Project Summary
+** Project Summary
+*** Implementation Utilization
+#+begin_src jupyter-python :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
 
-[[./images/Screenshot from 2025-12-07 13-42-17.png]]
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+REPORT_PATH = "./bitstreams/SoC_wrapper_utilization_placed_base.rpt"
 
-*** Bitstream location
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+
+def parse_vivado_report_full(content):
+    """
+    Scans the report and extracts specific keys into a dictionary.
+    """
+    data = {}
+
+    # Map: Label for Graph -> Text in Report
+    target_map = {
+        'LUT': 'Slice LUTs',
+        'LUTRAM': 'LUT as Memory',
+        'FF': 'Slice Registers',
+        'BRAM': 'Block RAM Tile',
+        'DSP': 'DSPs',
+        'I/O': 'Bonded IOB',
+        'BUFG': 'BUFGCTRL',
+        'MMCM': 'MMCME2_ADV'
+    }
+
+    lines = content.split('\n')
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith('|'):
+            parts = [x.strip() for x in line.split('|') if x.strip()]
+            if len(parts) >= 2:
+                row_name = parts[0].replace('*', '')
+                row_val_str = parts[1]
+
+                for user_label, vivado_key in target_map.items():
+                    if row_name == vivado_key:
+                        try:
+                            data[user_label] = float(row_val_str)
+                        except ValueError:
+                            pass
+
+    return data
+
+# ==========================================
+# 3. VISUALIZATION
+# ==========================================
+
+# 1. Load Data
+if os.path.exists(REPORT_PATH):
+    print(f"✅ Reading report from: {REPORT_PATH}")
+    with open(REPORT_PATH, 'r') as f:
+        content = f.read()
+else:
+    print(f"⚠️ File not found at {REPORT_PATH}. Using Sample Data.")
+    content = SAMPLE_REPORT_DATA
+
+# 2. Parse and Create DataFrame
+metrics = parse_vivado_report_full(content)
+
+# Specific order requested
+order = ['MMCM', 'BUFG', 'I/O', 'DSP', 'BRAM', 'FF', 'LUTRAM', 'LUT']
+
+df = pd.DataFrame([
+    {'Resource': k, 'Count': metrics.get(k, 0)}
+    for k in order
+])
+
+# 3. Display Table (The requested change)
+print("\n--- Absolute Resource Usage ---")
+# Using Pandas styling for a cleaner look in Jupyter
+display(df.style.background_gradient(subset=['Count'], cmap='Blues'))
+
+# 4. Plot Graph
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(12, 6))
+
+ax = sns.barplot(
+    data=df,
+    x='Resource',
+    y='Count',
+    hue='Resource',
+    palette='viridis'
+)
+
+ax.set_yscale("log") # Log Scale
+plt.title('CVA6 FPGA Resource Usage (Absolute Count)', fontsize=16)
+plt.ylabel('Count (Log Scale)', fontsize=12)
+plt.xlabel('')
+
+# Add labels
+for i, p in enumerate(ax.patches):
+    height = p.get_height()
+    if height > 0:
+        val_text = f"{int(height)}" if height.is_integer() else f"{height}"
+        ax.text(p.get_x() + p.get_width() / 2., height * 1.1,
+                val_text,
+                ha="center", va="bottom", fontsize=11, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+: ✅ Reading report from: ./bitstreams/SoC_wrapper_utilization_placed_base.rpt
+:
+: --- Absolute Resource Usage ---
+|   | Resource | Count        |
+|---+----------+--------------|
+| 0 | MMCM     | 1.000000     |
+| 1 | BUFG     | 2.000000     |
+| 2 | I/O      | 8.000000     |
+| 3 | DSP      | 27.000000    |
+| 4 | BRAM     | 32.500000    |
+| 5 | FF       | 25312.000000 |
+| 6 | LUTRAM   | 1425.000000  |
+| 7 | LUT      | 50319.000000 |
+[[file:./.ob-jupyter/80f69f1fc27fac1f504bac7de189b99ab81f522b.png]]
+:END:
+*** Implementation Timing
+#+begin_src jupyter-python :exports results
+import pandas as pd
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+TIMING_REPORT_PATH = "./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+
+def parse_timing_report(content):
+    data = {}
+    lines = content.split('\n')
+
+    # State flags
+    header_found = False
+
+    for line in lines:
+        # Detect the table header row
+        if "WNS(ns)" in line and "WHS(ns)" in line:
+            header_found = True
+            continue
+
+        # Parse the data row (usually the first non-empty line after dashes)
+        if header_found and line.strip() and not line.strip().startswith('-'):
+            parts = line.split()
+
+            # Based on standard Vivado report columns:
+            # Col 0: WNS (Setup)
+            # Col 4: WHS (Hold)
+            try:
+                wns = float(parts[0])
+                whs = float(parts[4])
+
+                data['Metric'] = ['WNS (Setup)', 'WHS (Hold)']
+                data['Value (ns)'] = [wns, whs]
+
+            except (ValueError, IndexError):
+                pass
+
+            break # We only need the summary row
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION
+# ==========================================
+
+# 1. Load
+if os.path.exists(TIMING_REPORT_PATH):
+    print(f"✅ Reading timing report from: {TIMING_REPORT_PATH}")
+    with open(TIMING_REPORT_PATH, 'r') as f:
+        content = f.read()
+else:
+    print(f"⚠️ File not found at {TIMING_REPORT_PATH}. Using Sample Data.")
+    content = SAMPLE_TIMING_DATA
+
+# 2. Parse
+df_timing = parse_timing_report(content)
+
+# 3. Display
+print("\n--- Timing Summary ---")
+
+# Styling: Red if negative (Time Violation), Green if positive (Safe)
+def style_slack(val):
+    color = 'red' if val < 0 else 'green'
+    weight = 'bold'
+    return f'color: {color}; font-weight: {weight}'
+
+# Display with 3 decimal places
+format_dict = {'Value (ns)': '{:.3f}'}
+
+display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)']).hide(axis="index"))
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+: ✅ Reading timing report from: ./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt
+:
+: --- Timing Summary ---
+| Metric      | Value (ns) |
+|-------------+------------|
+| WNS (Setup) | 1.218      |
+| WHS (Hold)  | 0.051      |
+:END:
+*** File locations
+**** Bitstream
 [[./bitstreams/baseline.bit]]
-*** Implementation utilization
+**** Implementation utilization report
 [[./bitstreams/SoC_wrapper_utilization_placed_base.rpt]]
-*** Implementation timing
+**** Implementation timing report
 [[./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt]]
-*** Implementation power
+**** Implementation power report
 [[./bitstreams/SoC_wrapper_power_routed_base.rpt]]
 ** UnixBench
 Experiment metadata
@@ -213,26 +429,6 @@ else:
 | 11 | Context_Switching   | System/OS   | 0.116900 | 14197502     | 856.000000      | lps   |
 :END:
 
-: ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
-[[./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
-:
-: === Parsed Benchmark Data ===
-|    | Test                | Category    | IPC      | Instructions | Score           | Unit  |
-|----+---------------------+-------------+----------+--------------+-----------------+-------|
-| 0  | Arithmetic_Overhead | Integer/ALU | 0.388300 | 96160360     | 22607716.000000 | lps   |
-| 1  | Arithmetic_Register | Integer/ALU | 0.568500 | 140705146    | 658341.000000   | lps   |
-| 2  | Arithmetic_Short    | Integer/ALU | 0.569000 | 140859170    | 659170.000000   | lps   |
-| 3  | Arithmetic_Int      | Integer/ALU | 0.568700 | 140769091    | 658720.000000   | lps   |
-| 4  | Dhrystone           | Integer/ALU | 0.447600 | 81389671     | 259837.000000   | lps   |
-| 5  | Arithmetic_Double   | Integer/ALU | 0.568800 | 140675372    | 658256.000000   | lps   |
-| 6  | Whetstone           | Float/FPU   | 0.410800 | 103499392    | 19.449000       | MWIPS |
-| 7  | Syscall_Mix         | System/OS   | 0.174900 | 43254593     | 22651.000000    | lps   |
-| 8  | Syscall_GetPID      | System/OS   | 0.225900 | 55509267     | 205011.000000   | lps   |
-| 9  | Syscall_Exec        | System/OS   | 0.119100 | 2620492      | 20.000000       | lps   |
-| 10 | Pipe_Throughput     | System/OS   | 0.140400 | 34742090     | 8840.000000     | lps   |
-| 11 | Context_Switching   | System/OS   | 0.116900 | 14197502     | 856.000000      | lps   |
-
-
 ** NAS Parallel Benchmark
 Experiment metadata
 [[./runs/NPB/NPB_19700101_081823_base.txt]]
@@ -249,22 +445,6 @@ import os
 
 LOG_FILE_PATH = "runs/NPB/NPB_19700101_081823_base.txt"
 
-# Sample data fallback (just in case)
-SAMPLE_DATA = """
->>>BEGIN_TEST|NPB_EP_S
-[PAPI] Instructions: 2091610366
-[PAPI] Cycles:       7052575499
-[PAPI] IPC:          0.2966
-Mop/s total      =                    0.12
->>>END_TEST
->>>BEGIN_TEST|NPB_CG_S
-[PAPI] Instructions: 355809507
-[PAPI] Cycles:       2125967585
-[PAPI] IPC:          0.1674
-Mop/s total      =                    0.78
->>>END_TEST
-"""
-
 # ==========================================
 # 2. PARSING LOGIC
 # ==========================================
@@ -276,7 +456,6 @@ def load_data(path):
             return f.read()
     else:
         print(f"⚠️ File not found at {path}. Using Sample Data.")
-        return SAMPLE_DATA
 
 def parse_npb_log(raw_text):
     data = []
