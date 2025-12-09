@@ -131,8 +131,6 @@ plt.show()
 [[file:./.ob-jupyter/80f69f1fc27fac1f504bac7de189b99ab81f522b.png]]
 :end:
 
-
-
 *** Implementation Timing
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
@@ -224,7 +222,6 @@ display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)
 | WHS (Hold)  | 0.051      |
 :end:
 
-
 *** File locations
 **** Bitstream
 [[./bitstreams/baseline.bit]]
@@ -238,7 +235,7 @@ display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)
 Experiment metadata
 [[./runs/UnixBench/unixbench_19700101_064547_base.txt]]
 
-#+begin_src jupyter-python :exports results
+#+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -258,7 +255,7 @@ LOG_FILE_PATH = "./runs/UnixBench/unixbench_19700101_064547_base.txt"
 
 def load_data(path):
     if os.path.exists(path):
-        print(f"✅ Loading data from: {path}")
+        print(f"\n✅ Loading data from: {path}")
         with open(path, "r") as f:
             return f.read()
     else:
@@ -404,11 +401,15 @@ else:
 #+end_src
 
 #+RESULTS:
-:RESULTS:
-: ✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
+:results:
+#+begin_example
+✅ Loading data from: ./runs/UnixBench/unixbench_19700101_064547_base.txt
+#+end_example
 [[file:./.ob-jupyter/f8cc59f5363990aa4ce071645d4d01577b5be820.png]]
-:
-: === Parsed Benchmark Data ===
+#+begin_example
+
+=== Parsed Benchmark Data ===
+#+end_example
 |    | Test                | Category    | IPC      | Instructions | Score           | Unit  |
 |----+---------------------+-------------+----------+--------------+-----------------+-------|
 | 0  | Arithmetic_Overhead | Integer/ALU | 0.388300 | 96160360     | 22607716.000000 | lps   |
@@ -423,13 +424,13 @@ else:
 | 9  | Syscall_Exec        | System/OS   | 0.119100 | 2620492      | 20.000000       | lps   |
 | 10 | Pipe_Throughput     | System/OS   | 0.140400 | 34742090     | 8840.000000     | lps   |
 | 11 | Context_Switching   | System/OS   | 0.116900 | 14197502     | 856.000000      | lps   |
-:END:
+:end:
 
 ** NAS Parallel Benchmark
 Experiment metadata
 [[./runs/NPB/NPB_19700101_081823_base.txt]]
 
-#+begin_src jupyter-python :exports results
+#+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -447,7 +448,7 @@ LOG_FILE_PATH = "runs/NPB/NPB_19700101_081823_base.txt"
 
 def load_data(path):
     if os.path.exists(path):
-        print(f"✅ Loading data from: {path}")
+        print(f"\n✅ Loading data from: {path}")
         with open(path, "r", encoding='utf-8', errors='ignore') as f:
             return f.read()
     else:
@@ -583,11 +584,15 @@ else:
 #+end_src
 
 #+RESULTS:
-:RESULTS:
-: ✅ Loading data from: runs/NPB/NPB_19700101_081823_base.txt
+:results:
+#+begin_example
+✅ Loading data from: runs/NPB/NPB_19700101_081823_base.txt
+#+end_example
 [[file:./.ob-jupyter/d551c1b9487672ade4da408129495ec5f7d8f13e.png]]
-:
-: === NAS Parallel Benchmark Results ===
+#+begin_example
+
+=== NAS Parallel Benchmark Results ===
+#+end_example
 |   | Label | Category          | IPC      | Instructions | Cycles     | Score    |
 |---+-------+-------------------+----------+--------------+------------+----------|
 | 0 | EP    | Compute Bound     | 0.296600 | 2091610366   | 7052575499 | 0.120000 |
@@ -597,26 +602,4 @@ else:
 | 5 | BT    | Mixed / Streaming | 0.209400 | 549647248    | 2625329283 | 2.150000 |
 | 6 | SP    | Mixed / Streaming | 0.181100 | 357286022    | 1972775720 | 1.210000 |
 | 7 | LU    | Mixed / Streaming | 0.230000 | 200279517    | 870961646  | 2.900000 |
-:END:
-
-#+begin_src jupyter-python :results
-print('sfasdf')
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_examplesfasdf
-#+end_example
 :end:
-
-
-
-
-#+begin_src emacs-lisp
-(setq org-babel-min-lines-for-block-output 0)
-#+end_src
-
-#+RESULTS:
-#+begin_example
-0
-#+end_example
