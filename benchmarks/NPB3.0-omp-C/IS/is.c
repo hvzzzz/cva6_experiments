@@ -167,6 +167,10 @@ INT_TYPE test_index_array[TEST_ARRAY_SIZE], test_rank_array[TEST_ARRAY_SIZE],
 /***********************/
 /* function prototypes */
 /***********************/
+double timer_read(int n);
+void timer_clear(int n);
+void timer_start(int n);
+void timer_stop(int n);
 double randlc(double *X, double *A);
 
 void full_verify(void);
@@ -500,6 +504,12 @@ void rank(int iteration) {
 main(argc, argv) int argc;
 char **argv;
 {
+
+    /* volatile int /\* debug_halt = 1; *\/ */
+    /* printf("Waiting for GDB... Attach now!\n"); */
+    /* while (debug_halt) { */
+    /*     // Spin here forever until GDB sets debug_halt to 0 */
+    /* } */
 
     int i, iteration, itemp;
     int nthreads = 1;

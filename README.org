@@ -1,13 +1,14 @@
 #+TITLE: Experiment Log
 Each bitstream will produce 4 results: UnixBench, NPB and also performance counters will be measured in each case:
 * Baseline bitstream
-:PROPERTIES:
-:ID:       d2932afd-bb0d-4d36-9f4f-4ee70c8ff9ee
-:END:
 This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.fr/nicolas.derumigny/COMPAS-Tutorial.html][COMPAS 2025 tutorial]] with performance counters enabled at: ~/cva6/core/include/cv64a6_imafdch_sv39_config_pkg.sv
 
 #+begin_src bash
-   localparam CVA6ConfigPerfCounterEn = 1;
+#from
+localparam CVA6ConfigPerfCounterEn = 0;
+
+#to
+localparam CVA6ConfigPerfCounterEn = 1;
 #+end_src
 
 ** Project Summary
@@ -21,7 +22,7 @@ import os
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-REPORT_PATH = "./bitstreams/SoC_wrapper_utilization_placed_base.rpt"
+REPORT_PATH = "./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_base.rpt"
 
 # ==========================================
 # 2. PARSER LOGIC
@@ -126,7 +127,7 @@ plt.show()
 #+RESULTS:
 :results:
 #+begin_example
-✅ Reading report from: ./bitstreams/SoC_wrapper_utilization_placed_base.rpt
+✅ Reading report from: ./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_base.rpt
 #+end_example
 [[file:./.ob-jupyter/80f69f1fc27fac1f504bac7de189b99ab81f522b.png]]
 :end:
@@ -139,7 +140,7 @@ import os
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-TIMING_REPORT_PATH = "./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt"
+TIMING_REPORT_PATH = "./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_base.rpt"
 
 # ==========================================
 # 2. PARSER LOGIC
@@ -212,7 +213,7 @@ display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)
 
 #+RESULTS:
 :results:
-#+begin_example✅ Reading timing report from: ./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt
+#+begin_example✅ Reading timing report from: ./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_base.rpt
 
 --- Timing Summary ---
 #+end_example
@@ -226,11 +227,11 @@ display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)
 **** Bitstream
 [[./bitstreams/baseline.bit]]
 **** Implementation utilization report
-[[./bitstreams/SoC_wrapper_utilization_placed_base.rpt]]
+[[./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_base.rpt]]
 **** Implementation timing report
-[[./bitstreams/SoC_wrapper_timing_summary_routed_base.rpt]]
+[[./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_base.rpt]]
 **** Implementation power report
-[[./bitstreams/SoC_wrapper_power_routed_base.rpt]]
+[[./bitstreams/reports/power/SoC_wrapper_power_routed_base.rpt]]
 ** UnixBench
 Experiment metadata
 [[./runs/UnixBench/unixbench_19700101_064547_base.txt]]
@@ -397,20 +398,428 @@ else:
 
 ** NAS Parallel Benchmark
 Experiment metadata
-[[./runs/NPB/NPB_19700101_002113_base.txt]]
+[[./runs/NPB/NPB_19700101_000506_base.txt]]
 
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import re
+import numpy as np
 
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-LOG_FILE_PATH = "runs/NPB/NPB_19700101_002113_base.txt"
-FPGA_CLOCK_HZ = 50_000_000
+# Update this to your new log file name
+LOG_FILE_PATH = "runs/NPB/NPB_19700101_000506_base.txt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+def load_data(path):
+    if os.path.exists(path):
+        print(f"✅ Loading data from: {path}")
+        with open(path, "r", encoding='utf-8', errors='ignore') as f:
+            return f.read()
+    else:
+        print(f"⚠️ File not found at {path}. Using Sample Data.")
+        return SAMPLE_DATA
+
+def parse_npb_log(raw_text):
+    data = []
+    current_test = {}
+    in_test = False
+
+    lines = raw_text.split('\n')
+
+    for line in lines:
+        line = line.strip()
+
+        # 1. Detect Start
+        if ">>>BEGIN_TEST" in line:
+            test_name = line.split("|")[1]
+            current_test = {
+                'Test': test_name,
+                'Label': test_name.replace('NPB_', '').replace('_S', '').replace('_W', ''),
+                'Category': 'Other',
+                'IPC': 0.0,
+                'Instructions': 0,
+                'Cycles': 0,
+                'Time_s': 0.0,
+                'Score': 0.0,
+                'Score Unit': 'Mop/s'
+            }
+
+            # Categorize Workload
+            lbl = current_test['Label']
+            if lbl == 'EP': current_test['Category'] = 'Compute Bound'
+            elif lbl in ['IS', 'CG', 'MG']: current_test['Category'] = 'Memory Bound'
+            elif lbl in ['FT', 'LU', 'SP', 'BT']: current_test['Category'] = 'Mixed / Streaming'
+
+            in_test = True
+            continue
+
+        if in_test:
+            # 2. Parse PAPI Metrics
+            if "[PAPI] Instructions:" in line:
+                current_test['Instructions'] = int(line.split(":")[1].strip())
+            elif "[PAPI] Cycles:" in line:
+                current_test['Cycles'] = int(line.split(":")[1].strip())
+            elif "[PAPI] IPC:" in line:
+                current_test['IPC'] = float(line.split(":")[1].strip())
+
+            # 3. Parse Benchmark Output (Time & Score)
+            elif "Time in seconds =" in line:
+                try:
+                    val = line.split("=")[1].strip()
+                    current_test['Time_s'] = float(val)
+                except: pass
+
+            elif "Mop/s total" in line:
+                try:
+                    val = line.split("=")[1].strip()
+                    current_test['Score'] = float(val)
+                except: pass
+
+            # 4. Detect End
+            elif ">>>END_TEST" in line:
+                data.append(current_test)
+                in_test = False
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION & VISUALIZATION
+# ==========================================
+log_content = load_data(LOG_FILE_PATH)
+df = parse_npb_log(log_content)
+
+if not df.empty:
+    # --- Visualization ---
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+
+    # Plot 1: IPC (Efficiency)
+    # This chart highlights the ARCHITECTURAL bottlenecks (Memory vs Compute)
+    sns.barplot(
+        data=df.sort_values('IPC', ascending=False),
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis', ax=axes[0]
+    )
+    axes[0].set_title('CVA6 Architectural Efficiency (IPC)', fontsize=14)
+    axes[0].set_xlabel('Instructions Per Cycle')
+    axes[0].set_xlim(0, 0.4) # Adjust if your max IPC > 0.4
+    axes[0].legend(loc='lower right')
+
+    # Plot 2: Score (Performance)
+    # This chart shows RAW throughput
+    sns.barplot(
+        data=df.sort_values('Score', ascending=False),
+        x='Score', y='Label', hue='Category', dodge=False, palette='magma', ax=axes[1]
+    )
+    axes[1].set_title('Absolute Performance (Score)', fontsize=14)
+    axes[1].set_xlabel('Million Operations Per Second (Mop/s)')
+    axes[1].legend(loc='lower right')
+
+    plt.tight_layout()
+    plt.show()
+
+    # --- Data Table ---
+    print("\n=== NAS Parallel Benchmark Results ===")
+
+    # Columns requested: Label, Category, IPC, Instructions, Cycles, Time, Score
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Score Unit']
+
+    # Styled table
+    display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
+
+    # Export
+    # csv_file = "npb_results_final.csv"
+    # df[display_cols].to_csv(csv_file, index=False)
+    # print(f"\n✅ Validated data exported to {csv_file}")
+
+else:
+    print("❌ No valid data found in log file.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example✅ Loading data from: runs/NPB/NPB_19700101_000506_base.txt
+#+end_example
+[[file:./.ob-jupyter/0754cef1cbe6a2e5a6fad24ef614879a75e57328.png]]
+#+begin_example
+
+=== NAS Parallel Benchmark Results ===
+#+end_example
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
+| 0 | EP    | Compute Bound     | 0.297000 | 2091350139   | 7042643975 | 284.540000 | 0.120000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.213100 | 7566437      | 35513805   | 1.440000   | 0.450000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.167400 | 355825955    | 2125041156 | 85.900000  | 0.780000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.192400 | 33959879     | 176499365  | 7.130000   | 1.070000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.159500 | 586665770    | 3678664319 | 148.680000 | 1.190000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.209400 | 549503500    | 2624049654 | 106.010000 | 2.150000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.181200 | 357293866    | 1971849827 | 79.680000  | 1.210000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.229800 | 200392992    | 872027385  | 35.360000  | 2.890000 | Mop/s      |
+:end:
+
+* 1st Iteration
+This bitstream increases all the parameters to the maximum to test the limits of the PYNQ-Z2 FPGA where the experiments take place.
+
+#+begin_src bash
+#from
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigDcacheByteSize = 4096;
+localparam CVA6ConfigDcacheSetAssoc = 4;
+
+localparam CVA6ConfigRASDepth = 2;
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigBHTEntries = 16;
+#to
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigDcacheByteSize = 8192;
+localparam CVA6ConfigDcacheSetAssoc = 2;
+
+localparam CVA6ConfigRASDepth = 4;
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigBHTEntries = 32;
+#+end_src
+
+** Project Summary
+*** Implementation Utilization
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+REPORT_PATH = "./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_1st.rpt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+
+def parse_vivado_report_full(content):
+    """
+    Scans the report and extracts specific keys into a dictionary.
+    """
+    data = {}
+
+    # Map: Label for Graph -> Text in Report
+    target_map = {
+        'LUT': 'Slice LUTs',
+        'LUTRAM': 'LUT as Memory',
+        'FF': 'Slice Registers',
+        'BRAM': 'Block RAM Tile',
+        'DSP': 'DSPs',
+        'I/O': 'Bonded IOB',
+        'BUFG': 'BUFGCTRL',
+        'MMCM': 'MMCME2_ADV'
+    }
+
+    lines = content.split('\n')
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith('|'):
+            parts = [x.strip() for x in line.split('|') if x.strip()]
+            if len(parts) >= 2:
+                row_name = parts[0].replace('*', '')
+                row_val_str = parts[1]
+
+                for user_label, vivado_key in target_map.items():
+                    if row_name == vivado_key:
+                        try:
+                            data[user_label] = float(row_val_str)
+                        except ValueError:
+                            pass
+
+    return data
+
+# ==========================================
+# 3. VISUALIZATION
+# ==========================================
+
+# 1. Load Data
+if os.path.exists(REPORT_PATH):
+    print(f"\n✅ Reading report from: {REPORT_PATH}")
+    with open(REPORT_PATH, 'r') as f:
+        content = f.read()
+else:
+    print(f"⚠️ File not found at {REPORT_PATH}. Using Sample Data.")
+    content = SAMPLE_REPORT_DATA
+
+# 2. Parse and Create DataFrame
+metrics = parse_vivado_report_full(content)
+
+# Specific order requested
+order = ['MMCM', 'BUFG', 'I/O', 'DSP', 'BRAM', 'FF', 'LUTRAM', 'LUT']
+
+df = pd.DataFrame([
+    {'Resource': k, 'Count': metrics.get(k, 0)}
+    for k in order
+])
+
+# 3. Display Table (The requested change)
+# print("\n--- Absolute Resource Usage ---")
+# Using Pandas styling for a cleaner look in Jupyter
+# display(df.style.background_gradient(subset=['Count'], cmap='Blues'))
+
+# 4. Plot Graph
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(12, 6))
+
+ax = sns.barplot(
+    data=df,
+    x='Resource',
+    y='Count',
+    hue='Resource',
+    palette='viridis'
+)
+
+ax.set_yscale("log") # Log Scale
+plt.title('CVA6 FPGA Resource Usage (Absolute Count)', fontsize=16)
+plt.ylabel('Count (Log Scale)', fontsize=12)
+plt.xlabel('')
+
+# Add labels
+for i, p in enumerate(ax.patches):
+    height = p.get_height()
+    if height > 0:
+        val_text = f"{int(height)}" if height.is_integer() else f"{height}"
+        ax.text(p.get_x() + p.get_width() / 2., height * 1.1,
+                val_text,
+                ha="center", va="bottom", fontsize=11, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+✅ Reading report from: ./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_1st.rpt
+#+end_example
+[[file:./.ob-jupyter/2ec5524f50090227c3df06c7f1acc8125c316a8f.png]]
+:end:
+
+*** Implementation Timing
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+TIMING_REPORT_PATH = "./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_1st.rpt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+
+def parse_timing_report(content):
+    data = {}
+    lines = content.split('\n')
+
+    # State flags
+    header_found = False
+
+    for line in lines:
+        # Detect the table header row
+        if "WNS(ns)" in line and "WHS(ns)" in line:
+            header_found = True
+            continue
+
+        # Parse the data row (usually the first non-empty line after dashes)
+        if header_found and line.strip() and not line.strip().startswith('-'):
+            parts = line.split()
+
+            # Based on standard Vivado report columns:
+            # Col 0: WNS (Setup)
+            # Col 4: WHS (Hold)
+            try:
+                wns = float(parts[0])
+                whs = float(parts[4])
+
+                data['Metric'] = ['WNS (Setup)', 'WHS (Hold)']
+                data['Value (ns)'] = [wns, whs]
+
+            except (ValueError, IndexError):
+                pass
+
+            break # We only need the summary row
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION
+# ==========================================
+
+# 1. Load
+if os.path.exists(TIMING_REPORT_PATH):
+    print(f"✅ Reading timing report from: {TIMING_REPORT_PATH}")
+    with open(TIMING_REPORT_PATH, 'r') as f:
+        content = f.read()
+else:
+    print(f"⚠️ File not found at {TIMING_REPORT_PATH}. Using Sample Data.")
+    content = SAMPLE_TIMING_DATA
+
+# 2. Parse
+df_timing = parse_timing_report(content)
+
+# 3. Display
+print("\n--- Timing Summary ---")
+
+# Styling: Red if negative (Time Violation), Green if positive (Safe)
+def style_slack(val):
+    color = 'red' if val < 0 else 'green'
+    weight = 'bold'
+    return f'color: {color}; font-weight: {weight}'
+
+# Display with 3 decimal places
+format_dict = {'Value (ns)': '{:.3f}'}
+
+display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)']).hide(axis="index"))
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example✅ Reading timing report from: ./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_1st.rpt
+
+--- Timing Summary ---
+#+end_example
+| Metric      | Value (ns) |
+|-------------+------------|
+| WNS (Setup) | 1.351      |
+| WHS (Hold)  | 0.056      |
+:end:
+
+*** File locations
+**** Bitstream
+[[./bitstreams/1st.bit]]
+**** Implementation utilization report
+[[./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_1st.rpt]]
+**** Implementation timing report
+[[./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_1st.rpt]]
+**** Implementation power report
+[[./bitstreams/reports/power/SoC_wrapper_power_routed_1st.rpt]]
+** UnixBench
+Experiment metadata
+[[./runs/UnixBench/unixbench_19700101_003833_1st.txt]]
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+LOG_FILE_PATH = "./runs/UnixBench/unixbench_19700101_003833_1st.txt"
+FPGA_CLOCK_HZ = 50_000_000  # 50 MHz
 
 # ==========================================
 # 2. PARSER LOGIC
@@ -424,51 +833,45 @@ def load_data(path):
         print(f"⚠️ File not found at {path}. Using Sample Data.")
         return SAMPLE_DATA
 
-def parse_npb_log(raw_text):
+def parse_unixbench_log(raw_text):
     data = []
     current_test = {}
     in_test = False
-
-    size_pattern = re.compile(r"Size:\s+(\d+)")
-    iter_pattern = re.compile(r"Iterations:\s+(\d+)")
 
     lines = raw_text.split('\n')
 
     for line in lines:
         line = line.strip()
 
+        # 1. Detect Start
         if ">>>BEGIN_TEST" in line:
             test_name = line.split("|")[1]
             current_test = {
                 'Test': test_name,
-                'Label': test_name.replace('NPB_', '').replace('_S', '').replace('_W', ''),
+                'Label': test_name.replace('Arithmetic_', 'Arith ').replace('Syscall_', 'Sys ').replace('UB_', ''),
                 'Category': 'Other',
                 'Instructions': 0,
                 'Cycles': 0,
                 'IPC': 0.0,
                 'Score': 0.0,
-                'Time_s': 0.0,
-                'Method': 'Reported',
-                'Work_Keys': 0,
-                'Work_Iter': 0
+                'Unit': 'N/A',
+                'Time_s': 0.0
             }
 
-            lbl = current_test['Label']
-            if lbl == 'EP': current_test['Category'] = 'Compute Bound'
-            elif lbl in ['IS', 'CG', 'MG']: current_test['Category'] = 'Memory Bound'
-            elif lbl in ['FT', 'LU', 'SP', 'BT']: current_test['Category'] = 'Mixed / Streaming'
+            # Categorize
+            name = current_test['Test']
+            if 'Arith' in name or 'Dhrystone' in name or 'Register' in name:
+                current_test['Category'] = 'Integer / ALU'
+            elif 'Whetstone' in name or 'Double' in name:
+                current_test['Category'] = 'Float / FPU'
+            else:
+                current_test['Category'] = 'System / OS'
 
             in_test = True
             continue
 
         if in_test:
-            if "Size:" in line:
-                m = size_pattern.search(line)
-                if m: current_test['Work_Keys'] = int(m.group(1))
-            if "Iterations:" in line:
-                m = iter_pattern.search(line)
-                if m: current_test['Work_Iter'] = int(m.group(1))
-
+            # 2. Parse PAPI Headers
             if "[PAPI] Instructions:" in line:
                 current_test['Instructions'] = int(line.split(":")[1].strip())
             elif "[PAPI] Cycles:" in line:
@@ -476,32 +879,20 @@ def parse_npb_log(raw_text):
             elif "[PAPI] IPC:" in line:
                 current_test['IPC'] = float(line.split(":")[1].strip())
 
-            elif "Mop/s total" in line:
+            # 3. Parse Scores
+            elif line.startswith("COUNT|"):
+                parts = line.split("|")
                 try:
-                    val_str = line.split("=")[1].strip()
-                    if val_str.lower() in ['inf', 'nan']:
-                        current_test['Score'] = 0.0
-                    else:
-                        current_test['Score'] = float(val_str)
-                except:
+                    current_test['Score'] = float(parts[1])
+                    current_test['Unit'] = parts[3].strip()
+                except IndexError:
                     pass
 
+            # 4. Detect End
             elif ">>>END_TEST" in line:
-                # Calculate Time from Cycles (Most Accurate)
+                # Calculate Time from Cycles
                 if current_test['Cycles'] > 0:
                     current_test['Time_s'] = current_test['Cycles'] / FPGA_CLOCK_HZ
-
-                # Repair IS Score
-                if current_test['Label'] == 'IS' and current_test['Score'] == 0.0:
-                    keys = current_test['Work_Keys']
-                    iters = current_test['Work_Iter']
-                    time_s = current_test['Time_s']
-
-                    if keys > 0 and time_s > 0:
-                        total_ops = keys * iters
-                        new_score = (total_ops / 1_000_000.0) / time_s
-                        current_test['Score'] = new_score
-                        current_test['Method'] = 'Recalculated'
 
                 data.append(current_test)
                 in_test = False
@@ -509,47 +900,38 @@ def parse_npb_log(raw_text):
     return pd.DataFrame(data)
 
 # ==========================================
-# 3. EXECUTION & DISPLAY
+# 3. EXECUTION & VISUALIZATION
 # ==========================================
 log_content = load_data(LOG_FILE_PATH)
-df = parse_npb_log(log_content)
+df = parse_unixbench_log(log_content)
 
 if not df.empty:
-    # 1. Visualization
+    # 1. Visualization (IPC)
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+    plt.figure(figsize=(12, 6))
 
-    # Plot IPC
     sns.barplot(
         data=df.sort_values('IPC', ascending=False),
-        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis', ax=axes[0]
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis'
     )
-    axes[0].set_title('CVA6 Architectural Efficiency (IPC)', fontsize=14)
-    axes[0].set_xlabel('Instructions Per Cycle')
-    axes[0].set_xlim(0, 0.4)
-
-    # Plot Score
-    sns.barplot(
-        data=df.sort_values('Score', ascending=False),
-        x='Score', y='Label', hue='Category', dodge=False, palette='magma', ax=axes[1]
-    )
-    axes[1].set_title('Performance Score (Mop/s)', fontsize=14)
-    axes[1].set_xlabel('Million Operations Per Second')
-
+    plt.title('CVA6 Architectural Efficiency (UnixBench IPC)', fontsize=14)
+    plt.xlabel('Instructions Per Cycle')
+    plt.xlim(0, 0.7)
+    plt.legend(title='Category', loc='lower right')
     plt.tight_layout()
     plt.show()
 
-    # 2. Detailed Data Table (With Instructions & Cycles)
-    print("\n=== NAS Parallel Benchmark Results ===")
+    # 2. Detailed Data Table (Now with Time & Cycles)
+    print("\n=== UnixBench Results (Detailed) ===")
 
     # Selecting ALL important columns
-    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Method']
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Unit']
 
-    # Display with gradient on IPC to highlight efficiency
+    # Display with gradient on IPC
     display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
 
-    # 3. Export to CSV
-    # csv_filename = "npb_results_final.csv"
+    # 3. Export CSV
+    # csv_filename = "unixbench_results_final.csv"
     # df[display_cols].to_csv(csv_filename, index=False)
     # print(f"\n✅ Data exported to {csv_filename}")
 
@@ -560,21 +942,355 @@ else:
 #+RESULTS:
 :results:
 #+begin_example
-✅ Loading data from: runs/NPB/NPB_19700101_002113_base.txt
+✅ Loading data from: ./runs/UnixBench/unixbench_19700101_003833_1st.txt
 #+end_example
-[[file:./.ob-jupyter/7da0c1dac06256c0f67247c031c3cb99bb9f8332.png]]
+[[file:./.ob-jupyter/7506470d3801753bb051a873b483ad8e2a435fc0.png]]
+#+begin_example
+
+=== UnixBench Results (Detailed) ===
+#+end_example
+|    | Label             | Category      | IPC      | Instructions | Cycles    | Time_s   | Score           | Unit  |
+|----+-------------------+---------------+----------+--------------+-----------+----------+-----------------+-------|
+| 0  | Arith Overhead    | Integer / ALU | 0.391500 | 95753191     | 244578185 | 4.891564 | 22495175.000000 | lps   |
+| 1  | Arith Register    | Integer / ALU | 0.573100 | 141364718    | 246647777 | 4.932956 | 661449.000000   | lps   |
+| 2  | Arith Short       | Integer / ALU | 0.573100 | 140696214    | 245510428 | 4.910209 | 658204.000000   | lps   |
+| 3  | Arith Int         | Integer / ALU | 0.573600 | 141335408    | 246388097 | 4.927762 | 661411.000000   | lps   |
+| 4  | Dhrystone         | Integer / ALU | 0.452300 | 83175606     | 183896069 | 3.677921 | 265552.000000   | lps   |
+| 5  | Arith Double      | Integer / ALU | 0.573400 | 141352529    | 246535206 | 4.930704 | 661348.000000   | lps   |
+| 6  | Whetstone         | Float / FPU   | 0.417900 | 103434562    | 247524633 | 4.950493 | 19.731000       | MWIPS |
+| 7  | Sys Mix           | System / OS   | 0.180400 | 44336566     | 245778092 | 4.915562 | 23285.000000    | lps   |
+| 8  | Sys GetPID        | System / OS   | 0.215500 | 53320540     | 247461857 | 4.949237 | 195993.000000   | lps   |
+| 9  | Sys Exec          | System / OS   | 0.124600 | 2604873      | 20913995  | 0.418280 | 21.000000       | lps   |
+| 10 | Pipe_Throughput   | System / OS   | 0.152200 | 37684057     | 247551644 | 4.951033 | 9751.000000     | lps   |
+| 11 | Context_Switching | System / OS   | 0.124700 | 14407118     | 115529727 | 2.310595 | 1009.000000     | lps   |
+:end:
+
+
+** NAS Parallel Benchmark
+Experiment metadata
+[[./runs/NPB/NPB_19700101_000506_1st.txt]]
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import numpy as np
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+# Update this to your new log file name
+LOG_FILE_PATH = "runs/NPB/NPB_19700101_000506_1st.txt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+def load_data(path):
+    if os.path.exists(path):
+        print(f"✅ Loading data from: {path}")
+        with open(path, "r", encoding='utf-8', errors='ignore') as f:
+            return f.read()
+    else:
+        print(f"⚠️ File not found at {path}. Using Sample Data.")
+        return SAMPLE_DATA
+
+def parse_npb_log(raw_text):
+    data = []
+    current_test = {}
+    in_test = False
+
+    lines = raw_text.split('\n')
+
+    for line in lines:
+        line = line.strip()
+
+        # 1. Detect Start
+        if ">>>BEGIN_TEST" in line:
+            test_name = line.split("|")[1]
+            current_test = {
+                'Test': test_name,
+                'Label': test_name.replace('NPB_', '').replace('_S', '').replace('_W', ''),
+                'Category': 'Other',
+                'IPC': 0.0,
+                'Instructions': 0,
+                'Cycles': 0,
+                'Time_s': 0.0,
+                'Score': 0.0,
+                'Score Unit': 'Mop/s'
+            }
+
+            # Categorize Workload
+            lbl = current_test['Label']
+            if lbl == 'EP': current_test['Category'] = 'Compute Bound'
+            elif lbl in ['IS', 'CG', 'MG']: current_test['Category'] = 'Memory Bound'
+            elif lbl in ['FT', 'LU', 'SP', 'BT']: current_test['Category'] = 'Mixed / Streaming'
+
+            in_test = True
+            continue
+
+        if in_test:
+            # 2. Parse PAPI Metrics
+            if "[PAPI] Instructions:" in line:
+                current_test['Instructions'] = int(line.split(":")[1].strip())
+            elif "[PAPI] Cycles:" in line:
+                current_test['Cycles'] = int(line.split(":")[1].strip())
+            elif "[PAPI] IPC:" in line:
+                current_test['IPC'] = float(line.split(":")[1].strip())
+
+            # 3. Parse Benchmark Output (Time & Score)
+            elif "Time in seconds =" in line:
+                try:
+                    val = line.split("=")[1].strip()
+                    current_test['Time_s'] = float(val)
+                except: pass
+
+            elif "Mop/s total" in line:
+                try:
+                    val = line.split("=")[1].strip()
+                    current_test['Score'] = float(val)
+                except: pass
+
+            # 4. Detect End
+            elif ">>>END_TEST" in line:
+                data.append(current_test)
+                in_test = False
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION & VISUALIZATION
+# ==========================================
+log_content = load_data(LOG_FILE_PATH)
+df = parse_npb_log(log_content)
+
+if not df.empty:
+    # --- Visualization ---
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+
+    # Plot 1: IPC (Efficiency)
+    # This chart highlights the ARCHITECTURAL bottlenecks (Memory vs Compute)
+    sns.barplot(
+        data=df.sort_values('IPC', ascending=False),
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis', ax=axes[0]
+    )
+    axes[0].set_title('CVA6 Architectural Efficiency (IPC)', fontsize=14)
+    axes[0].set_xlabel('Instructions Per Cycle')
+    axes[0].set_xlim(0, 0.4) # Adjust if your max IPC > 0.4
+    axes[0].legend(loc='lower right')
+
+    # Plot 2: Score (Performance)
+    # This chart shows RAW throughput
+    sns.barplot(
+        data=df.sort_values('Score', ascending=False),
+        x='Score', y='Label', hue='Category', dodge=False, palette='magma', ax=axes[1]
+    )
+    axes[1].set_title('Absolute Performance (Score)', fontsize=14)
+    axes[1].set_xlabel('Million Operations Per Second (Mop/s)')
+    axes[1].legend(loc='lower right')
+
+    plt.tight_layout()
+    plt.show()
+
+    # --- Data Table ---
+    print("\n=== NAS Parallel Benchmark Results ===")
+
+    # Columns requested: Label, Category, IPC, Instructions, Cycles, Time, Score
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Score Unit']
+
+    # Styled table
+    display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
+
+    # Export
+    # csv_file = "npb_results_final.csv"
+    # df[display_cols].to_csv(csv_file, index=False)
+    # print(f"\n✅ Validated data exported to {csv_file}")
+
+else:
+    print("❌ No valid data found in log file.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example✅ Loading data from: runs/NPB/NPB_19700101_000506_1st.txt
+#+end_example
+[[file:./.ob-jupyter/0754cef1cbe6a2e5a6fad24ef614879a75e57328.png]]
 #+begin_example
 
 === NAS Parallel Benchmark Results ===
 #+end_example
-|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Method       |
-|---+-------+-------------------+----------+--------------+------------+------------+----------+--------------|
-| 0 | EP    | Compute Bound     | 0.296600 | 2091494568   | 7051840628 | 141.036813 | 0.120000 | Reported     |
-| 1 | IS    | Memory Bound      | 0.214400 | 7563104      | 35267690   | 0.705354   | 0.929122 | Recalculated |
-| 2 | CG    | Memory Bound      | 0.168000 | 355640156    | 2117107268 | 42.342145  | 0.780000 | Reported     |
-| 3 | MG    | Memory Bound      | 0.192600 | 33926533     | 176124045  | 3.522481   | 1.070000 | Reported     |
-| 4 | FT    | Mixed / Streaming | 0.159800 | 586395665    | 3670402373 | 73.408047  | 1.190000 | Reported     |
-| 5 | BT    | Mixed / Streaming | 0.209600 | 549479226    | 2621152419 | 52.423048  | 2.160000 | Reported     |
-| 6 | SP    | Mixed / Streaming | 0.181900 | 357024090    | 1962313810 | 39.246276  | 1.220000 | Reported     |
-| 7 | LU    | Mixed / Streaming | 0.230400 | 200137752    | 868497471  | 17.369949  | 2.910000 | Reported     |
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
+| 0 | EP    | Compute Bound     | 0.297000 | 2091350139   | 7042643975 | 284.540000 | 0.120000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.213100 | 7566437      | 35513805   | 1.440000   | 0.450000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.167400 | 355825955    | 2125041156 | 85.900000  | 0.780000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.192400 | 33959879     | 176499365  | 7.130000   | 1.070000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.159500 | 586665770    | 3678664319 | 148.680000 | 1.190000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.209400 | 549503500    | 2624049654 | 106.010000 | 2.150000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.181200 | 357293866    | 1971849827 | 79.680000  | 1.210000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.229800 | 200392992    | 872027385  | 35.360000  | 2.890000 | Mop/s      |
 :end:
+
+* Failed Configurations :noexport:
+
+Changes made:
+#+begin_src bash
+#from
+      InstrTlbEntries: int'(4),
+      DataTlbEntries: int'(4),
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigDcacheByteSize = 4096;
+localparam CVA6ConfigDcacheSetAssoc = 4;
+
+localparam CVA6ConfigRASDepth = 2;
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigBHTEntries = 16;
+#to
+      InstrTlbEntries: int'(16),
+      DataTlbEntries: int'(16),
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigDcacheByteSize = 8192;
+localparam CVA6ConfigDcacheSetAssoc = 2;
+
+localparam CVA6ConfigRASDepth = 4;
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigBHTEntries = 32;
+#+end_src
+
+that failed because there isn't enough space:
+
+[DRC UTLZ-1] Resource utilization: LUT as Logic over-utilized in Top Level Design (This design requires more LUT as Logic cells than are available in the target device. This design requires 53551 of such cell types but only 53200 compatible sites are available in the target device. Please analyze your synthesis results and constraints to ensure the design is mapped to Xilinx primitives as expected. If so, please consider targeting a larger device. Please set tcl parameter "drc.disableLUTOverUtilError" to 1 to change this error to warning.)
+
+#+begin_src bash
+#from
+      InstrTlbEntries: int'(4),
+      DataTlbEntries: int'(4),
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigDcacheByteSize = 4096;
+localparam CVA6ConfigDcacheSetAssoc = 4;
+
+localparam CVA6ConfigRASDepth = 2;
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigBHTEntries = 16;
+#to
+      InstrTlbEntries: int'(8),
+      DataTlbEntries: int'(8),
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigDcacheByteSize = 8192;
+localparam CVA6ConfigDcacheSetAssoc = 2;
+
+localparam CVA6ConfigRASDepth = 4;
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigBHTEntries = 32;
+#+end_src
+
+that also failed:
+[Place 30-487] The packing of instances into the device could not be obeyed. There are a total of 13300 slices in the device, of which 10874 slices are available, however, the unplaced instances require 10952 slices. Please analyze your design to determine if the number of LUTs, FFs, and/or control sets can be reduced.
+
+Number of control sets and instances constrained to the design
+	Control sets: 634
+	Luts: 54774 (combined) 62451 (total), available capacity: 53200
+	Flip flops: 26571, available capacity: 106400
+	NOTE: each slice can only accommodate 1 unique control set so FFs cannot be packed to fully fill every slice
+
+** NPB benchmark debug
+unixbench unixbench_19700101_000336.txt
+
+nbp first NPB_19700101_001115.txt (is fail)
+#+begin_src bash
+Running: NPB_IS_S
+[ 1002.120405] is.S[146]: unhandled signal 11 code 0x1 at 0x0000000000000115 in is]
+[ 1002.140701] CPU: 0 PID: 146 Comm: is.S Not tainted 6.6.63 #60
+[ 1002.152128] Hardware name: eth,ariane-bare (DT)
+[ 1002.161689] epc : 000000000004cffe ra : 000000000004a778 sp : 0000003fd8afe330
+[ 1002.174985]  gp : 0000000000111560 tp : 00000000001df7e0 t0 : 00000000000ed7e6
+[ 1002.190318]  t1 : 0000000000000000 t2 : 0000000000000000 s0 : 0000003fd8afea20
+[ 1002.203639]  s1 : 0000000000000000 a0 : 0000000000000072 a1 : 0000000000000072
+[ 1002.218570]  a2 : 00000000000d2700 a3 : 0000000000000000 a4 : 0000000000000072
+[ 1002.231724]  a5 : 0000000000000000 a6 : 0fffffffffffffff a7 : 0000000000000009
+[ 1002.244996]  s2 : 0000000000000000 s3 : 0000000000000000 s4 : 0000000000000100
+[ 1002.259996]  s5 : 0000000000000004 s6 : 0000000000000000 s7 : 0000000000000012
+[ 1002.273183]  s8 : 0000000000000013 s9 : 0000003fd8afea28 s10: 0000000000000072
+[ 1002.286410]  s11: 0000000000002000 t3 : 00000000000db760 t4 : 00000000000dc060
+[ 1002.301837]  t5 : 000000000000000f t6 : ffffffffffffffff
+[ 1002.312470] status: 8000000200006020 badaddr: 0000000000000115 cause: 000000000d
+--------------------------------------------------
+#+end_src
+nbp second NPB_19700101_002936.txt
+
+after restart it failed again:
+#+begin_src bash
+Running: NPB_IS_S
+[  513.715991] is.S[101]: unhandled signal 11 code 0x1 at 0x0000000000000115 in is]
+[  513.736408] CPU: 0 PID: 101 Comm: is.S Not tainted 6.6.63 #60
+[  513.750020] Hardware name: eth,ariane-bare (DT)
+[  513.759717] epc : 000000000004cffe ra : 000000000004a778 sp : 0000003fc840b340
+[  513.772924]  gp : 0000000000111560 tp : 00000000001df7e0 t0 : 00000000000ed7e6
+[  513.786128]  t1 : 0000000000000000 t2 : 0000000000000000 s0 : 0000003fc840ba30
+[  513.801240]  s1 : 0000000000000000 a0 : 0000000000000072 a1 : 0000000000000072
+[  513.814465]  a2 : 00000000000d2700 a3 : 0000000000000000 a4 : 0000000000000072
+[  513.829446]  a5 : 0000000000000000 a6 : 0fffffffffffffff a7 : 0000000000000009
+[  513.842668]  s2 : 0000000000000000 s3 : 0000000000000000 s4 : 0000000000000100
+[  513.856238]  s5 : 0000000000000004 s6 : 0000000000000000 s7 : 0000000000000012
+[  513.871323]  s8 : 0000000000000013 s9 : 0000003fc840ba38 s10: 0000000000000072
+[  513.884582]  s11: 0000000000002000 t3 : 00000000000db760 t4 : 00000000000dc060
+[  513.899545]  t5 : 000000000000000f t6 : ffffffffffffffff
+[  513.910316] status: 8000000200006020 badaddr: 0000000000000115 cause: 000000000d
+#+end_src
+
+in the baseline bitstream this is what happens
+
+ NAS Parallel Benchmarks 2.3 OpenMP C version - IS Benchmark
+
+ Size:  65536  (class S)
+ Iterations:   10
+[ 2904.088872] is.S[124]: unhandled signal 11 code 0x1 at 0x0000000000000115 in is]
+[ 2904.109501] CPU: 0 PID: 124 Comm: is.S Not tainted 6.6.63 #60
+[ 2904.121217] Hardware name: eth,ariane-bare (DT)
+[ 2904.131028] epc : 000000000004cffe ra : 000000000004a778 sp : 0000003fe2b38350
+[ 2904.144675]  gp : 0000000000111560 tp : 00000000001df7e0 t0 : 00000000000ed7e6
+[ 2904.160150]  t1 : 0000000000000000 t2 : 0000000000000000 s0 : 0000003fe2b38a40
+[ 2904.173740]  s1 : 0000000000000000 a0 : 0000000000000072 a1 : 0000000000000072
+[ 2904.189601]  a2 : 00000000000d2700 a3 : 0000000000000000 a4 : 0000000000000072
+[ 2904.203156]  a5 : 0000000000000000 a6 : 0fffffffffffffff a7 : 0000000000000009
+[ 2904.218533]  s2 : 0000000000000000 s3 : 0000000000000000 s4 : 0000000000000100
+[ 2904.232096]  s5 : 0000000000000004 s6 : 0000000000000000 s7 : 0000000000000012
+[ 2904.247585]  s8 : 0000000000000013 s9 : 0000003fe2b38a48 s10: 0000000000000072
+[ 2904.261135]  s11: 0000000000002000 t3 : 00000000000db760 t4 : 00000000000dc060
+[ 2904.274736]  t5 : 000000000000000f t6 : ffffffffffffffff
+[ 2904.287617] status: 0000000200004020 badaddr: 0000000000000115 cause: 000000000d
+Segmentation fault
+# ./is.S
+
+
+ NAS Parallel Benchmarks 2.3 OpenMP C version - IS Benchmark
+
+ Size:  65536  (class S)
+ Iterations:   10
+
+[PAPI] Instructions: 7547962
+[PAPI] Cycles:       35125222
+[PAPI] IPC:          0.2149
+
+
+ IS Benchmark Completed
+ Class           =                        S
+ Size            =                    65536
+ Iterations      =                       10
+ Threads         =                        1
+ Time in seconds =                     0.00
+ Mop/s total     =                      inf
+ Operation type  =              keys ranked
+ Verification    =               SUCCESSFUL
+ Version         =           3.0 structured
+ Compile date    =              08 Dec 2025
+
+ Compile options:
+    CC           = riscv64-linux-gnu-gcc
+    CLINK        = riscv64-linux-gnu-gcc
+    C_LIB        = -lm $(PAPI_LIB) -static -lpapi -lpfm -lpthread
+    C_INC        = -I../common
+    CFLAGS       = -O2 -fopenmp -static -mcmodel=medany $(PAPI...
+    CLINKFLAGS   = -O2 -fopenmp -static -mcmodel=medany
+    RAND         = randlc

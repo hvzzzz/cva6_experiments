@@ -2,60 +2,48 @@
 #include <stdlib.h>
 
 /*  Prototype  */
-void wtime( double * );
-
+void wtime(double *);
 
 /*****************************************************************/
 /******         E  L  A  P  S  E  D  _  T  I  M  E          ******/
 /*****************************************************************/
-double elapsed_time( void )
-{
+double elapsed_time(void) {
     double t;
 
-    wtime( &t );
-    return( t );
+    wtime(&t);
+    return (t);
 }
-
 
 double start[64], elapsed[64];
 
 /*****************************************************************/
 /******            T  I  M  E  R  _  C  L  E  A  R          ******/
 /*****************************************************************/
-void timer_clear( int n )
-{
-    elapsed[n] = 0.0;
-}
-
+void timer_clear(int n) { elapsed[n] = 0.0; }
 
 /*****************************************************************/
 /******            T  I  M  E  R  _  S  T  A  R  T          ******/
 /*****************************************************************/
-void timer_start( int n )
-{
-    start[n] = elapsed_time();
-}
-
+void timer_start(int n) { start[n] = elapsed_time(); }
 
 /*****************************************************************/
 /******            T  I  M  E  R  _  S  T  O  P             ******/
 /*****************************************************************/
-void timer_stop( int n )
-{
+void timer_stop(int n) {
     double t, now;
 
     now = elapsed_time();
     t = now - start[n];
     elapsed[n] += t;
-
+    /* printf("[DEBUG] timer_stop(%d): start=%f, now=%f, elapsed[%d]=%f\n", n,
+     */
+    /* start[n], now, n, elapsed[n]); */
 }
-
 
 /*****************************************************************/
 /******            T  I  M  E  R  _  R  E  A  D             ******/
 /*****************************************************************/
-double timer_read( int n )
-{
-    return( elapsed[n] );
+double timer_read(int n) {
+    /* printf("[DEBUG] timer_read(%d): returning %f\n", n, elapsed[n]); */
+    return (elapsed[n]);
 }
-
