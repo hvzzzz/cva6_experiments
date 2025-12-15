@@ -127,14 +127,6 @@ plt.tight_layout()
 plt.show()
 #+end_src
 
-#+RESULTS:
-:results:
-#+begin_example
-✅ Reading report from: ./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_base.rpt
-#+end_example
-[[file:./.ob-jupyter/80f69f1fc27fac1f504bac7de189b99ab81f522b.png]]
-:end:
-
 *** Implementation Timing
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
@@ -1143,15 +1135,552 @@ else:
   localparam CVA6ConfigDcacheSetAssoc = 4;
 #+end_src
 
-[Place 30-487] The packing of instances into the device could not be obeyed. There are a total of 13300 slices in the device, of which 10866 slices are available, however, the unplaced instances require 11037 slices. Please analyze your design to determine if the number of LUTs, FFs, and/or control sets can be reduced.
+** Project Summary
+*** Implementation Utilization
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
 
-Number of control sets and instances constrained to the design
-	Control sets: 642
-	Luts: 55151 (combined) 63054 (total), available capacity: 53200
-	Flip flops: 26591, available capacity: 106400
-	NOTE: each slice can only accommodate 1 unique control set so FFs cannot be packed to fully fill every slice
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+REPORT_PATH = "./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_2nd.rpt"
 
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
 
+def parse_vivado_report_full(content):
+    """
+    Scans the report and extracts specific keys into a dictionary.
+    """
+    data = {}
+
+    # Map: Label for Graph -> Text in Report
+    target_map = {
+        'LUT': 'Slice LUTs',
+        'LUTRAM': 'LUT as Memory',
+        'FF': 'Slice Registers',
+        'BRAM': 'Block RAM Tile',
+        'DSP': 'DSPs',
+        'I/O': 'Bonded IOB',
+        'BUFG': 'BUFGCTRL',
+        'MMCM': 'MMCME2_ADV'
+    }
+
+    lines = content.split('\n')
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith('|'):
+            parts = [x.strip() for x in line.split('|') if x.strip()]
+            if len(parts) >= 2:
+                row_name = parts[0].replace('*', '')
+                row_val_str = parts[1]
+
+                for user_label, vivado_key in target_map.items():
+                    if row_name == vivado_key:
+                        try:
+                            data[user_label] = float(row_val_str)
+                        except ValueError:
+                            pass
+
+    return data
+
+# ==========================================
+# 3. VISUALIZATION
+# ==========================================
+
+# 1. Load Data
+if os.path.exists(REPORT_PATH):
+    print(f"\n✅ Reading report from: {REPORT_PATH}")
+    with open(REPORT_PATH, 'r') as f:
+        content = f.read()
+else:
+    print(f"⚠️ File not found at {REPORT_PATH}. Using Sample Data.")
+    content = SAMPLE_REPORT_DATA
+
+# 2. Parse and Create DataFrame
+metrics = parse_vivado_report_full(content)
+
+# Specific order requested
+order = ['MMCM', 'BUFG', 'I/O', 'DSP', 'BRAM', 'FF', 'LUTRAM', 'LUT']
+
+df = pd.DataFrame([
+    {'Resource': k, 'Count': metrics.get(k, 0)}
+    for k in order
+])
+
+# 3. Display Table (The requested change)
+# print("\n--- Absolute Resource Usage ---")
+# Using Pandas styling for a cleaner look in Jupyter
+# display(df.style.background_gradient(subset=['Count'], cmap='Blues'))
+
+# 4. Plot Graph
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(12, 6))
+
+ax = sns.barplot(
+    data=df,
+    x='Resource',
+    y='Count',
+    hue='Resource',
+    palette='viridis'
+)
+
+ax.set_yscale("log") # Log Scale
+plt.title('CVA6 FPGA Resource Usage (Absolute Count)', fontsize=16)
+plt.ylabel('Count (Log Scale)', fontsize=12)
+plt.xlabel('')
+
+# Add labels
+for i, p in enumerate(ax.patches):
+    height = p.get_height()
+    if height > 0:
+        val_text = f"{int(height)}" if height.is_integer() else f"{height}"
+        ax.text(p.get_x() + p.get_width() / 2., height * 1.1,
+                val_text,
+                ha="center", va="bottom", fontsize=11, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+✅ Reading report from: ./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_2nd.rpt
+#+end_example
+[[file:./.ob-jupyter/072d10f6f4faef62027b7fc81c8d056e0228c87c.png]]
+:end:
+
+*** Implementation Timing
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+TIMING_REPORT_PATH = "./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_2nd.rpt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+
+def parse_timing_report(content):
+    data = {}
+    lines = content.split('\n')
+
+    # State flags
+    header_found = False
+
+    for line in lines:
+        # Detect the table header row
+        if "WNS(ns)" in line and "WHS(ns)" in line:
+            header_found = True
+            continue
+
+        # Parse the data row (usually the first non-empty line after dashes)
+        if header_found and line.strip() and not line.strip().startswith('-'):
+            parts = line.split()
+
+            # Based on standard Vivado report columns:
+            # Col 0: WNS (Setup)
+            # Col 4: WHS (Hold)
+            try:
+                wns = float(parts[0])
+                whs = float(parts[4])
+
+                data['Metric'] = ['WNS (Setup)', 'WHS (Hold)']
+                data['Value (ns)'] = [wns, whs]
+
+            except (ValueError, IndexError):
+                pass
+
+            break # We only need the summary row
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION
+# ==========================================
+
+# 1. Load
+if os.path.exists(TIMING_REPORT_PATH):
+    print(f"✅ Reading timing report from: {TIMING_REPORT_PATH}")
+    with open(TIMING_REPORT_PATH, 'r') as f:
+        content = f.read()
+else:
+    print(f"⚠️ File not found at {TIMING_REPORT_PATH}. Using Sample Data.")
+    content = SAMPLE_TIMING_DATA
+
+# 2. Parse
+df_timing = parse_timing_report(content)
+
+# 3. Display
+print("\n--- Timing Summary ---")
+
+# Styling: Red if negative (Time Violation), Green if positive (Safe)
+def style_slack(val):
+    color = 'red' if val < 0 else 'green'
+    weight = 'bold'
+    return f'color: {color}; font-weight: {weight}'
+
+# Display with 3 decimal places
+format_dict = {'Value (ns)': '{:.3f}'}
+
+display(df_timing.style.format(format_dict).map(style_slack, subset=['Value (ns)']).hide(axis="index"))
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example✅ Reading timing report from: ./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_2nd.rpt
+
+--- Timing Summary ---
+#+end_example
+| Metric      | Value (ns) |
+|-------------+------------|
+| WNS (Setup) | 1.496      |
+| WHS (Hold)  | 0.051      |
+:end:
+
+*** File locations
+**** Bitstream
+[[./bitstreams/2nd.bit]]
+**** Implementation utilization report
+[[./bitstreams/reports/utilization/SoC_wrapper_utilization_placed_2nd.rpt]]
+**** Implementation timing report
+[[./bitstreams/reports/timing/SoC_wrapper_timing_summary_routed_2nd.rpt]]
+**** Implementation power report
+[[./bitstreams/reports/power/SoC_wrapper_power_routed_2nd.rpt]]
+** UnixBench
+Experiment metadata
+[[./runs/UnixBench/unixbench_19700101_003833_1st.txt]]
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+LOG_FILE_PATH = "./runs/UnixBench/unixbench_19700101_001958_2nd.txt"
+FPGA_CLOCK_HZ = 50_000_000  # 50 MHz
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+def load_data(path):
+    if os.path.exists(path):
+        print(f"\n✅ Loading data from: {path}")
+        with open(path, "r", encoding='utf-8', errors='ignore') as f:
+            return f.read()
+    else:
+        print(f"⚠️ File not found at {path}. Using Sample Data.")
+        return SAMPLE_DATA
+
+def parse_unixbench_log(raw_text):
+    data = []
+    current_test = {}
+    in_test = False
+
+    lines = raw_text.split('\n')
+
+    for line in lines:
+        line = line.strip()
+
+        # 1. Detect Start
+        if ">>>BEGIN_TEST" in line:
+            test_name = line.split("|")[1]
+            current_test = {
+                'Test': test_name,
+                'Label': test_name.replace('Arithmetic_', 'Arith ').replace('Syscall_', 'Sys ').replace('UB_', ''),
+                'Category': 'Other',
+                'Instructions': 0,
+                'Cycles': 0,
+                'IPC': 0.0,
+                'Score': 0.0,
+                'Unit': 'N/A',
+                'Time_s': 0.0
+            }
+
+            # Categorize
+            name = current_test['Test']
+            if 'Arith' in name or 'Dhrystone' in name or 'Register' in name:
+                current_test['Category'] = 'Integer / ALU'
+            elif 'Whetstone' in name or 'Double' in name:
+                current_test['Category'] = 'Float / FPU'
+            else:
+                current_test['Category'] = 'System / OS'
+
+            in_test = True
+            continue
+
+        if in_test:
+            # 2. Parse PAPI Headers
+            if "[PAPI] Instructions:" in line:
+                current_test['Instructions'] = int(line.split(":")[1].strip())
+            elif "[PAPI] Cycles:" in line:
+                current_test['Cycles'] = int(line.split(":")[1].strip())
+            elif "[PAPI] IPC:" in line:
+                current_test['IPC'] = float(line.split(":")[1].strip())
+
+            # 3. Parse Scores
+            elif line.startswith("COUNT|"):
+                parts = line.split("|")
+                try:
+                    current_test['Score'] = float(parts[1])
+                    current_test['Unit'] = parts[3].strip()
+                except IndexError:
+                    pass
+
+            # 4. Detect End
+            elif ">>>END_TEST" in line:
+                # Calculate Time from Cycles
+                if current_test['Cycles'] > 0:
+                    current_test['Time_s'] = current_test['Cycles'] / FPGA_CLOCK_HZ
+
+                data.append(current_test)
+                in_test = False
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION & VISUALIZATION
+# ==========================================
+log_content = load_data(LOG_FILE_PATH)
+df = parse_unixbench_log(log_content)
+
+if not df.empty:
+    # 1. Visualization (IPC)
+    sns.set_theme(style="whitegrid")
+    plt.figure(figsize=(12, 6))
+
+    sns.barplot(
+        data=df.sort_values('IPC', ascending=False),
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis'
+    )
+    plt.title('CVA6 Architectural Efficiency (UnixBench IPC)', fontsize=14)
+    plt.xlabel('Instructions Per Cycle')
+    plt.xlim(0, 0.7)
+    plt.legend(title='Category', loc='lower right')
+    plt.tight_layout()
+    plt.show()
+
+    # 2. Detailed Data Table (Now with Time & Cycles)
+    print("\n=== UnixBench Results (Detailed) ===")
+
+    # Selecting ALL important columns
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Unit']
+
+    # Display with gradient on IPC
+    display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
+
+    # 3. Export CSV
+    # csv_filename = "unixbench_results_final.csv"
+    # df[display_cols].to_csv(csv_filename, index=False)
+    # print(f"\n✅ Data exported to {csv_filename}")
+
+else:
+    print("❌ No valid data found.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+✅ Loading data from: ./runs/UnixBench/unixbench_19700101_001958_2nd.txt
+#+end_example
+[[file:./.ob-jupyter/fe1f54608913db97faeb9ea5b73ab5299a28a7f3.png]]
+#+begin_example
+
+=== UnixBench Results (Detailed) ===
+#+end_example
+|    | Label             | Category      | IPC      | Instructions | Cycles    | Time_s   | Score           | Unit  |
+|----+-------------------+---------------+----------+--------------+-----------+----------+-----------------+-------|
+| 0  | Arith Overhead    | Integer / ALU | 0.408700 | 101317858    | 247886038 | 4.957721 | 23890762.000000 | lps   |
+| 1  | Arith Register    | Integer / ALU | 0.597800 | 147624586    | 246961875 | 4.939237 | 691936.000000   | lps   |
+| 2  | Arith Short       | Integer / ALU | 0.598900 | 148504569    | 247979271 | 4.959585 | 696400.000000   | lps   |
+| 3  | Arith Int         | Integer / ALU | 0.598700 | 148399622    | 247887814 | 4.957756 | 695912.000000   | lps   |
+| 4  | Dhrystone         | Integer / ALU | 0.471300 | 87991678     | 186683112 | 3.733662 | 281643.000000   | lps   |
+| 5  | Arith Double      | Integer / ALU | 0.598800 | 148435454    | 247898996 | 4.957980 | 696012.000000   | lps   |
+| 6  | Whetstone         | Float / FPU   | 0.436200 | 108567539    | 248878043 | 4.977561 | 20.754000       | MWIPS |
+| 7  | Sys Mix           | System / OS   | 0.207900 | 51521386     | 247796049 | 4.955921 | 27655.000000    | lps   |
+| 8  | Sys GetPID        | System / OS   | 0.249300 | 61428770     | 246364031 | 4.927281 | 229367.000000   | lps   |
+| 9  | Sys Exec          | System / OS   | 0.132100 | 2800643      | 21208683  | 0.424174 | 23.000000       | lps   |
+| 10 | Pipe_Throughput   | System / OS   | 0.195200 | 48358031     | 247792073 | 4.955841 | 13081.000000    | lps   |
+| 11 | Context_Switching | System / OS   | 0.135800 | 15766359     | 116069269 | 2.321385 | 1216.000000     | lps   |
+:end:
+
+** NAS Parallel Benchmark
+Experiment metadata
+[[./runs/NPB/NPB_19700101_002355_1st.txt]]
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+import numpy as np
+
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
+# Update this to your new log file name
+LOG_FILE_PATH = "runs/NPB/NPB_19700101_000221_2nd.txt"
+
+# ==========================================
+# 2. PARSER LOGIC
+# ==========================================
+def load_data(path):
+    if os.path.exists(path):
+        print(f"✅ Loading data from: {path}")
+        with open(path, "r", encoding='utf-8', errors='ignore') as f:
+            return f.read()
+    else:
+        print(f"⚠️ File not found at {path}. Using Sample Data.")
+        return SAMPLE_DATA
+
+def parse_npb_log(raw_text):
+    data = []
+    current_test = {}
+    in_test = False
+
+    lines = raw_text.split('\n')
+
+    for line in lines:
+        line = line.strip()
+
+        # 1. Detect Start
+        if ">>>BEGIN_TEST" in line:
+            test_name = line.split("|")[1]
+            current_test = {
+                'Test': test_name,
+                'Label': test_name.replace('NPB_', '').replace('_S', '').replace('_W', ''),
+                'Category': 'Other',
+                'IPC': 0.0,
+                'Instructions': 0,
+                'Cycles': 0,
+                'Time_s': 0.0,
+                'Score': 0.0,
+                'Score Unit': 'Mop/s'
+            }
+
+            # Categorize Workload
+            lbl = current_test['Label']
+            if lbl == 'EP': current_test['Category'] = 'Compute Bound'
+            elif lbl in ['IS', 'CG', 'MG']: current_test['Category'] = 'Memory Bound'
+            elif lbl in ['FT', 'LU', 'SP', 'BT']: current_test['Category'] = 'Mixed / Streaming'
+
+            in_test = True
+            continue
+
+        if in_test:
+            # 2. Parse PAPI Metrics
+            if "[PAPI] Instructions:" in line:
+                current_test['Instructions'] = int(line.split(":")[1].strip())
+            elif "[PAPI] Cycles:" in line:
+                current_test['Cycles'] = int(line.split(":")[1].strip())
+            elif "[PAPI] IPC:" in line:
+                current_test['IPC'] = float(line.split(":")[1].strip())
+
+            # 3. Parse Benchmark Output (Time & Score)
+            elif "Time in seconds =" in line:
+                try:
+                    val = line.split("=")[1].strip()
+                    current_test['Time_s'] = float(val)
+                except: pass
+
+            elif "Mop/s total" in line:
+                try:
+                    val = line.split("=")[1].strip()
+                    current_test['Score'] = float(val)
+                except: pass
+
+            # 4. Detect End
+            elif ">>>END_TEST" in line:
+                data.append(current_test)
+                in_test = False
+
+    return pd.DataFrame(data)
+
+# ==========================================
+# 3. EXECUTION & VISUALIZATION
+# ==========================================
+log_content = load_data(LOG_FILE_PATH)
+df = parse_npb_log(log_content)
+
+if not df.empty:
+    # --- Visualization ---
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+
+    # Plot 1: IPC (Efficiency)
+    # This chart highlights the ARCHITECTURAL bottlenecks (Memory vs Compute)
+    sns.barplot(
+        data=df.sort_values('IPC', ascending=False),
+        x='IPC', y='Label', hue='Category', dodge=False, palette='viridis', ax=axes[0]
+    )
+    axes[0].set_title('CVA6 Architectural Efficiency (IPC)', fontsize=14)
+    axes[0].set_xlabel('Instructions Per Cycle')
+    axes[0].set_xlim(0, 0.4) # Adjust if your max IPC > 0.4
+    axes[0].legend(loc='lower right')
+
+    # Plot 2: Score (Performance)
+    # This chart shows RAW throughput
+    sns.barplot(
+        data=df.sort_values('Score', ascending=False),
+        x='Score', y='Label', hue='Category', dodge=False, palette='magma', ax=axes[1]
+    )
+    axes[1].set_title('Absolute Performance (Score)', fontsize=14)
+    axes[1].set_xlabel('Million Operations Per Second (Mop/s)')
+    axes[1].legend(loc='lower right')
+
+    plt.tight_layout()
+    plt.show()
+
+    # --- Data Table ---
+    print("\n=== NAS Parallel Benchmark Results ===")
+
+    # Columns requested: Label, Category, IPC, Instructions, Cycles, Time, Score
+    display_cols = ['Label', 'Category', 'IPC', 'Instructions', 'Cycles', 'Time_s', 'Score', 'Score Unit']
+
+    # Styled table
+    display(df[display_cols].style.background_gradient(subset=['IPC'], cmap='RdYlGn'))
+
+    # Export
+    # csv_file = "npb_results_final.csv"
+    # df[display_cols].to_csv(csv_file, index=False)
+    # print(f"\n✅ Validated data exported to {csv_file}")
+
+else:
+    print("❌ No valid data found in log file.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example✅ Loading data from: runs/NPB/NPB_19700101_000221_2nd.txt
+#+end_example
+[[file:./.ob-jupyter/89aacd822027c9a83e8eba09afb5a7335701c951.png]]
+#+begin_example
+
+=== NAS Parallel Benchmark Results ===
+#+end_example
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
+| 0 | EP    | Compute Bound     | 0.325500 | 2075695973   | 6377044336 | 257.330000 | 0.130000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.254800 | 7414347      | 29097247   | 1.170000   | 0.560000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.186900 | 349903827    | 1872230866 | 75.600000  | 0.880000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.214800 | 33482205     | 155861090  | 6.290000   | 1.210000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.171700 | 579361103    | 3373637514 | 136.150000 | 1.300000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.221700 | 545606453    | 2460613665 | 99.280000  | 2.300000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.199100 | 352486732    | 1770307322 | 71.440000  | 1.350000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.251000 | 198250642    | 789748912  | 31.860000  | 3.210000 | Mop/s      |
+:end:
 
 
 * Failed Configurations :noexport:

@@ -33,6 +33,22 @@
 | 10 | Pipe_Throughput   | System / OS   | 0.152200 | 37684057     | 247551644 | 4.951033 | 9751.000000     | lps   |
 | 11 | Context_Switching | System / OS   | 0.124700 | 14407118     | 115529727 | 2.310595 | 1009.000000     | lps   |
 
+#+name: 2nd_unix
+|    | Label             | Category      | IPC      | Instructions | Cycles    | Time_s   | Score           | Unit  |
+|----+-------------------+---------------+----------+--------------+-----------+----------+-----------------+-------|
+| 0  | Arith Overhead    | Integer / ALU | 0.408700 | 101317858    | 247886038 | 4.957721 | 23890762.000000 | lps   |
+| 1  | Arith Register    | Integer / ALU | 0.597800 | 147624586    | 246961875 | 4.939237 | 691936.000000   | lps   |
+| 2  | Arith Short       | Integer / ALU | 0.598900 | 148504569    | 247979271 | 4.959585 | 696400.000000   | lps   |
+| 3  | Arith Int         | Integer / ALU | 0.598700 | 148399622    | 247887814 | 4.957756 | 695912.000000   | lps   |
+| 4  | Dhrystone         | Integer / ALU | 0.471300 | 87991678     | 186683112 | 3.733662 | 281643.000000   | lps   |
+| 5  | Arith Double      | Integer / ALU | 0.598800 | 148435454    | 247898996 | 4.957980 | 696012.000000   | lps   |
+| 6  | Whetstone         | Float / FPU   | 0.436200 | 108567539    | 248878043 | 4.977561 | 20.754000       | MWIPS |
+| 7  | Sys Mix           | System / OS   | 0.207900 | 51521386     | 247796049 | 4.955921 | 27655.000000    | lps   |
+| 8  | Sys GetPID        | System / OS   | 0.249300 | 61428770     | 246364031 | 4.927281 | 229367.000000   | lps   |
+| 9  | Sys Exec          | System / OS   | 0.132100 | 2800643      | 21208683  | 0.424174 | 23.000000       | lps   |
+| 10 | Pipe_Throughput   | System / OS   | 0.195200 | 48358031     | 247792073 | 4.955841 | 13081.000000    | lps   |
+| 11 | Context_Switching | System / OS   | 0.135800 | 15766359     | 116069269 | 2.321385 | 1216.000000     | lps   |
+
 ** Compare
 #+begin_src jupyter-python :var base_raw=baseline_unix :var new_raw=1st_unix :colnames no :results output drawer :exports results
 import pandas as pd
@@ -87,8 +103,8 @@ final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False
 # ==========================================
 # 4. VISUALIZATION
 # ==========================================
-print("\n")
-
+# print("\n")
+print("\n*✅ Unix Benchmark Comparison: Baseline vs 1st Implementation*")
 styled = (final_view.style
     .format({
         'Score_old': '{:,.0f}',
@@ -103,7 +119,7 @@ styled = (final_view.style
     # Bar chart on the Absolute IPC Change (Visualizes small IPC gains well)
     .bar(subset=['IPC_Diff'], color='#5fba7d', vmin=-0.1, vmax=0.1)
     .hide(axis='index')
-    .set_caption("✅ <b>UnixBench Comparison: Baseline vs 1st Implementation</b>")
+    # .set_caption("✅ <b>UnixBench Comparison: Baseline vs 1st Implementation</b>")
 )
 
 display(styled)
@@ -112,6 +128,7 @@ display(styled)
 #+RESULTS:
 :results:
 #+begin_example
+*✅ Unix Benchmark Comparison: Baseline vs 1st Implementation*
 #+end_example
 | Label             | Score_old  | Score_new  | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
 |-------------------+------------+------------+------------+--------------+----------+------------|
@@ -127,7 +144,6 @@ display(styled)
 | Arith Short       | 659,170    | 658,204    | -966       | -0.15%       | +0.0041  | +0.72%     |
 | Arith Overhead    | 22,607,716 | 22,495,175 | -112,541   | -0.50%       | +0.0032  | +0.82%     |
 | Sys GetPID        | 205,011    | 195,993    | -9,018     | -4.40%       | -0.0104  | -4.60%     |
-#+CAPTION: ✅ *UnixBench Comparison: Baseline vs 1st Implementation*
 :end:
 
 Why?
@@ -141,6 +157,101 @@ Why?
 | GetPID            | Loss (-4.4%)          | D-Cache Assoc (2-way) | Conflict Misses. 2 ways are not enough to prevent thrashing between User/Kernel space. |
 |-------------------+-----------------------+-----------------------+----------------------------------------------------------------------------------------|
 
+#+begin_src jupyter-python :var base_raw=baseline_unix :var new_raw=2nd_unix :colnames no :results output drawer :exports results
+import pandas as pd
+from IPython.display import display
+
+# ==========================================
+# 1. PARSER LOGIC
+# ==========================================
+def clean_org_table(raw_data):
+    headers = raw_data[0]
+    rows = raw_data[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    numeric_cols = ['IPC', 'Instructions', 'Cycles', 'Time_s', 'Score']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+# ==========================================
+# 2. LOAD & MERGE
+# ==========================================
+df_base = clean_org_table(base_raw)
+df_new = clean_org_table(new_raw)
+
+df_merged = pd.merge(
+    df_base,
+    df_new,
+    on=['Label', 'Category', 'Unit'],
+    suffixes=('_old', '_new')
+)
+
+# ==========================================
+# 3. CALCULATE DIFFERENCES (Abs & %)
+# ==========================================
+# Score Differences
+df_merged['Score_Diff'] = df_merged['Score_new'] - df_merged['Score_old']
+df_merged['Score_Diff_%'] = (df_merged['Score_Diff'] / df_merged['Score_old']) * 100
+
+# IPC Differences
+df_merged['IPC_Diff'] = df_merged['IPC_new'] - df_merged['IPC_old']
+df_merged['IPC_Diff_%'] = (df_merged['IPC_Diff'] / df_merged['IPC_old']) * 100
+
+# Select Columns
+view_cols = [
+    'Label',
+    'Score_old', 'Score_new', 'Score_Diff', 'Score_Diff_%',
+    'IPC_Diff', 'IPC_Diff_%'
+]
+final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False)
+
+# ==========================================
+# 4. VISUALIZATION
+# ==========================================
+# print("\n")
+print("\n*✅ Unix Benchmark Comparison: Baseline vs New Implementation*")
+styled = (final_view.style
+    .format({
+        'Score_old': '{:,.0f}',
+        'Score_new': '{:,.0f}',
+        'Score_Diff': '{:+,.0f}',    # Abs diff with sign (+/-)
+        'Score_Diff_%': '{:+.2f}%',  # Pct diff with sign
+        'IPC_Diff': '{:+.4f}',       # IPC is small, so use 4 decimals
+        'IPC_Diff_%': '{:+.2f}%'
+    })
+    # Gradient on the Percentage Change
+    .background_gradient(subset=['Score_Diff_%'], cmap='RdYlGn', vmin=-20, vmax=20)
+    # Bar chart on the Absolute IPC Change (Visualizes small IPC gains well)
+    .bar(subset=['IPC_Diff'], color='#5fba7d', vmin=-0.1, vmax=0.1)
+    .hide(axis='index')
+    # .set_caption("✅ <b>UnixBench Comparison: Baseline vs 2nd Implementation</b>")
+)
+
+display(styled)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+*✅ Unix Benchmark Comparison: Baseline vs New Implementation*
+#+end_example
+| Label             | Score_old  | Score_new  | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
+|-------------------+------------+------------+------------+--------------+----------+------------|
+| Pipe_Throughput   | 8,840      | 13,081     | +4,241     | +47.98%      | +0.0548  | +39.03%    |
+| Context_Switching | 856        | 1,216      | +360       | +42.06%      | +0.0189  | +16.17%    |
+| Sys Mix           | 22,651     | 27,655     | +5,004     | +22.09%      | +0.0330  | +18.87%    |
+| Sys Exec          | 20         | 23         | +3         | +15.00%      | +0.0130  | +10.92%    |
+| Sys GetPID        | 205,011    | 229,367    | +24,356    | +11.88%      | +0.0234  | +10.36%    |
+| Dhrystone         | 259,837    | 281,643    | +21,806    | +8.39%       | +0.0237  | +5.29%     |
+| Whetstone         | 19         | 21         | +1         | +6.71%       | +0.0254  | +6.18%     |
+| Arith Double      | 658,256    | 696,012    | +37,756    | +5.74%       | +0.0300  | +5.27%     |
+| Arith Overhead    | 22,607,716 | 23,890,762 | +1,283,046 | +5.68%       | +0.0204  | +5.25%     |
+| Arith Short       | 659,170    | 696,400    | +37,230    | +5.65%       | +0.0299  | +5.25%     |
+| Arith Int         | 658,720    | 695,912    | +37,192    | +5.65%       | +0.0300  | +5.28%     |
+| Arith Register    | 658,341    | 691,936    | +33,595    | +5.10%       | +0.0293  | +5.15%     |
+:end:
 
 * NPB
 ** Raw
@@ -167,6 +278,18 @@ Why?
 | 5 | BT    | Mixed / Streaming | 0.212300 | 548700198    | 2584271595 | 104.490000 | 2.190000 | Mop/s      |
 | 6 | SP    | Mixed / Streaming | 0.188500 | 355398830    | 1885536072 | 76.360000  | 1.270000 | Mop/s      |
 | 7 | LU    | Mixed / Streaming | 0.241600 | 199234007    | 824743421  | 33.420000  | 3.060000 | Mop/s      |
+
+#+name: 2nd_npb
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
+| 0 | EP    | Compute Bound     | 0.325500 | 2075695973   | 6377044336 | 257.330000 | 0.130000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.254800 | 7414347      | 29097247   | 1.170000   | 0.560000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.186900 | 349903827    | 1872230866 | 75.600000  | 0.880000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.214800 | 33482205     | 155861090  | 6.290000   | 1.210000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.171700 | 579361103    | 3373637514 | 136.150000 | 1.300000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.221700 | 545606453    | 2460613665 | 99.280000  | 2.300000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.199100 | 352486732    | 1770307322 | 71.440000  | 1.350000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.251000 | 198250642    | 789748912  | 31.860000  | 3.210000 | Mop/s      |
 
 ** Compare
 #+begin_src jupyter-python :var base_raw=baseline_npb :var new_raw=1st_npb :colnames no :results output drawer :exports results
@@ -223,8 +346,8 @@ final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False
 # ==========================================
 # 4. VISUALIZATION
 # ==========================================
-print("\n")
-
+# print("\n")
+print("\n*✅ NPB Benchmark Comparison: Baseline vs 1st Implementation*")
 styled = (final_view.style
     .format({
         'Score_old': '{:,.2f}',      # Changed to 2 decimals for Mop/s
@@ -239,15 +362,15 @@ styled = (final_view.style
     # Bar chart on the Absolute IPC Change
     .bar(subset=['IPC_Diff'], color='#5fba7d', vmin=-0.05, vmax=0.05)
     .hide(axis='index')
-    .set_caption("✅ <b>NPB Benchmark Comparison: Baseline vs 1st Implementation</b>")
+    # .set_caption("✅ <b>NPB Benchmark Comparison: Baseline vs 1st Implementation</b>")
 )
 
 display(styled)
 #+end_src
-
 #+RESULTS:
 :results:
 #+begin_example
+*✅ NPB Benchmark Comparison: Baseline vs 1st Implementation*
 #+end_example
 | Label | Score_old | Score_new | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
 |-------+-----------+-----------+------------+--------------+----------+------------|
@@ -259,5 +382,97 @@ display(styled)
 | MG    | 1.07      | 1.09      | +0.02      | +1.87%       | +0.0101  | +5.25%     |
 | BT    | 2.15      | 2.19      | +0.04      | +1.86%       | +0.0029  | +1.38%     |
 | EP    | 0.12      | 0.12      | +0.00      | +0.00%       | +0.0154  | +5.19%     |
-#+CAPTION: ✅ *NPB Benchmark Comparison: Baseline vs 1st Implementation*
+:end:
+
+#+begin_src jupyter-python :var base_raw=baseline_npb :var new_raw=2nd_npb :colnames no :results output drawer :exports results
+import pandas as pd
+from IPython.display import display
+
+# ==========================================
+# 1. PARSER LOGIC
+# ==========================================
+def clean_org_table(raw_data):
+    headers = raw_data[0]
+    rows = raw_data[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    numeric_cols = ['IPC', 'Instructions', 'Cycles', 'Time_s', 'Score']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+# ==========================================
+# 2. LOAD & MERGE
+# ==========================================
+df_base = clean_org_table(base_raw)
+df_new = clean_org_table(new_raw)
+
+# Merge on Label and Category (Unit is usually consistent)
+df_merged = pd.merge(
+    df_base,
+    df_new,
+    on=['Label', 'Category'],
+    suffixes=('_old', '_new')
+)
+
+# ==========================================
+# 3. CALCULATE DIFFERENCES (Abs & %)
+# ==========================================
+# Score Differences
+df_merged['Score_Diff'] = df_merged['Score_new'] - df_merged['Score_old']
+df_merged['Score_Diff_%'] = (df_merged['Score_Diff'] / df_merged['Score_old']) * 100
+
+# IPC Differences
+df_merged['IPC_Diff'] = df_merged['IPC_new'] - df_merged['IPC_old']
+df_merged['IPC_Diff_%'] = (df_merged['IPC_Diff'] / df_merged['IPC_old']) * 100
+
+# Select Columns
+view_cols = [
+    'Label',
+    'Score_old', 'Score_new', 'Score_Diff', 'Score_Diff_%',
+    'IPC_Diff', 'IPC_Diff_%'
+]
+final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False)
+
+# ==========================================
+# 4. VISUALIZATION
+# ==========================================
+# print("\n")
+print("\n*✅ NPB Benchmark Comparison: Baseline vs 2nd Implementation*")
+styled = (final_view.style
+    .format({
+        'Score_old': '{:,.2f}',      # Changed to 2 decimals for Mop/s
+        'Score_new': '{:,.2f}',
+        'Score_Diff': '{:+.2f}',     # Changed to 2 decimals
+        'Score_Diff_%': '{:+.2f}%',
+        'IPC_Diff': '{:+.4f}',
+        'IPC_Diff_%': '{:+.2f}%'
+    })
+    # Gradient on the Percentage Change
+    .background_gradient(subset=['Score_Diff_%'], cmap='RdYlGn', vmin=-20, vmax=20)
+    # Bar chart on the Absolute IPC Change
+    .bar(subset=['IPC_Diff'], color='#5fba7d', vmin=-0.05, vmax=0.05)
+    .hide(axis='index')
+    # .set_caption("✅ <b>NPB Benchmark Comparison: Baseline vs 2nd Implementation</b>")
+)
+
+display(styled)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+*✅ NPB Benchmark Comparison: Baseline vs 2nd Implementation*
+#+end_example
+| Label | Score_old | Score_new | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
+|-------+-----------+-----------+------------+--------------+----------+------------|
+| IS    | 0.45      | 0.56      | +0.11      | +24.44%      | +0.0417  | +19.57%    |
+| MG    | 1.07      | 1.21      | +0.14      | +13.08%      | +0.0224  | +11.64%    |
+| CG    | 0.78      | 0.88      | +0.10      | +12.82%      | +0.0195  | +11.65%    |
+| SP    | 1.21      | 1.35      | +0.14      | +11.57%      | +0.0179  | +9.88%     |
+| LU    | 2.89      | 3.21      | +0.32      | +11.07%      | +0.0212  | +9.23%     |
+| FT    | 1.19      | 1.30      | +0.11      | +9.24%       | +0.0122  | +7.65%     |
+| EP    | 0.12      | 0.13      | +0.01      | +8.33%       | +0.0285  | +9.60%     |
+| BT    | 2.15      | 2.30      | +0.15      | +6.98%       | +0.0123  | +5.87%     |
 :end:
