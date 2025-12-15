@@ -34,7 +34,7 @@
 | 11 | Context_Switching | System / OS   | 0.124700 | 14407118     | 115529727 | 2.310595 | 1009.000000     | lps   |
 
 ** Compare
-#+begin_src jupyter-python :var base_raw=baseline_unix :var new_raw=1st_unix :colnames no :results output drawer
+#+begin_src jupyter-python :var base_raw=baseline_unix :var new_raw=1st_unix :colnames no :results output drawer :exports results
 import pandas as pd
 from IPython.display import display
 
