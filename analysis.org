@@ -169,7 +169,7 @@ Why?
 | 7 | LU    | Mixed / Streaming | 0.241600 | 199234007    | 824743421  | 33.420000  | 3.060000 | Mop/s      |
 
 ** Compare
-#+begin_src jupyter-python :var base_raw=baseline_npb :var new_raw=1st_npb :colnames no :results output drawer
+#+begin_src jupyter-python :var base_raw=baseline_npb :var new_raw=1st_npb :colnames no :results output drawer :exports results
 import pandas as pd
 from IPython.display import display
 
