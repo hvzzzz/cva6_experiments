@@ -1,0 +1,263 @@
+#+title: Experiment Analysis
+* UNIX
+** Raw
+#+name: baseline_unix
+|    | Label             | Category      | IPC      | Instructions | Cycles    | Time_s   | Score           | Unit  |
+|----+-------------------+---------------+----------+--------------+-----------+----------+-----------------+-------|
+| 0  | Arith Overhead    | Integer / ALU | 0.388300 | 96160360     | 247619804 | 4.952396 | 22607716.000000 | lps   |
+| 1  | Arith Register    | Integer / ALU | 0.568500 | 140705146    | 247489519 | 4.949790 | 658341.000000   | lps   |
+| 2  | Arith Short       | Integer / ALU | 0.569000 | 140859170    | 247565240 | 4.951305 | 659170.000000   | lps   |
+| 3  | Arith Int         | Integer / ALU | 0.568700 | 140769091    | 247527031 | 4.950541 | 658720.000000   | lps   |
+| 4  | Dhrystone         | Integer / ALU | 0.447600 | 81389671     | 181828082 | 3.636562 | 259837.000000   | lps   |
+| 5  | Arith Double      | Integer / ALU | 0.568800 | 140675372    | 247333099 | 4.946662 | 658256.000000   | lps   |
+| 6  | Whetstone         | Float / FPU   | 0.410800 | 103499392    | 251932322 | 5.038646 | 19.449000       | MWIPS |
+| 7  | Sys Mix           | System / OS   | 0.174900 | 43254593     | 247366131 | 4.947323 | 22651.000000    | lps   |
+| 8  | Sys GetPID        | System / OS   | 0.225900 | 55509267     | 245775079 | 4.915502 | 205011.000000   | lps   |
+| 9  | Sys Exec          | System / OS   | 0.119100 | 2620492      | 21995437  | 0.439909 | 20.000000       | lps   |
+| 10 | Pipe_Throughput   | System / OS   | 0.140400 | 34742090     | 247521360 | 4.950427 | 8840.000000     | lps   |
+| 11 | Context_Switching | System / OS   | 0.116900 | 14197502     | 121473123 | 2.429462 | 856.000000      | lps   |
+
+#+name: 1st_unix
+|    | Label             | Category      | IPC      | Instructions | Cycles    | Time_s   | Score           | Unit  |
+|----+-------------------+---------------+----------+--------------+-----------+----------+-----------------+-------|
+| 0  | Arith Overhead    | Integer / ALU | 0.391500 | 95753191     | 244578185 | 4.891564 | 22495175.000000 | lps   |
+| 1  | Arith Register    | Integer / ALU | 0.573100 | 141364718    | 246647777 | 4.932956 | 661449.000000   | lps   |
+| 2  | Arith Short       | Integer / ALU | 0.573100 | 140696214    | 245510428 | 4.910209 | 658204.000000   | lps   |
+| 3  | Arith Int         | Integer / ALU | 0.573600 | 141335408    | 246388097 | 4.927762 | 661411.000000   | lps   |
+| 4  | Dhrystone         | Integer / ALU | 0.452300 | 83175606     | 183896069 | 3.677921 | 265552.000000   | lps   |
+| 5  | Arith Double      | Integer / ALU | 0.573400 | 141352529    | 246535206 | 4.930704 | 661348.000000   | lps   |
+| 6  | Whetstone         | Float / FPU   | 0.417900 | 103434562    | 247524633 | 4.950493 | 19.731000       | MWIPS |
+| 7  | Sys Mix           | System / OS   | 0.180400 | 44336566     | 245778092 | 4.915562 | 23285.000000    | lps   |
+| 8  | Sys GetPID        | System / OS   | 0.215500 | 53320540     | 247461857 | 4.949237 | 195993.000000   | lps   |
+| 9  | Sys Exec          | System / OS   | 0.124600 | 2604873      | 20913995  | 0.418280 | 21.000000       | lps   |
+| 10 | Pipe_Throughput   | System / OS   | 0.152200 | 37684057     | 247551644 | 4.951033 | 9751.000000     | lps   |
+| 11 | Context_Switching | System / OS   | 0.124700 | 14407118     | 115529727 | 2.310595 | 1009.000000     | lps   |
+
+** Compare
+#+begin_src jupyter-python :var base_raw=baseline_unix :var new_raw=1st_unix :colnames no :results output drawer
+import pandas as pd
+from IPython.display import display
+
+# ==========================================
+# 1. PARSER LOGIC
+# ==========================================
+def clean_org_table(raw_data):
+    headers = raw_data[0]
+    rows = raw_data[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    numeric_cols = ['IPC', 'Instructions', 'Cycles', 'Time_s', 'Score']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+# ==========================================
+# 2. LOAD & MERGE
+# ==========================================
+df_base = clean_org_table(base_raw)
+df_new = clean_org_table(new_raw)
+
+df_merged = pd.merge(
+    df_base,
+    df_new,
+    on=['Label', 'Category', 'Unit'],
+    suffixes=('_old', '_new')
+)
+
+# ==========================================
+# 3. CALCULATE DIFFERENCES (Abs & %)
+# ==========================================
+# Score Differences
+df_merged['Score_Diff'] = df_merged['Score_new'] - df_merged['Score_old']
+df_merged['Score_Diff_%'] = (df_merged['Score_Diff'] / df_merged['Score_old']) * 100
+
+# IPC Differences
+df_merged['IPC_Diff'] = df_merged['IPC_new'] - df_merged['IPC_old']
+df_merged['IPC_Diff_%'] = (df_merged['IPC_Diff'] / df_merged['IPC_old']) * 100
+
+# Select Columns
+view_cols = [
+    'Label',
+    'Score_old', 'Score_new', 'Score_Diff', 'Score_Diff_%',
+    'IPC_Diff', 'IPC_Diff_%'
+]
+final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False)
+
+# ==========================================
+# 4. VISUALIZATION
+# ==========================================
+print("\n")
+
+styled = (final_view.style
+    .format({
+        'Score_old': '{:,.0f}',
+        'Score_new': '{:,.0f}',
+        'Score_Diff': '{:+,.0f}',    # Abs diff with sign (+/-)
+        'Score_Diff_%': '{:+.2f}%',  # Pct diff with sign
+        'IPC_Diff': '{:+.4f}',       # IPC is small, so use 4 decimals
+        'IPC_Diff_%': '{:+.2f}%'
+    })
+    # Gradient on the Percentage Change
+    .background_gradient(subset=['Score_Diff_%'], cmap='RdYlGn', vmin=-20, vmax=20)
+    # Bar chart on the Absolute IPC Change (Visualizes small IPC gains well)
+    .bar(subset=['IPC_Diff'], color='#5fba7d', vmin=-0.1, vmax=0.1)
+    .hide(axis='index')
+    .set_caption("✅ <b>UnixBench Comparison: Baseline vs 1st Implementation</b>")
+)
+
+display(styled)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+| Label             | Score_old  | Score_new  | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
+|-------------------+------------+------------+------------+--------------+----------+------------|
+| Context_Switching | 856        | 1,009      | +153       | +17.87%      | +0.0078  | +6.67%     |
+| Pipe_Throughput   | 8,840      | 9,751      | +911       | +10.31%      | +0.0118  | +8.40%     |
+| Sys Exec          | 20         | 21         | +1         | +5.00%       | +0.0055  | +4.62%     |
+| Sys Mix           | 22,651     | 23,285     | +634       | +2.80%       | +0.0055  | +3.14%     |
+| Dhrystone         | 259,837    | 265,552    | +5,715     | +2.20%       | +0.0047  | +1.05%     |
+| Whetstone         | 19         | 20         | +0         | +1.45%       | +0.0071  | +1.73%     |
+| Arith Register    | 658,341    | 661,449    | +3,108     | +0.47%       | +0.0046  | +0.81%     |
+| Arith Double      | 658,256    | 661,348    | +3,092     | +0.47%       | +0.0046  | +0.81%     |
+| Arith Int         | 658,720    | 661,411    | +2,691     | +0.41%       | +0.0049  | +0.86%     |
+| Arith Short       | 659,170    | 658,204    | -966       | -0.15%       | +0.0041  | +0.72%     |
+| Arith Overhead    | 22,607,716 | 22,495,175 | -112,541   | -0.50%       | +0.0032  | +0.82%     |
+| Sys GetPID        | 205,011    | 195,993    | -9,018     | -4.40%       | -0.0104  | -4.60%     |
+#+CAPTION: ✅ *UnixBench Comparison: Baseline vs 1st Implementation*
+:end:
+
+Why?
+
+|-------------------+-----------------------+-----------------------+----------------------------------------------------------------------------------------|
+| Area              | Change                | Parameter involved    | Why                                                                                    |
+|-------------------+-----------------------+-----------------------+----------------------------------------------------------------------------------------|
+| OS / Control Flow | Huge Gain (+10-17%)   | RAS, BTB, BHT         | Deeper history prevents pipeline flushes during complex OS jumps                       |
+| General System    | Moderate Gain (+2-5%) | D-Cache Size (8KB)    | Larger capacity helps with general workloads (Exec/Mix).                               |
+| Pure Math         | Neutral (~0%)         | N/A                   | These are bound by ALU speed, not cache or branches.                                   |
+| GetPID            | Loss (-4.4%)          | D-Cache Assoc (2-way) | Conflict Misses. 2 ways are not enough to prevent thrashing between User/Kernel space. |
+|-------------------+-----------------------+-----------------------+----------------------------------------------------------------------------------------|
+
+
+* NPB
+** Raw
+#+name: baseline_npb
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
+| 0 | EP    | Compute Bound     | 0.297000 | 2091350139   | 7042643975 | 284.540000 | 0.120000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.213100 | 7566437      | 35513805   | 1.440000   | 0.450000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.167400 | 355825955    | 2125041156 | 85.900000  | 0.780000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.192400 | 33959879     | 176499365  | 7.130000   | 1.070000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.159500 | 586665770    | 3678664319 | 148.680000 | 1.190000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.209400 | 549503500    | 2624049654 | 106.010000 | 2.150000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.181200 | 357293866    | 1971849827 | 79.680000  | 1.210000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.229800 | 200392992    | 872027385  | 35.360000  | 2.890000 | Mop/s      |
+
+#+name: 1st_npb
+|   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
+|---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
+| 0 | EP    | Compute Bound     | 0.312400 | 2082531833   | 6665771571 | 269.340000 | 0.120000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.249300 | 7445551      | 29870149   | 1.220000   | 0.540000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.179700 | 350957451    | 1953553106 | 79.030000  | 0.840000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.202500 | 33901924     | 167451164  | 6.970000   | 1.090000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.165900 | 582655330    | 3513083635 | 141.860000 | 1.250000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.212300 | 548700198    | 2584271595 | 104.490000 | 2.190000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.188500 | 355398830    | 1885536072 | 76.360000  | 1.270000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.241600 | 199234007    | 824743421  | 33.420000  | 3.060000 | Mop/s      |
+
+** Compare
+#+begin_src jupyter-python :var base_raw=baseline_npb :var new_raw=1st_npb :colnames no :results output drawer
+import pandas as pd
+from IPython.display import display
+
+# ==========================================
+# 1. PARSER LOGIC
+# ==========================================
+def clean_org_table(raw_data):
+    headers = raw_data[0]
+    rows = raw_data[1:]
+    df = pd.DataFrame(rows, columns=headers)
+
+    numeric_cols = ['IPC', 'Instructions', 'Cycles', 'Time_s', 'Score']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+# ==========================================
+# 2. LOAD & MERGE
+# ==========================================
+df_base = clean_org_table(base_raw)
+df_new = clean_org_table(new_raw)
+
+# Merge on Label and Category (Unit is usually consistent)
+df_merged = pd.merge(
+    df_base,
+    df_new,
+    on=['Label', 'Category'],
+    suffixes=('_old', '_new')
+)
+
+# ==========================================
+# 3. CALCULATE DIFFERENCES (Abs & %)
+# ==========================================
+# Score Differences
+df_merged['Score_Diff'] = df_merged['Score_new'] - df_merged['Score_old']
+df_merged['Score_Diff_%'] = (df_merged['Score_Diff'] / df_merged['Score_old']) * 100
+
+# IPC Differences
+df_merged['IPC_Diff'] = df_merged['IPC_new'] - df_merged['IPC_old']
+df_merged['IPC_Diff_%'] = (df_merged['IPC_Diff'] / df_merged['IPC_old']) * 100
+
+# Select Columns
+view_cols = [
+    'Label',
+    'Score_old', 'Score_new', 'Score_Diff', 'Score_Diff_%',
+    'IPC_Diff', 'IPC_Diff_%'
+]
+final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False)
+
+# ==========================================
+# 4. VISUALIZATION
+# ==========================================
+print("\n")
+
+styled = (final_view.style
+    .format({
+        'Score_old': '{:,.2f}',      # Changed to 2 decimals for Mop/s
+        'Score_new': '{:,.2f}',
+        'Score_Diff': '{:+.2f}',     # Changed to 2 decimals
+        'Score_Diff_%': '{:+.2f}%',
+        'IPC_Diff': '{:+.4f}',
+        'IPC_Diff_%': '{:+.2f}%'
+    })
+    # Gradient on the Percentage Change
+    .background_gradient(subset=['Score_Diff_%'], cmap='RdYlGn', vmin=-20, vmax=20)
+    # Bar chart on the Absolute IPC Change
+    .bar(subset=['IPC_Diff'], color='#5fba7d', vmin=-0.05, vmax=0.05)
+    .hide(axis='index')
+    .set_caption("✅ <b>NPB Benchmark Comparison: Baseline vs 1st Implementation</b>")
+)
+
+display(styled)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+| Label | Score_old | Score_new | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
+|-------+-----------+-----------+------------+--------------+----------+------------|
+| IS    | 0.45      | 0.54      | +0.09      | +20.00%      | +0.0362  | +16.99%    |
+| CG    | 0.78      | 0.84      | +0.06      | +7.69%       | +0.0123  | +7.35%     |
+| LU    | 2.89      | 3.06      | +0.17      | +5.88%       | +0.0118  | +5.13%     |
+| FT    | 1.19      | 1.25      | +0.06      | +5.04%       | +0.0064  | +4.01%     |
+| SP    | 1.21      | 1.27      | +0.06      | +4.96%       | +0.0073  | +4.03%     |
+| MG    | 1.07      | 1.09      | +0.02      | +1.87%       | +0.0101  | +5.25%     |
+| BT    | 2.15      | 2.19      | +0.04      | +1.86%       | +0.0029  | +1.38%     |
+| EP    | 0.12      | 0.12      | +0.00      | +0.00%       | +0.0154  | +5.19%     |
+#+CAPTION: ✅ *NPB Benchmark Comparison: Baseline vs 1st Implementation*
+:end:

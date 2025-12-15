@@ -815,8 +815,7 @@ Experiment metadata
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-import os
+import seaborn as sns import os
 
 # ==========================================
 # 1. CONFIGURATION
@@ -1133,6 +1132,27 @@ else:
 | 6 | SP    | Mixed / Streaming | 0.188500 | 355398830    | 1885536072 | 76.360000  | 1.270000 | Mop/s      |
 | 7 | LU    | Mixed / Streaming | 0.241600 | 199234007    | 824743421  | 33.420000  | 3.060000 | Mop/s      |
 :end:
+* 2nd Iteration
+
+#+begin_src bash
+#from
+  localparam CVA6ConfigIcacheByteSize = 4096;
+  localparam CVA6ConfigDcacheSetAssoc = 2;
+#to
+  localparam CVA6ConfigIcacheByteSize = 8192;
+  localparam CVA6ConfigDcacheSetAssoc = 4;
+#+end_src
+
+[Place 30-487] The packing of instances into the device could not be obeyed. There are a total of 13300 slices in the device, of which 10866 slices are available, however, the unplaced instances require 11037 slices. Please analyze your design to determine if the number of LUTs, FFs, and/or control sets can be reduced.
+
+Number of control sets and instances constrained to the design
+	Control sets: 642
+	Luts: 55151 (combined) 63054 (total), available capacity: 53200
+	Flip flops: 26591, available capacity: 106400
+	NOTE: each slice can only accommodate 1 unique control set so FFs cannot be packed to fully fill every slice
+
+
+
 
 * Failed Configurations :noexport:
 
@@ -1194,6 +1214,27 @@ Number of control sets and instances constrained to the design
 	Control sets: 634
 	Luts: 54774 (combined) 62451 (total), available capacity: 53200
 	Flip flops: 26571, available capacity: 106400
+	NOTE: each slice can only accommodate 1 unique control set so FFs cannot be packed to fully fill every slice
+
+ #+begin_src bash
+#from
+  InstrTlbEntries: int'(4),
+  DataTlbEntries: int'(4),
+  localparam CVA6ConfigIcacheByteSize = 4096;
+  localparam CVA6ConfigDcacheSetAssoc = 2;
+#to
+  InstrTlbEntries: int'(8),
+  DataTlbEntries: int'(8),
+  localparam CVA6ConfigIcacheByteSize = 8192;
+  localparam CVA6ConfigDcacheSetAssoc = 4;
+#+end_src
+
+[Place 30-487] The packing of instances into the device could not be obeyed. There are a total of 13300 slices in the device, of which 10866 slices are available, however, the unplaced instances require 11037 slices. Please analyze your design to determine if the number of LUTs, FFs, and/or control sets can be reduced.
+
+Number of control sets and instances constrained to the design
+	Control sets: 642
+	Luts: 55151 (combined) 63054 (total), available capacity: 53200
+	Flip flops: 26591, available capacity: 106400
 	NOTE: each slice can only accommodate 1 unique control set so FFs cannot be packed to fully fill every slice
 
 ** NPB benchmark debug
