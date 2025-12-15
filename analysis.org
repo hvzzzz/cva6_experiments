@@ -211,7 +211,7 @@ final_view = df_merged[view_cols].sort_values(by='Score_Diff_%', ascending=False
 # 4. VISUALIZATION
 # ==========================================
 # print("\n")
-print("\n*✅ Unix Benchmark Comparison: Baseline vs New Implementation*")
+print("\n*Unix Benchmark Comparison: Baseline vs 2nd Implementation*")
 styled = (final_view.style
     .format({
         'Score_old': '{:,.0f}',
@@ -235,7 +235,7 @@ display(styled)
 #+RESULTS:
 :results:
 #+begin_example
-*✅ Unix Benchmark Comparison: Baseline vs New Implementation*
+*Unix Benchmark Comparison: Baseline vs 2nd Implementation*
 #+end_example
 | Label             | Score_old  | Score_new  | Score_Diff | Score_Diff_% | IPC_Diff | IPC_Diff_% |
 |-------------------+------------+------------+------------+--------------+----------+------------|
