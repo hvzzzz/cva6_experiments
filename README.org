@@ -1,4 +1,7 @@
 #+TITLE: Experiment Log
+#+OPTIONS: tags:t
+#+EXPORT_EXCLUDE_TAGS: noexport
+
 Each bitstream will produce 4 results: UnixBench, NPB and also performance counters will be measured in each case:
 * Baseline bitstream
 This bitstream is the bitstream at the end of the [[https://pages.saclay.inria.fr/nicolas.derumigny/COMPAS-Tutorial.html][COMPAS 2025 tutorial]] with performance counters enabled at: ~/cva6/core/include/cv64a6_imafdch_sv39_config_pkg.sv
@@ -964,7 +967,6 @@ else:
 | 10 | Pipe_Throughput   | System / OS   | 0.152200 | 37684057     | 247551644 | 4.951033 | 9751.000000     | lps   |
 | 11 | Context_Switching | System / OS   | 0.124700 | 14407118     | 115529727 | 2.310595 | 1009.000000     | lps   |
 :end:
-
 
 ** NAS Parallel Benchmark
 Experiment metadata
