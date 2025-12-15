@@ -970,7 +970,7 @@ else:
 
 ** NAS Parallel Benchmark
 Experiment metadata
-[[./runs/NPB/NPB_19700101_000506_1st.txt]]
+[[./runs/NPB/NPB_19700101_002355_1st.txt]]
 
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
@@ -983,7 +983,7 @@ import numpy as np
 # 1. CONFIGURATION
 # ==========================================
 # Update this to your new log file name
-LOG_FILE_PATH = "runs/NPB/NPB_19700101_000506_1st.txt"
+LOG_FILE_PATH = "runs/NPB/NPB_19700101_002355_1st.txt"
 
 # ==========================================
 # 2. PARSER LOGIC
@@ -1115,23 +1115,23 @@ else:
 
 #+RESULTS:
 :results:
-#+begin_example✅ Loading data from: runs/NPB/NPB_19700101_000506_1st.txt
+#+begin_example✅ Loading data from: runs/NPB/NPB_19700101_002355_1st.txt
 #+end_example
-[[file:./.ob-jupyter/0754cef1cbe6a2e5a6fad24ef614879a75e57328.png]]
+[[file:./.ob-jupyter/08cb551cfa343f02c93eaf993cabac721263db7c.png]]
 #+begin_example
 
 === NAS Parallel Benchmark Results ===
 #+end_example
 |   | Label | Category          | IPC      | Instructions | Cycles     | Time_s     | Score    | Score Unit |
 |---+-------+-------------------+----------+--------------+------------+------------+----------+------------|
-| 0 | EP    | Compute Bound     | 0.297000 | 2091350139   | 7042643975 | 284.540000 | 0.120000 | Mop/s      |
-| 1 | IS    | Memory Bound      | 0.213100 | 7566437      | 35513805   | 1.440000   | 0.450000 | Mop/s      |
-| 2 | CG    | Memory Bound      | 0.167400 | 355825955    | 2125041156 | 85.900000  | 0.780000 | Mop/s      |
-| 3 | MG    | Memory Bound      | 0.192400 | 33959879     | 176499365  | 7.130000   | 1.070000 | Mop/s      |
-| 4 | FT    | Mixed / Streaming | 0.159500 | 586665770    | 3678664319 | 148.680000 | 1.190000 | Mop/s      |
-| 5 | BT    | Mixed / Streaming | 0.209400 | 549503500    | 2624049654 | 106.010000 | 2.150000 | Mop/s      |
-| 6 | SP    | Mixed / Streaming | 0.181200 | 357293866    | 1971849827 | 79.680000  | 1.210000 | Mop/s      |
-| 7 | LU    | Mixed / Streaming | 0.229800 | 200392992    | 872027385  | 35.360000  | 2.890000 | Mop/s      |
+| 0 | EP    | Compute Bound     | 0.312400 | 2082531833   | 6665771571 | 269.340000 | 0.120000 | Mop/s      |
+| 1 | IS    | Memory Bound      | 0.249300 | 7445551      | 29870149   | 1.220000   | 0.540000 | Mop/s      |
+| 2 | CG    | Memory Bound      | 0.179700 | 350957451    | 1953553106 | 79.030000  | 0.840000 | Mop/s      |
+| 3 | MG    | Memory Bound      | 0.202500 | 33901924     | 167451164  | 6.970000   | 1.090000 | Mop/s      |
+| 4 | FT    | Mixed / Streaming | 0.165900 | 582655330    | 3513083635 | 141.860000 | 1.250000 | Mop/s      |
+| 5 | BT    | Mixed / Streaming | 0.212300 | 548700198    | 2584271595 | 104.490000 | 2.190000 | Mop/s      |
+| 6 | SP    | Mixed / Streaming | 0.188500 | 355398830    | 1885536072 | 76.360000  | 1.270000 | Mop/s      |
+| 7 | LU    | Mixed / Streaming | 0.241600 | 199234007    | 824743421  | 33.420000  | 3.060000 | Mop/s      |
 :end:
 
 * Failed Configurations :noexport:

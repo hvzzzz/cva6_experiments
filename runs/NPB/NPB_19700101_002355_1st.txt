@@ -1,4 +1,4 @@
-METADATA|Date|Thu Jan  1 00:05:06 UTC 1970
+METADATA|Date|Thu Jan  1 00:23:56 UTC 1970
 METADATA|Kernel|6.6.63
 METADATA|CPU Info|
 processor	: 0
@@ -17,11 +17,11 @@ mimpid		: 0x0
  NAS Parallel Benchmarks 3.0 structured OpenMP C version - EP Benchmark
  Number of random numbers generated:      33554432
 
-[PAPI] Instructions: 2091350139
-[PAPI] Cycles:       7042643975
-[PAPI] IPC:          0.2970
+[PAPI] Instructions: 2082531833
+[PAPI] Cycles:       6665771571
+[PAPI] IPC:          0.3124
 EP Benchmark Results: 
-CPU Time =   284.5404
+CPU Time =   269.3381
 N = 2^   24
 No. Gaussian Pairs =        13176389
 Sums =    -3.247834652034740e+03    -6.958407078382268e+03
@@ -43,7 +43,7 @@ Counts:
  Size            =                       25
  Iterations      =                        0
  Threads         =                        1
- Time in seconds =                   284.54
+ Time in seconds =                   269.34
  Mop/s total     =                     0.12
  Operation type  = Random numbers generated
  Verification    =               SUCCESSFUL
@@ -68,9 +68,9 @@ Counts:
  Size:  65536  (class S)
  Iterations:   10
 
-[PAPI] Instructions: 7566437
-[PAPI] Cycles:       35513805
-[PAPI] IPC:          0.2131
+[PAPI] Instructions: 7445551
+[PAPI] Cycles:       29870149
+[PAPI] IPC:          0.2493
 
 
  IS Benchmark Completed
@@ -78,8 +78,8 @@ Counts:
  Size            =                    65536
  Iterations      =                       10
  Threads         =                        1
- Time in seconds =                     1.44
- Mop/s total     =                     0.45
+ Time in seconds =                     1.22
+ Mop/s total     =                     0.54
  Operation type  =              keys ranked
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
@@ -118,9 +118,9 @@ Counts:
        14       1.70028430376194e-15 8.5971775078641e+00
        15       1.77904582121673e-15 8.5971775078648e+00
 
-[PAPI] Instructions: 355825955
-[PAPI] Cycles:       2125041156
-[PAPI] IPC:          0.1674
+[PAPI] Instructions: 350957451
+[PAPI] Cycles:       1953553106
+[PAPI] IPC:          0.1797
  Benchmark completed
  VERIFICATION SUCCESSFUL
  Zeta is      8.597177507865e+00
@@ -132,8 +132,8 @@ Counts:
  Size            =                     1400
  Iterations      =                       15
  Threads         =                        1
- Time in seconds =                    85.90
- Mop/s total     =                     0.78
+ Time in seconds =                    79.03
+ Mop/s total     =                     0.84
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
@@ -158,10 +158,10 @@ Counts:
  Size:  32x 32x 32 (class S)
  Iterations:   4
 
-[PAPI] Instructions: 33959879
-[PAPI] Cycles:       176499365
-[PAPI] IPC:          0.1924
- Initialization time:           3.448 seconds
+[PAPI] Instructions: 33901924
+[PAPI] Cycles:       167451164
+[PAPI] IPC:          0.2025
+ Initialization time:           3.064 seconds
  Benchmark completed
  VERIFICATION SUCCESSFUL
  L2 Norm is   5.307707005735e-05
@@ -173,8 +173,8 @@ Counts:
  Size            =               32x 32x 32
  Iterations      =                        4
  Threads         =                        1
- Time in seconds =                     7.13
- Mop/s total     =                     1.07
+ Time in seconds =                     6.97
+ Mop/s total     =                     1.09
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
@@ -206,9 +206,9 @@ T =     6     Checksum =     5.542683411903e+02     4.932597244941e+02
 Result verification successful
 class = S
 
-[PAPI] Instructions: 586665770
-[PAPI] Cycles:       3678664319
-[PAPI] IPC:          0.1595
+[PAPI] Instructions: 582655330
+[PAPI] Cycles:       3513083635
+[PAPI] IPC:          0.1659
 
 
  FT Benchmark Completed
@@ -216,8 +216,8 @@ class = S
  Size            =               64x 64x 64
  Iterations      =                        6
  Threads         =                        1
- Time in seconds =                   148.68
- Mop/s total     =                     1.19
+ Time in seconds =                   141.86
+ Mop/s total     =                     1.25
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
@@ -246,9 +246,9 @@ class = S
  Time step   40
  Time step   60
 
-[PAPI] Instructions: 549503500
-[PAPI] Cycles:       2624049654
-[PAPI] IPC:          0.2094
+[PAPI] Instructions: 548700198
+[PAPI] Cycles:       2584271595
+[PAPI] IPC:          0.2123
  Verification being performed for class S
  accuracy setting for epsilon =  1.0000000000000e-08
  Comparison of RMS-norms of residual
@@ -271,8 +271,8 @@ class = S
  Size            =               12x 12x 12
  Iterations      =                       60
  Threads         =                        1
- Time in seconds =                   106.01
- Mop/s total     =                     2.15
+ Time in seconds =                   104.49
+ Mop/s total     =                     2.19
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
@@ -302,9 +302,9 @@ class = S
  Time step   80
  Time step  100
 
-[PAPI] Instructions: 357293866
-[PAPI] Cycles:       1971849827
-[PAPI] IPC:          0.1812
+[PAPI] Instructions: 355398830
+[PAPI] Cycles:       1885536072
+[PAPI] IPC:          0.1885
  Verification being performed for class S
  accuracy setting for epsilon =  1.0000000000000e-08
  Comparison of RMS-norms of residual
@@ -327,8 +327,8 @@ class = S
  Size            =               12x 12x 12
  Iterations      =                      100
  Threads         =                        1
- Time in seconds =                    79.68
- Mop/s total     =                     1.21
+ Time in seconds =                    76.36
+ Mop/s total     =                     1.27
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
@@ -356,9 +356,9 @@ class = S
  Time step   40
  Time step   50
 
-[PAPI] Instructions: 200392992
-[PAPI] Cycles:       872027385
-[PAPI] IPC:          0.2298
+[PAPI] Instructions: 199234007
+[PAPI] Cycles:       824743421
+[PAPI] IPC:          0.2416
 
  Verification being performed for class S
  Accuracy setting for epsilon =  1.0000000000000e-08
@@ -384,8 +384,8 @@ class = S
  Size            =               12x 12x 12
  Iterations      =                       50
  Threads         =                        1
- Time in seconds =                    35.36
- Mop/s total     =                     2.89
+ Time in seconds =                    33.42
+ Mop/s total     =                     3.06
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =           3.0 structured
