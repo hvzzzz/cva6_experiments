@@ -1690,7 +1690,6 @@ else:
 | 7 | LU    | Mixed / Streaming | 0.251000 | 198250642    | 789748912  | 31.860000  | 3.210000 | Mop/s      |
 :end:
 
-
 * Failed Configurations :noexport:
 
 Changes made:

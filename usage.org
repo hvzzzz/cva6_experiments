@@ -1,0 +1,1075 @@
+#+title: Resource Usage
+* Baseline bitstream
+#+begin_src jupyter-python :results output drawer :exports results
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import re
+import os
+
+# -----------------------------------------------------------------------------
+# 1. SETUP & CONFIGURATION
+# -----------------------------------------------------------------------------
+INPUT_FILE = "bitstreams/reports/full/breakdown_base.rpt"
+
+# We define the 6 LOGICAL Stages and which hardware belongs to them
+STAGES = {
+    "1. FETCH":  ["i_frontend", "i_cva6_icache", "btb_gen", "bht_gen"],
+    "2. DECODE": ["id_stage_i"],
+    "3. ISSUE":  ["issue_stage_i"], # We will subtract Scoreboard from this later
+    "4. EXECUTE":["ex_stage_i"],    # We will subtract LSU from this later
+    "5. MEMORY": ["lsu_i", "i_wt_dcache", "gen_cache_wt.i_cache_subsystem", "gen_mmu"],
+    "6. COMMIT": ["i_scoreboard"]
+}
+
+# -----------------------------------------------------------------------------
+# 2. PARSING LOGIC
+# -----------------------------------------------------------------------------
+def parse_vivado_report(file_path):
+    if not os.path.exists(file_path):
+        print(f"Error: {file_path} not found.")
+        return {}
+
+    raw_data = {}
+
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            # Parsing Columns: [1]=Name, [3]=LUT, [7]=FF, [8]=BRAM, [10]=DSP
+            name_col = parts[1]
+            try:
+                # Regex to get the instance name without spaces
+                name_match = re.search(r'([^\s]+)', name_col.strip())
+                if not name_match: continue
+                raw_name = name_match.group(1)
+
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM":int(parts[8].strip()),
+                    "DSP": int(parts[10].strip()) # Index 10 for DSPs
+                }
+                raw_data[raw_name] = metrics
+            except (ValueError, IndexError):
+                continue
+    return raw_data
+
+# -----------------------------------------------------------------------------
+# 3. CALCULATE 6-STAGE METRICS
+# -----------------------------------------------------------------------------
+def calculate_stages(raw_data):
+    """
+    Isolates logic.
+    E.g. Real_Execute = ex_stage_i (Total) - lsu_i (Total)
+    E.g. Real_Issue   = issue_stage_i (Total) - i_scoreboard (Total)
+    """
+
+    # Helper to safely get metric
+    def get_val(name, metric):
+        return raw_data.get(name, {}).get(metric, 0)
+
+    # We build a DataFrame for plotting
+    plot_data = []
+
+    metrics_list = ["LUT", "FF", "BRAM", "DSP"]
+
+    # We iterate over metrics first to build rows
+    for metric in metrics_list:
+
+        # 1. FETCH (Frontend total usually includes I-Cache in some configs, check report)
+        # We generally trust 'i_frontend' total, as it includes the queue/fetch logic.
+        # If I-cache is separate (sibling), we add it.
+        # For this script, we assume i_frontend covers the logic, and we add explicit caches if found.
+        fetch_val = get_val("i_frontend", metric)
+        # Check if icache is a sibling (add it) or child (don't double count).
+        # In standard CVA6 reports, i_frontend is the parent. We just use it.
+
+        # 2. DECODE
+        decode_val = get_val("id_stage_i", metric)
+
+        # 3. COMMIT (Scoreboard)
+        commit_val = get_val("i_scoreboard", metric)
+
+        # 4. ISSUE (Dispatch)
+        # Logic: Issue_Total - Scoreboard
+        issue_total = get_val("issue_stage_i", metric)
+        issue_net = max(0, issue_total - commit_val)
+
+        # 5. MEMORY (LSU + Caches)
+        lsu_val = get_val("lsu_i", metric)
+        dcache_val = get_val("i_wt_dcache", metric) # If Write-through
+        if dcache_val == 0:
+            dcache_val = get_val("gen_cache_wt.i_cache_subsystem", metric) # If Write-back wrapper
+
+        memory_val = lsu_val + dcache_val
+
+        # 6. EXECUTE (ALU/FPU)
+        # Logic: Execute_Total - LSU
+        ex_total = get_val("ex_stage_i", metric)
+        execute_net = max(0, ex_total - lsu_val)
+
+        # Add to list
+        plot_data.append({"Metric": metric, "Stage": "1. Fetch",   "Value": fetch_val})
+        plot_data.append({"Metric": metric, "Stage": "2. Decode",  "Value": decode_val})
+        plot_data.append({"Metric": metric, "Stage": "3. Issue",   "Value": issue_net})
+        plot_data.append({"Metric": metric, "Stage": "4. Execute", "Value": execute_net})
+        plot_data.append({"Metric": metric, "Stage": "5. Memory",  "Value": memory_val})
+        plot_data.append({"Metric": metric, "Stage": "6. Commit",  "Value": commit_val})
+
+    return pd.DataFrame(plot_data)
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING
+# -----------------------------------------------------------------------------
+def plot_all_metrics(df):
+    metrics = df["Metric"].unique()
+
+    for metric in metrics:
+        subset = df[df["Metric"] == metric]
+
+        # Skip if total is 0 (e.g. DSP might be 0 for some stages)
+        if subset["Value"].sum() == 0:
+            print(f"Skipping {metric} chart (Total is 0)")
+            continue
+
+        # Prepare Pie Data
+        labels = subset["Stage"]
+        sizes = subset["Value"]
+
+        # Custom Label
+        def make_autopct(values):
+            def my_autopct(pct):
+                total = sum(values)
+                val = int(round(pct*total/100.0))
+                return '{p:.1f}%\n({v:d})'.format(p=pct, v=val)
+            return my_autopct
+
+        # Colors (Tab10 / Set2)
+        colors = plt.get_cmap('Set2')(np.linspace(0, 1, len(sizes)))
+
+        plt.figure(figsize=(10, 8))
+        wedges, texts, autotexts = plt.pie(
+            sizes, labels=labels, autopct=make_autopct(sizes),
+            startangle=140, colors=colors, pctdistance=0.85,
+            explode=[0.05]*len(sizes) # Explode all slightly
+        )
+
+        # Style
+        for t in texts: t.set_fontsize(11)
+        for t in autotexts:
+            t.set_fontsize(10); t.set_weight('bold')
+
+        # Donut Hole
+        centre_circle = plt.Circle((0,0),0.70,fc='white')
+        fig = plt.gcf()
+        fig.gca().add_artist(centre_circle)
+
+        plt.title(f"CVA6 6-Stage Breakdown: {metric}", fontsize=16)
+        plt.tight_layout()
+
+        # outfile = f"cva6_6stage_{metric}.png"
+        # plt.savefig(outfile, dpi=150)
+        # print(f"Generated {outfile}")
+
+# -----------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    raw = parse_vivado_report(INPUT_FILE)
+    if raw:
+        df = calculate_stages(raw)
+        plot_all_metrics(df)
+    else:
+        print("No data parsed. Check filename/path.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/cd844887ca405032857db7ba273b9397241fc22d.png]]
+[[file:./.ob-jupyter/a1490e5729f4d6bbbb8976b272d8c5f52cdbd239.png]]
+[[file:./.ob-jupyter/9000607cfdc93eff2c1c9458be926f7756bde6ff.png]]
+[[file:./.ob-jupyter/f141a8bb98093b9ef6f47b6b1f18ccfa8861a5cf.png]]
+:end:
+
+* 2nd bitstream
+#+begin_src jupyter-python :results output drawer :exports results
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import re
+import os
+
+# -----------------------------------------------------------------------------
+# 1. SETUP & CONFIGURATION
+# -----------------------------------------------------------------------------
+# Point this to your comparison file or baseline file
+INPUT_FILE = "bitstreams/reports/full/breakdown_2nd.rpt"
+
+# We define the 6 LOGICAL Stages and which hardware belongs to them
+STAGES = {
+    "1. FETCH":  ["i_frontend", "i_cva6_icache", "btb_gen", "bht_gen"],
+    "2. DECODE": ["id_stage_i"],
+    "3. ISSUE":  ["issue_stage_i"], # We will subtract Scoreboard from this later
+    "4. EXECUTE":["ex_stage_i"],    # We will subtract LSU from this later
+    "5. MEMORY": ["lsu_i", "i_wt_dcache", "gen_cache_wt.i_cache_subsystem", "gen_mmu"],
+    "6. COMMIT": ["i_scoreboard"]
+}
+
+# -----------------------------------------------------------------------------
+# 2. PARSING LOGIC
+# -----------------------------------------------------------------------------
+def parse_vivado_report(file_path):
+    if not os.path.exists(file_path):
+        print(f"Error: {file_path} not found.")
+        return {}
+
+    raw_data = {}
+
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            # Parsing Columns: [1]=Name, [3]=LUT, [7]=FF, [8]=BRAM, [10]=DSP
+            name_col = parts[1]
+            try:
+                # Regex to get the instance name without spaces
+                name_match = re.search(r'([^\s]+)', name_col.strip())
+                if not name_match: continue
+                raw_name = name_match.group(1)
+
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM":int(parts[8].strip()),
+                    "DSP": int(parts[10].strip()) # Index 10 for DSPs
+                }
+                raw_data[raw_name] = metrics
+            except (ValueError, IndexError):
+                continue
+    return raw_data
+
+# -----------------------------------------------------------------------------
+# 3. CALCULATE 6-STAGE METRICS
+# -----------------------------------------------------------------------------
+def calculate_stages(raw_data):
+    """
+    Isolates logic.
+    E.g. Real_Execute = ex_stage_i (Total) - lsu_i (Total)
+    E.g. Real_Issue   = issue_stage_i (Total) - i_scoreboard (Total)
+    """
+
+    # Helper to safely get metric
+    def get_val(name, metric):
+        return raw_data.get(name, {}).get(metric, 0)
+
+    # We build a DataFrame for plotting
+    plot_data = []
+
+    metrics_list = ["LUT", "FF", "BRAM", "DSP"]
+
+    # We iterate over metrics first to build rows
+    for metric in metrics_list:
+
+        # 1. FETCH (Frontend total usually includes I-Cache in some configs, check report)
+        # We generally trust 'i_frontend' total, as it includes the queue/fetch logic.
+        # If I-cache is separate (sibling), we add it.
+        # For this script, we assume i_frontend covers the logic, and we add explicit caches if found.
+        fetch_val = get_val("i_frontend", metric)
+        # Check if icache is a sibling (add it) or child (don't double count).
+        # In standard CVA6 reports, i_frontend is the parent. We just use it.
+
+        # 2. DECODE
+        decode_val = get_val("id_stage_i", metric)
+
+        # 3. COMMIT (Scoreboard)
+        commit_val = get_val("i_scoreboard", metric)
+
+        # 4. ISSUE (Dispatch)
+        # Logic: Issue_Total - Scoreboard
+        issue_total = get_val("issue_stage_i", metric)
+        issue_net = max(0, issue_total - commit_val)
+
+        # 5. MEMORY (LSU + Caches)
+        lsu_val = get_val("lsu_i", metric)
+        dcache_val = get_val("i_wt_dcache", metric) # If Write-through
+        if dcache_val == 0:
+            dcache_val = get_val("gen_cache_wt.i_cache_subsystem", metric) # If Write-back wrapper
+
+        memory_val = lsu_val + dcache_val
+
+        # 6. EXECUTE (ALU/FPU)
+        # Logic: Execute_Total - LSU
+        ex_total = get_val("ex_stage_i", metric)
+        execute_net = max(0, ex_total - lsu_val)
+
+        # Add to list
+        plot_data.append({"Metric": metric, "Stage": "1. Fetch",   "Value": fetch_val})
+        plot_data.append({"Metric": metric, "Stage": "2. Decode",  "Value": decode_val})
+        plot_data.append({"Metric": metric, "Stage": "3. Issue",   "Value": issue_net})
+        plot_data.append({"Metric": metric, "Stage": "4. Execute", "Value": execute_net})
+        plot_data.append({"Metric": metric, "Stage": "5. Memory",  "Value": memory_val})
+        plot_data.append({"Metric": metric, "Stage": "6. Commit",  "Value": commit_val})
+
+    return pd.DataFrame(plot_data)
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING
+# -----------------------------------------------------------------------------
+def plot_all_metrics(df):
+    metrics = df["Metric"].unique()
+
+    for metric in metrics:
+        subset = df[df["Metric"] == metric]
+
+        # Skip if total is 0 (e.g. DSP might be 0 for some stages)
+        if subset["Value"].sum() == 0:
+            print(f"Skipping {metric} chart (Total is 0)")
+            continue
+
+        # Prepare Pie Data
+        labels = subset["Stage"]
+        sizes = subset["Value"]
+
+        # Custom Label
+        def make_autopct(values):
+            def my_autopct(pct):
+                total = sum(values)
+                val = int(round(pct*total/100.0))
+                return '{p:.1f}%\n({v:d})'.format(p=pct, v=val)
+            return my_autopct
+
+        # Colors (Tab10 / Set2)
+        colors = plt.get_cmap('Set2')(np.linspace(0, 1, len(sizes)))
+
+        plt.figure(figsize=(10, 8))
+        wedges, texts, autotexts = plt.pie(
+            sizes, labels=labels, autopct=make_autopct(sizes),
+            startangle=140, colors=colors, pctdistance=0.85,
+            explode=[0.05]*len(sizes) # Explode all slightly
+        )
+
+        # Style
+        for t in texts: t.set_fontsize(11)
+        for t in autotexts:
+            t.set_fontsize(10); t.set_weight('bold')
+
+        # Donut Hole
+        centre_circle = plt.Circle((0,0),0.70,fc='white')
+        fig = plt.gcf()
+        fig.gca().add_artist(centre_circle)
+
+        plt.title(f"CVA6 6-Stage Breakdown: {metric}", fontsize=16)
+        plt.tight_layout()
+
+        # outfile = f"cva6_6stage_{metric}.png"
+        # plt.savefig(outfile, dpi=150)
+        # print(f"Generated {outfile}")
+
+# -----------------------------------------------------------------------------
+# MAIN
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    raw = parse_vivado_report(INPUT_FILE)
+    if raw:
+        df = calculate_stages(raw)
+        plot_all_metrics(df)
+    else:
+        print("No data parsed. Check filename/path.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/7302f9b21590111456b9cbdb35b4aea745d21e46.png]]
+[[file:./.ob-jupyter/cdf93eb1260e5ff18ccd66f0be2dcb522c48c6ce.png]]
+[[file:./.ob-jupyter/e44fe884d11b7ab48959aecebd9499c53a03e9f2.png]]
+[[file:./.ob-jupyter/f141a8bb98093b9ef6f47b6b1f18ccfa8861a5cf.png]]
+:end:
+
+** Compare
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import re
+import os
+from IPython.display import display
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+BASELINE_FILE = "bitstreams/reports/full/breakdown_base.rpt"
+MODIFIED_FILE = "bitstreams/reports/full/breakdown_2nd.rpt"
+
+RENAME_MAP = {
+    "SoC_cpu_0_0": "CORE TOTAL",
+    "i_frontend": "Frontend (Fetch)",
+    "id_stage_i": "Decode",
+    "issue_stage_i": "Issue (Dispatch)",
+    "i_issue_read_operands": "Operand Read",
+    "ex_stage_i": "Execute",
+    "lsu_i": "LSU (Memory Logic)",
+    "i_scoreboard": "Scoreboard",
+    "gen_cache_wt.i_cache_subsystem": "Cache Subsystem",
+    "i_wt_dcache": "L1 D-Cache",
+    "i_cva6_icache": "L1 I-Cache",
+    "fpu_gen": "FPU",
+    "gen_mmu": "MMU (TLB)",
+    "btb_gen": "BTB (Branch Target)",
+    "csr_regfile_i": "CSR File"
+}
+
+# -----------------------------------------------------------------------------
+# 2. PARSER
+# -----------------------------------------------------------------------------
+def parse_report(file_path):
+    data = {}
+    if not os.path.exists(file_path):
+        return data
+
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            name_col = parts[1]
+            try:
+                raw_name = re.search(r'([^\s]+)', name_col.strip()).group(1)
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM":int(parts[8].strip()),
+                    "DSP": int(parts[10].strip())
+                }
+                data[raw_name] = metrics
+            except (AttributeError, ValueError):
+                continue
+    return data
+
+# -----------------------------------------------------------------------------
+# 3. GENERATE TABLE
+# -----------------------------------------------------------------------------
+def generate_full_comparison():
+    base = parse_report(BASELINE_FILE)
+    mod  = parse_report(MODIFIED_FILE)
+
+    if not base or not mod:
+        print("Error: Files not found.")
+        return
+
+    rows = []
+
+    for target in RENAME_MAP.keys():
+        b_stats = base.get(target)
+        m_stats = mod.get(target)
+
+        # Fuzzy search
+        if not b_stats:
+            for k in base:
+                if target in k and len(k) < len(target) + 5: b_stats = base[k]; break
+        if not m_stats:
+            for k in mod:
+                if target in k and len(k) < len(target) + 5: m_stats = mod[k]; break
+
+        if not b_stats or not m_stats:
+            continue
+
+        row = {
+            "Module": RENAME_MAP[target],
+            "Base LUT": b_stats['LUT'],
+            "Mod LUT": m_stats['LUT'],
+            "Δ LUT": m_stats['LUT'] - b_stats['LUT'],
+            "Base FF": b_stats['FF'],
+            "Mod FF": m_stats['FF'],
+            "Δ FF": m_stats['FF'] - b_stats['FF'],
+            "Base BRAM": b_stats['BRAM'],
+            "Mod BRAM": m_stats['BRAM'],
+            "Δ BRAM": m_stats['BRAM'] - b_stats['BRAM'],
+            "Base DSP": b_stats['DSP'],
+            "Mod DSP": m_stats['DSP'],
+            "Δ DSP": m_stats['DSP'] - b_stats['DSP']
+        }
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    # ---------------------------------------------------------
+    # STYLING
+    # ---------------------------------------------------------
+    def highlight_change(val):
+        if isinstance(val, (int, float)) and val != 0:
+            color = 'red' if val > 0 else 'green'
+            return f'color: {color}; font-weight: bold'
+        return 'color: #cccccc' # Grey for zeros
+
+    # 1. Apply map (Note: Use .map instead of .applymap for newer pandas)
+    try:
+        styled_df = df.style.map(highlight_change, subset=["Δ LUT", "Δ FF", "Δ BRAM", "Δ DSP"])
+    except AttributeError:
+        # Fallback for older pandas
+        styled_df = df.style.map(highlight_change, subset=["Δ LUT", "Δ FF", "Δ BRAM", "Δ DSP"])
+
+    # 2. Format numbers safely (Only apply to numeric columns)
+    # We identify numeric columns explicitly to avoid formatting strings
+    numeric_cols = ["Base LUT", "Mod LUT", "Δ LUT",
+                    "Base FF", "Mod FF", "Δ FF",
+                    "Base BRAM", "Mod BRAM", "Δ BRAM",
+                    "Base DSP", "Mod DSP", "Δ DSP"]
+
+    styled_df = styled_df.format("{:,}", subset=numeric_cols)
+
+    display(styled_df)
+
+generate_full_comparison()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+|    | Module             | Base LUT | Mod LUT | Δ LUT | Base FF | Mod FF | Δ FF | Base BRAM | Mod BRAM | Δ BRAM | Base DSP | Mod DSP | Δ DSP |
+|----+--------------------+----------+---------+-------+---------+--------+------+-----------+----------+--------+----------+---------+-------|
+| 0  | Frontend (Fetch)   | 2,365    | 2,343   | -22   | 709     | 709    | 0    | 0         | 2        | 2      | 0        | 0       | 0     |
+| 1  | Decode             | 672      | 673     | 1     | 370     | 370    | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 2  | Issue (Dispatch)   | 11,228   | 11,233  | 5     | 3,353   | 3,353  | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 3  | Operand Read       | 8,446    | 8,452   | 6     | 490     | 490    | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 4  | Execute            | 18,603   | 18,609  | 6     | 6,288   | 6,288  | 0    | 0         | 0        | 0      | 27       | 27      | 0     |
+| 5  | LSU (Memory Logic) | 8,118    | 8,129   | 11    | 3,920   | 3,920  | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 6  | Scoreboard         | 2,783    | 2,782   | -1    | 2,863   | 2,863  | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 7  | Cache Subsystem    | 5,369    | 5,383   | 14    | 2,043   | 2,046  | 3    | 24        | 24       | 0      | 0        | 0       | 0     |
+| 8  | L1 D-Cache         | 3,930    | 3,944   | 14    | 1,594   | 1,596  | 2    | 12        | 12       | 0      | 0        | 0       | 0     |
+| 9  | L1 I-Cache         | 420      | 415     | -5    | 136     | 136    | 0    | 12        | 12       | 0      | 0        | 0       | 0     |
+| 10 | CSR File           | 2,733    | 2,735   | 2     | 2,413   | 2,414  | 1    | 0         | 0        | 0      | 0        | 0       | 0     |
+:end:
+
+Summary of changes
+#+begin_src bash
+#from
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigDcacheByteSize = 4096;
+localparam CVA6ConfigIcacheByteSize = 4096;
+
+localparam CVA6ConfigRASDepth = 2;
+localparam CVA6ConfigBTBEntries = 16;
+localparam CVA6ConfigBHTEntries = 16;
+
+#to
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigDcacheByteSize = 8192;
+localparam CVA6ConfigIcacheByteSize = 8192;
+
+localparam CVA6ConfigRASDepth = 4;
+localparam CVA6ConfigBTBEntries = 32;
+localparam CVA6ConfigBHTEntries = 32;
+#+end_src
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import re
+import os
+from IPython.display import display
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+BASELINE_FILE = "bitstreams/reports/full/breakdown_base.rpt"
+MODIFIED_FILE = "bitstreams/reports/full/breakdown_2nd.rpt"
+
+# -----------------------------------------------------------------------------
+# 2. PARSING LOGIC
+# -----------------------------------------------------------------------------
+def parse_report(file_path):
+    if not os.path.exists(file_path):
+        return {}
+
+    data = {}
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            try:
+                name = re.search(r'([^\s]+)', parts[1].strip()).group(1)
+                data[name] = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM":int(parts[8].strip()),
+                    "DSP": int(parts[10].strip())
+                }
+            except: continue
+    return data
+
+# -----------------------------------------------------------------------------
+# 3. STAGE AGGREGATION LOGIC (The "Smart" Part)
+# -----------------------------------------------------------------------------
+def get_stage_metrics(data):
+    # Helper to get values safely
+    def get(name, metric): return data.get(name, {}).get(metric, 0)
+
+    # 1. FETCH = Frontend + I-Cache + BTB/BHT
+    # Note: i_frontend usually includes the predictors. We add I-Cache explicitly.
+    f_lut = get("i_frontend", "LUT") + get("i_cva6_icache", "LUT")
+    f_ff  = get("i_frontend", "FF")  + get("i_cva6_icache", "FF")
+    f_bram= get("i_frontend", "BRAM") + get("i_cva6_icache", "BRAM")
+
+    # 2. DECODE
+    d_lut = get("id_stage_i", "LUT")
+    d_ff  = get("id_stage_i", "FF")
+    d_bram= get("id_stage_i", "BRAM")
+
+    # 3. ISSUE (Net) = Issue_Total - Scoreboard
+    # The Scoreboard is physically inside Issue, but logically separate.
+    scoreboard_lut = get("i_scoreboard", "LUT")
+    issue_lut = max(0, get("issue_stage_i", "LUT") - scoreboard_lut)
+
+    scoreboard_ff = get("i_scoreboard", "FF")
+    issue_ff = max(0, get("issue_stage_i", "FF") - scoreboard_ff)
+
+    issue_bram = get("issue_stage_i", "BRAM") # Usually 0
+
+    # 4. EXECUTE (Net) = Ex_Total - LSU
+    # The LSU is physically inside Execute, but logically is Memory.
+    lsu_lut = get("lsu_i", "LUT")
+    ex_lut  = max(0, get("ex_stage_i", "LUT") - lsu_lut)
+
+    lsu_ff = get("lsu_i", "FF")
+    ex_ff  = max(0, get("ex_stage_i", "FF") - lsu_ff)
+
+    lsu_bram = get("lsu_i", "BRAM")
+    ex_bram  = max(0, get("ex_stage_i", "BRAM") - lsu_bram)
+
+    ex_dsp   = get("ex_stage_i", "DSP") # All DSPs stay in execute (FPU/Mult)
+
+    # 5. MEMORY = LSU + D-Cache + MMU
+    # Note: MMU is often inside LSU, check your specific report hierarchy.
+    # In CVA6, 'lsu_i' usually contains 'gen_mmu'.
+    # We add D-Cache explicitly.
+    m_lut = lsu_lut + get("i_wt_dcache", "LUT")
+    m_ff  = lsu_ff  + get("i_wt_dcache", "FF")
+    m_bram= lsu_bram + get("i_wt_dcache", "BRAM")
+
+    # 6. COMMIT = Scoreboard
+    c_lut = scoreboard_lut
+    c_ff  = scoreboard_ff
+    c_bram= 0 # Scoreboard is logic-only usually
+
+    return {
+        "1. Fetch":   [f_lut, f_ff, f_bram, 0],
+        "2. Decode":  [d_lut, d_ff, d_bram, 0],
+        "3. Issue":   [issue_lut, issue_ff, issue_bram, 0],
+        "4. Execute": [ex_lut, ex_ff, ex_bram, ex_dsp],
+        "5. Memory":  [m_lut, m_ff, m_bram, 0],
+        "6. Commit":  [c_lut, c_ff, c_bram, 0]
+    }
+
+# -----------------------------------------------------------------------------
+# 4. GENERATE TABLE
+# -----------------------------------------------------------------------------
+def generate_stage_comparison():
+    base_raw = parse_report(BASELINE_FILE)
+    mod_raw  = parse_report(MODIFIED_FILE)
+
+    if not base_raw or not mod_raw:
+        print("Error: Files not found.")
+        return
+
+    base_stages = get_stage_metrics(base_raw)
+    mod_stages  = get_stage_metrics(mod_raw)
+
+    rows = []
+    for stage in base_stages:
+        b = base_stages[stage] # [LUT, FF, BRAM, DSP]
+        m = mod_stages[stage]
+
+        row = {
+            "Stage": stage,
+            # LUT
+            "Base LUT": b[0], "Mod LUT": m[0], "Δ LUT": m[0] - b[0],
+            # BRAM (The most important one for you)
+            "Base BRAM": b[2], "Mod BRAM": m[2], "Δ BRAM": m[2] - b[2],
+            # FF
+            "Δ FF": m[1] - b[1],
+            # DSP
+            "Δ DSP": m[3] - b[3]
+        }
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    # Styling
+    def highlight(val):
+        if val > 0: return 'color: red; font-weight: bold'
+        if val < 0: return 'color: green; font-weight: bold'
+        return 'color: #cccccc'
+
+    styled = df.style.map(highlight, subset=["Δ LUT", "Δ BRAM", "Δ FF", "Δ DSP"])
+    styled = styled.format("{:,}", subset=["Base LUT", "Mod LUT", "Δ LUT", "Δ FF", "Δ DSP"])
+
+    print("="*60)
+    print("FUNCTIONAL STAGE COMPARISON (Summary)")
+    print("="*60)
+    display(styled)
+
+generate_stage_comparison()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example============================================================
+FUNCTIONAL STAGE COMPARISON (Summary)
+============================================================
+#+end_example
+|   | Stage      | Base LUT | Mod LUT | Δ LUT | Base BRAM | Mod BRAM | Δ BRAM | Δ FF | Δ DSP |
+|---+------------+----------+---------+-------+-----------+----------+--------+------+-------|
+| 0 | 1. Fetch   | 2,785    | 2,758   | -27   | 12        | 14       | 2      | 0    | 0     |
+| 1 | 2. Decode  | 672      | 673     | 1     | 0         | 0        | 0      | 0    | 0     |
+| 2 | 3. Issue   | 8,445    | 8,451   | 6     | 0         | 0        | 0      | 0    | 0     |
+| 3 | 4. Execute | 10,485   | 10,480  | -5    | 0         | 0        | 0      | 0    | 0     |
+| 4 | 5. Memory  | 12,048   | 12,073  | 25    | 12        | 12       | 0      | 2    | 0     |
+| 5 | 6. Commit  | 2,783    | 2,782   | -1    | 0         | 0        | 0      | 0    | 0     |
+:end:
+#+begin_example============================================================
+FUNCTIONAL STAGE COMPARISON (Summary)
+============================================================
+#+end_example
+
+* Data and Instruction caches
+#+begin_src bash
+#from
+localparam CVA6ConfigDcacheByteSize = 4096;
+localparam CVA6ConfigIcacheByteSize = 4096;
+#to
+  localparam CVA6ConfigIcacheByteSize = 16384;
+  localparam CVA6ConfigDcacheByteSize = 16384;
+#+end_src
+
+** Compare
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import re
+import os
+from IPython.display import display
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+BASELINE_FILE = "bitstreams/reports/full/breakdown_base.rpt"
+MODIFIED_FILE = "bitstreams/reports/full/breakdown_idcaches.rpt"
+
+RENAME_MAP = {
+    "SoC_cpu_0_0": "CORE TOTAL",
+    "i_frontend": "Frontend (Fetch)",
+    "id_stage_i": "Decode",
+    "issue_stage_i": "Issue (Dispatch)",
+    "i_issue_read_operands": "Operand Read",
+    "ex_stage_i": "Execute",
+    "lsu_i": "LSU (Memory Logic)",
+    "i_scoreboard": "Scoreboard",
+    "gen_cache_wt.i_cache_subsystem": "Cache Subsystem",
+    "i_wt_dcache": "L1 D-Cache",
+    "i_cva6_icache": "L1 I-Cache",
+    "fpu_gen": "FPU",
+    "gen_mmu": "MMU (TLB)",
+    "btb_gen": "BTB (Branch Target)",
+    "csr_regfile_i": "CSR File"
+}
+
+# -----------------------------------------------------------------------------
+# 2. PARSER
+# -----------------------------------------------------------------------------
+def parse_report(file_path):
+    data = {}
+    if not os.path.exists(file_path):
+        return data
+
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            name_col = parts[1]
+            try:
+                raw_name = re.search(r'([^\s]+)', name_col.strip()).group(1)
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM":int(parts[8].strip()),
+                    "DSP": int(parts[10].strip())
+                }
+                data[raw_name] = metrics
+            except (AttributeError, ValueError):
+                continue
+    return data
+
+# -----------------------------------------------------------------------------
+# 3. GENERATE TABLE
+# -----------------------------------------------------------------------------
+def generate_full_comparison():
+    base = parse_report(BASELINE_FILE)
+    mod  = parse_report(MODIFIED_FILE)
+
+    if not base or not mod:
+        print("Error: Files not found.")
+        return
+
+    rows = []
+
+    for target in RENAME_MAP.keys():
+        b_stats = base.get(target)
+        m_stats = mod.get(target)
+
+        # Fuzzy search
+        if not b_stats:
+            for k in base:
+                if target in k and len(k) < len(target) + 5: b_stats = base[k]; break
+        if not m_stats:
+            for k in mod:
+                if target in k and len(k) < len(target) + 5: m_stats = mod[k]; break
+
+        if not b_stats or not m_stats:
+            continue
+
+        row = {
+            "Module": RENAME_MAP[target],
+            "Base LUT": b_stats['LUT'],
+            "Mod LUT": m_stats['LUT'],
+            "Δ LUT": m_stats['LUT'] - b_stats['LUT'],
+            "Base FF": b_stats['FF'],
+            "Mod FF": m_stats['FF'],
+            "Δ FF": m_stats['FF'] - b_stats['FF'],
+            "Base BRAM": b_stats['BRAM'],
+            "Mod BRAM": m_stats['BRAM'],
+            "Δ BRAM": m_stats['BRAM'] - b_stats['BRAM'],
+            "Base DSP": b_stats['DSP'],
+            "Mod DSP": m_stats['DSP'],
+            "Δ DSP": m_stats['DSP'] - b_stats['DSP']
+        }
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    # ---------------------------------------------------------
+    # STYLING
+    # ---------------------------------------------------------
+    def highlight_change(val):
+        if isinstance(val, (int, float)) and val != 0:
+            color = 'red' if val > 0 else 'green'
+            return f'color: {color}; font-weight: bold'
+        return 'color: #cccccc' # Grey for zeros
+
+    # 1. Apply map (Note: Use .map instead of .applymap for newer pandas)
+    try:
+        styled_df = df.style.map(highlight_change, subset=["Δ LUT", "Δ FF", "Δ BRAM", "Δ DSP"])
+    except AttributeError:
+        # Fallback for older pandas
+        styled_df = df.style.map(highlight_change, subset=["Δ LUT", "Δ FF", "Δ BRAM", "Δ DSP"])
+
+    # 2. Format numbers safely (Only apply to numeric columns)
+    # We identify numeric columns explicitly to avoid formatting strings
+    numeric_cols = ["Base LUT", "Mod LUT", "Δ LUT",
+                    "Base FF", "Mod FF", "Δ FF",
+                    "Base BRAM", "Mod BRAM", "Δ BRAM",
+                    "Base DSP", "Mod DSP", "Δ DSP"]
+
+    styled_df = styled_df.format("{:,}", subset=numeric_cols)
+
+    display(styled_df)
+
+generate_full_comparison()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+|    | Module             | Base LUT | Mod LUT | Δ LUT | Base FF | Mod FF | Δ FF | Base BRAM | Mod BRAM | Δ BRAM | Base DSP | Mod DSP | Δ DSP |
+|----+--------------------+----------+---------+-------+---------+--------+------+-----------+----------+--------+----------+---------+-------|
+| 0  | Frontend (Fetch)   | 2,365    | 2,365   | 0     | 709     | 709    | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 1  | Decode             | 672      | 674     | 2     | 370     | 370    | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 2  | Issue (Dispatch)   | 11,228   | 11,226  | -2    | 3,353   | 3,355  | 2    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 3  | Operand Read       | 8,446    | 8,446   | 0     | 490     | 490    | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 4  | Execute            | 18,603   | 18,602  | -1    | 6,288   | 6,288  | 0    | 0         | 0        | 0      | 27       | 27      | 0     |
+| 5  | LSU (Memory Logic) | 8,118    | 8,124   | 6     | 3,920   | 3,920  | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 6  | Scoreboard         | 2,783    | 2,782   | -1    | 2,863   | 2,865  | 2    | 0         | 0        | 0      | 0        | 0       | 0     |
+| 7  | Cache Subsystem    | 5,369    | 5,414   | 45    | 2,043   | 2,049  | 6    | 24        | 24       | 0      | 0        | 0       | 0     |
+| 8  | L1 D-Cache         | 3,930    | 3,980   | 50    | 1,594   | 1,598  | 4    | 12        | 12       | 0      | 0        | 0       | 0     |
+| 9  | L1 I-Cache         | 420      | 416     | -4    | 136     | 136    | 0    | 12        | 12       | 0      | 0        | 0       | 0     |
+| 10 | CSR File           | 2,733    | 2,739   | 6     | 2,413   | 2,413  | 0    | 0         | 0        | 0      | 0        | 0       | 0     |
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import re
+import os
+from IPython.display import display
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+BASELINE_FILE = "bitstreams/reports/full/breakdown_base.rpt"
+MODIFIED_FILE = "bitstreams/reports/full/breakdown_idcaches.rpt"
+
+# -----------------------------------------------------------------------------
+# 2. PARSING LOGIC
+# -----------------------------------------------------------------------------
+def parse_report(file_path):
+    if not os.path.exists(file_path):
+        return {}
+
+    data = {}
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            try:
+                name = re.search(r'([^\s]+)', parts[1].strip()).group(1)
+                data[name] = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM":int(parts[8].strip()),
+                    "DSP": int(parts[10].strip())
+                }
+            except: continue
+    return data
+
+# -----------------------------------------------------------------------------
+# 3. STAGE AGGREGATION LOGIC (The "Smart" Part)
+# -----------------------------------------------------------------------------
+def get_stage_metrics(data):
+    # Helper to get values safely
+    def get(name, metric): return data.get(name, {}).get(metric, 0)
+
+    # 1. FETCH = Frontend + I-Cache + BTB/BHT
+    # Note: i_frontend usually includes the predictors. We add I-Cache explicitly.
+    f_lut = get("i_frontend", "LUT") + get("i_cva6_icache", "LUT")
+    f_ff  = get("i_frontend", "FF")  + get("i_cva6_icache", "FF")
+    f_bram= get("i_frontend", "BRAM") + get("i_cva6_icache", "BRAM")
+
+    # 2. DECODE
+    d_lut = get("id_stage_i", "LUT")
+    d_ff  = get("id_stage_i", "FF")
+    d_bram= get("id_stage_i", "BRAM")
+
+    # 3. ISSUE (Net) = Issue_Total - Scoreboard
+    # The Scoreboard is physically inside Issue, but logically separate.
+    scoreboard_lut = get("i_scoreboard", "LUT")
+    issue_lut = max(0, get("issue_stage_i", "LUT") - scoreboard_lut)
+
+    scoreboard_ff = get("i_scoreboard", "FF")
+    issue_ff = max(0, get("issue_stage_i", "FF") - scoreboard_ff)
+
+    issue_bram = get("issue_stage_i", "BRAM") # Usually 0
+
+    # 4. EXECUTE (Net) = Ex_Total - LSU
+    # The LSU is physically inside Execute, but logically is Memory.
+    lsu_lut = get("lsu_i", "LUT")
+    ex_lut  = max(0, get("ex_stage_i", "LUT") - lsu_lut)
+
+    lsu_ff = get("lsu_i", "FF")
+    ex_ff  = max(0, get("ex_stage_i", "FF") - lsu_ff)
+
+    lsu_bram = get("lsu_i", "BRAM")
+    ex_bram  = max(0, get("ex_stage_i", "BRAM") - lsu_bram)
+
+    ex_dsp   = get("ex_stage_i", "DSP") # All DSPs stay in execute (FPU/Mult)
+
+    # 5. MEMORY = LSU + D-Cache + MMU
+    # Note: MMU is often inside LSU, check your specific report hierarchy.
+    # In CVA6, 'lsu_i' usually contains 'gen_mmu'.
+    # We add D-Cache explicitly.
+    m_lut = lsu_lut + get("i_wt_dcache", "LUT")
+    m_ff  = lsu_ff  + get("i_wt_dcache", "FF")
+    m_bram= lsu_bram + get("i_wt_dcache", "BRAM")
+
+    # 6. COMMIT = Scoreboard
+    c_lut = scoreboard_lut
+    c_ff  = scoreboard_ff
+    c_bram= 0 # Scoreboard is logic-only usually
+
+    return {
+        "1. Fetch":   [f_lut, f_ff, f_bram, 0],
+        "2. Decode":  [d_lut, d_ff, d_bram, 0],
+        "3. Issue":   [issue_lut, issue_ff, issue_bram, 0],
+        "4. Execute": [ex_lut, ex_ff, ex_bram, ex_dsp],
+        "5. Memory":  [m_lut, m_ff, m_bram, 0],
+        "6. Commit":  [c_lut, c_ff, c_bram, 0]
+    }
+
+# -----------------------------------------------------------------------------
+# 4. GENERATE TABLE
+# -----------------------------------------------------------------------------
+def generate_stage_comparison():
+    base_raw = parse_report(BASELINE_FILE)
+    mod_raw  = parse_report(MODIFIED_FILE)
+
+    if not base_raw or not mod_raw:
+        print("Error: Files not found.")
+        return
+
+    base_stages = get_stage_metrics(base_raw)
+    mod_stages  = get_stage_metrics(mod_raw)
+
+    rows = []
+    for stage in base_stages:
+        b = base_stages[stage] # [LUT, FF, BRAM, DSP]
+        m = mod_stages[stage]
+
+        row = {
+            "Stage": stage,
+            # LUT
+            "Base LUT": b[0], "Mod LUT": m[0], "Δ LUT": m[0] - b[0],
+            # BRAM (The most important one for you)
+            "Base BRAM": b[2], "Mod BRAM": m[2], "Δ BRAM": m[2] - b[2],
+            # FF
+            "Δ FF": m[1] - b[1],
+            # DSP
+            "Δ DSP": m[3] - b[3]
+        }
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+
+    # Styling
+    def highlight(val):
+        if val > 0: return 'color: red; font-weight: bold'
+        if val < 0: return 'color: green; font-weight: bold'
+        return 'color: #cccccc'
+
+    styled = df.style.map(highlight, subset=["Δ LUT", "Δ BRAM", "Δ FF", "Δ DSP"])
+    styled = styled.format("{:,}", subset=["Base LUT", "Mod LUT", "Δ LUT", "Δ FF", "Δ DSP"])
+
+    print("="*60)
+    print("FUNCTIONAL STAGE COMPARISON (Summary)")
+    print("="*60)
+    display(styled)
+
+generate_stage_comparison()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example============================================================
+FUNCTIONAL STAGE COMPARISON (Summary)
+============================================================
+#+end_example
+|   | Stage      | Base LUT | Mod LUT | Δ LUT | Base BRAM | Mod BRAM | Δ BRAM | Δ FF | Δ DSP |
+|---+------------+----------+---------+-------+-----------+----------+--------+------+-------|
+| 0 | 1. Fetch   | 2,785    | 2,781   | -4    | 12        | 12       | 0      | 0    | 0     |
+| 1 | 2. Decode  | 672      | 674     | 2     | 0         | 0        | 0      | 0    | 0     |
+| 2 | 3. Issue   | 8,445    | 8,444   | -1    | 0         | 0        | 0      | 0    | 0     |
+| 3 | 4. Execute | 10,485   | 10,478  | -7    | 0         | 0        | 0      | 0    | 0     |
+| 4 | 5. Memory  | 12,048   | 12,104  | 56    | 12        | 12       | 0      | 4    | 0     |
+| 5 | 6. Commit  | 2,783    | 2,782   | -1    | 0         | 0        | 0      | 2    | 0     |
+:end:
