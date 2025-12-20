@@ -24,7 +24,8 @@ run_test() {
   echo ">>>BEGIN_TEST|$NAME" >>"$OUTFILE"
 
   # 2. Run the command and append stdout/stderr to file
-  $CMD >>"$OUTFILE" 2>&1
+  #$CMD >>"$OUTFILE" 2>&1
+  $CMD 2>&1 | cat >>"$OUTFILE"
 
   # 3. Print End Delimiter
   echo ">>>END_TEST" >>"$OUTFILE"

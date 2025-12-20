@@ -748,8 +748,8 @@ FUNCTIONAL STAGE COMPARISON (Summary)
 localparam CVA6ConfigDcacheByteSize = 4096;
 localparam CVA6ConfigIcacheByteSize = 4096;
 #to
-  localparam CVA6ConfigIcacheByteSize = 16384;
-  localparam CVA6ConfigDcacheByteSize = 16384;
+localparam CVA6ConfigIcacheByteSize = 16384;
+localparam CVA6ConfigDcacheByteSize = 16384;
 #+end_src
 
 ** Compare
