@@ -1,0 +1,39 @@
+#+title: Interesting Candidates
+Baseline parameters
+#+begin_src bash
+#L1D/L1I
+  localparam CVA6ConfigIcacheByteSize = 4096;
+  localparam CVA6ConfigIcacheSetAssoc = 4;
+  localparam CVA6ConfigIcacheLineWidth = 128;
+  localparam CVA6ConfigDcacheByteSize = 4096;
+  localparam CVA6ConfigDcacheSetAssoc = 4;
+  localparam CVA6ConfigDcacheLineWidth = 128;
+# BTB BHT RAS
+  localparam CVA6ConfigRASDepth = 2;
+  localparam CVA6ConfigBTBEntries = 16;
+  localparam CVA6ConfigBHTEntries = 16;
+# TLB (not increase too much)
+  InstrTlbEntries: int'(4),
+  DataTlbEntries: int'(4),
+#+end_src
+
+* Parameter sweep
+
+|--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
+| Parameter Changed  | Sweep Values (Range)         | Constants (Locked to Baseline) | Goal                                                              |
+|--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
+| Cache Size (I & D) | 2 KB, 8 KB, 16 KB, 32 KB     | Assoc=4, BTB=16, BHT=16        | Measure impact of capacity on cache misses.                       |
+| Associativity      | 1-Way (Direct), 2-Way, 8-Way | Size=4KB, BTB=16, BHT=16       | Measure impact of conflict misses vs. logic complexity.           |
+| BTB Entries        | 8, 32, 64                    | Size=4KB, Assoc=4, BHT=16      | Measure impact on branch target prediction (loops/jumps).         |
+| BHT Entries        | 32, 128, 256                 | Size=4KB, Assoc=4, BTB=16      | Measure impact on conditional branch direction (taken/not taken). |
+|--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
+
+* Performed experiment data
+
+|-----------------------------------------------------------------------+----------------------------------+-------------------------+-------------------------------|
+| Bitstream                                                             | Characteristics                  | NPB                     | Unixbench                     |
+|-----------------------------------------------------------------------+----------------------------------+-------------------------+-------------------------------|
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | baseline                         | NPB_19700101_001944.txt | unixbench_19700101_004021.txt |
+| ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Instruction and Data caches = 2k |                         |                               |
+|                                                                       |                                  |                         |                               |
+|-----------------------------------------------------------------------+----------------------------------+-------------------------+-------------------------------|
