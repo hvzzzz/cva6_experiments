@@ -37,6 +37,141 @@ Baseline parameters
 | ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | baseline        | NPB_19700101_001944.txt | unixbench_19700101_004021.txt |
 |-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
 
+#+begin_src jupyter-python :var baseline=baseline :results output drawer :exports results
+import os
+import re
+import pandas as pd
+
+# 1. Setup Paths
+NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB"
+UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench"
+OUTPUT_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "baseline_results.csv")
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# 2. Regex Patterns
+re_begin_npb = re.compile(r">>>BEGIN_TEST\|NPB_(\w+)_")
+re_begin_unix = re.compile(r">>>BEGIN_TEST\|(\w+)")
+re_end = re.compile(r">>>END_TEST")
+
+# Metrics
+re_mops = re.compile(r"\s*Mop/s total\s*=\s*([\d\.]+)")
+re_unix_count = re.compile(r"COUNT\|([\d\.]+)\|(\d+)\|(\w+)")
+re_papi_inst = re.compile(r"\[PAPI\] Instructions:\s*(\d+)")
+re_papi_cyc = re.compile(r"\[PAPI\] Cycles:\s*(\d+)")
+re_papi_ipc = re.compile(r"\[PAPI\] IPC:\s*([\d\.]+)")
+
+def parse_logs(file_path, suite_type):
+    if not os.path.exists(file_path):
+        print(f"Warning: File not found: {file_path}")
+        return []
+
+    results = []
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    current_test = None
+    metrics = {}
+    captured_score = False
+
+    for line in lines:
+        test_name = None
+        if suite_type == "NPB":
+            m = re_begin_npb.match(line)
+            if m: test_name = m.group(1)
+        elif suite_type == "UnixBench":
+            m = re_begin_unix.match(line)
+            if m: test_name = m.group(1)
+
+        if test_name:
+            current_test = test_name
+            metrics = {}
+            captured_score = False
+            continue
+
+        if re_end.match(line):
+            if current_test and 'score' in metrics:
+                metrics['name'] = current_test
+                results.append(metrics)
+            current_test = None
+            continue
+
+        if current_test:
+            # Capture Score (First Valid Occurrence)
+            if not captured_score:
+                if suite_type == "NPB":
+                    m = re_mops.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = "Mop/s"
+                        captured_score = True
+                elif suite_type == "UnixBench":
+                    m = re_unix_count.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = m.group(3)
+                        captured_score = True
+
+            # PAPI Stats
+            m_inst = re_papi_inst.match(line)
+            if m_inst: metrics['instructions'] = int(m_inst.group(1))
+            m_cyc = re_papi_cyc.match(line)
+            if m_cyc: metrics['cycles'] = int(m_cyc.group(1))
+            m_ipc = re_papi_ipc.match(line)
+            if m_ipc: metrics['ipc'] = float(m_ipc.group(1))
+
+    return results
+
+# 3. Process Baseline Data
+all_data = []
+
+# Handle header row if present
+input_rows = baseline
+if len(input_rows) > 0 and ("Bitstream" in input_rows[0][0] or "*Bitstream*" in input_rows[0][0]):
+    input_rows = input_rows[1:]
+
+for row in input_rows:
+    desc = row[1]
+    npb_file = row[2]
+    unix_file = row[3]
+
+    # Use "baseline" as the config tag (or whatever is in the Characteristics column)
+    config_tag = desc
+
+    # Parse NPB
+    for res in parse_logs(os.path.join(NPB_DIR, npb_file), "NPB"):
+        res['config'] = config_tag
+        res['suite'] = "NPB"
+        all_data.append(res)
+
+    # Parse UnixBench
+    for res in parse_logs(os.path.join(UNIX_DIR, unix_file), "UnixBench"):
+        res['config'] = config_tag
+        res['suite'] = "UnixBench"
+        all_data.append(res)
+
+# 4. Save to CSV
+if all_data:
+    df = pd.DataFrame(all_data)
+    cols = ['config', 'suite', 'name', 'score', 'units', 'instructions', 'cycles', 'ipc']
+    # Select available columns
+    df = df[[c for c in cols if c in df.columns]]
+
+    df.to_csv(OUTPUT_FILE, index=False)
+    print(f"Success! Baseline data saved to: {OUTPUT_FILE}")
+    print(f"Total rows: {len(df)}")
+else:
+    print("Error: No data extracted. Check file paths and regex.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess! Baseline data saved to: /home/han4n/cva6_experiments/results/baseline_results.csv
+Total rows: 20
+#+end_example
+:end:
+
 ** Cache sweep
 #+name: cache_sweep
 |-------------------------------------------------------------------------+-----------------------------------+-------------------------+-------------------------------|
@@ -47,6 +182,140 @@ Baseline parameters
 | ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Instruction and Data caches = 16k | NPB_19700101_000205.txt | unixbench_19700101_001810.txt |
 | ariane_IC32k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Instruction and Data caches = 32k | NPB_19700101_000334.txt | unixbench_19700101_002247.txt |
 |-------------------------------------------------------------------------+-----------------------------------+-------------------------+-------------------------------|
+
+#+begin_src jupyter-python :var cache_sweep=cache_sweep :results output drawer :exports results
+
+import os
+import re
+import pandas as pd
+
+# 1. Setup Paths
+NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB"
+UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench"
+OUTPUT_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "cache_sweep_benchmark_results.csv")
+
+# Ensure output directory exists
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# 2. Regex Patterns
+re_begin_npb = re.compile(r">>>BEGIN_TEST\|NPB_(\w+)_")
+re_begin_unix = re.compile(r">>>BEGIN_TEST\|(\w+)")
+re_end = re.compile(r">>>END_TEST")
+
+# Metrics
+re_mops = re.compile(r"\s*Mop/s total\s*=\s*([\d\.]+)")
+re_unix_count = re.compile(r"COUNT\|([\d\.]+)\|(\d+)\|(\w+)")
+re_papi_inst = re.compile(r"\[PAPI\] Instructions:\s*(\d+)")
+re_papi_cyc = re.compile(r"\[PAPI\] Cycles:\s*(\d+)")
+re_papi_ipc = re.compile(r"\[PAPI\] IPC:\s*([\d\.]+)")
+
+def parse_logs(file_path, suite_type):
+    """Parses a single log file and returns a list of result dicts."""
+    if not os.path.exists(file_path):
+        return []
+
+    results = []
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    current_test = None
+    metrics = {}
+    captured_score = False
+
+    for line in lines:
+        # Detect Start
+        test_name = None
+        if suite_type == "NPB":
+            m = re_begin_npb.match(line)
+            if m: test_name = m.group(1)
+        elif suite_type == "UnixBench":
+            m = re_begin_unix.match(line)
+            if m: test_name = m.group(1)
+
+        if test_name:
+            current_test = test_name
+            metrics = {}
+            captured_score = False
+            continue
+
+        # Detect End
+        if re_end.match(line):
+            if current_test and 'score' in metrics:
+                metrics['name'] = current_test
+                results.append(metrics)
+            current_test = None
+            continue
+
+        # Parse Metrics
+        if current_test:
+            if not captured_score:
+                if suite_type == "NPB":
+                    m = re_mops.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = "Mop/s"
+                        captured_score = True
+                elif suite_type == "UnixBench":
+                    m = re_unix_count.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = m.group(3)
+                        captured_score = True
+
+            # PAPI Stats
+            m_inst = re_papi_inst.match(line)
+            if m_inst: metrics['instructions'] = int(m_inst.group(1))
+
+            m_cyc = re_papi_cyc.match(line)
+            if m_cyc: metrics['cycles'] = int(m_cyc.group(1))
+
+            m_ipc = re_papi_ipc.match(line)
+            if m_ipc: metrics['ipc'] = float(m_ipc.group(1))
+
+    return results
+
+# 3. Process Data
+all_data = []
+input_rows = cache_sweep[1:] if cache_sweep[0][0] == 'Bitstream' else cache_sweep
+
+for row in input_rows:
+    desc = row[1]
+    npb_file = row[2]
+    unix_file = row[3]
+
+    # Create Short Config Tag
+    config_tag = desc.replace("Instruction and Data caches = ", "IC/DC ").replace("Instruction and Data caches =", "IC/DC")
+
+    # Parse NPB
+    for res in parse_logs(os.path.join(NPB_DIR, npb_file), "NPB"):
+        res['config'] = config_tag
+        res['suite'] = "NPB"
+        all_data.append(res)
+
+    # Parse UnixBench
+    for res in parse_logs(os.path.join(UNIX_DIR, unix_file), "UnixBench"):
+        res['config'] = config_tag
+        res['suite'] = "UnixBench"
+        all_data.append(res)
+
+# 4. Save to CSV
+df = pd.DataFrame(all_data)
+cols = ['config', 'suite', 'name', 'score', 'units', 'instructions', 'cycles', 'ipc']
+df = df[[c for c in cols if c in df.columns]]
+
+df.to_csv(OUTPUT_FILE, index=False)
+print(f"Success! Data saved to: {OUTPUT_FILE}")
+print(f"Total rows: {len(df)}")
+
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess! Data saved to: /home/han4n/cva6_experiments/results/cache_sweep_benchmark_results.csv
+Total rows: 80
+#+end_example
+:end:
 
 ** Associativity sweep
 
@@ -60,7 +329,20 @@ Baseline parameters
 |-----------------------------------------------------------------------+---------------------+-------------------------+-------------------------------|
 
 ** BTB Size Sweep
-|----------------------------------------------------------------------+-----------------+------------------+------------------------|
-| *Bitstream*                                                            | *Characteristics* | *NPB results file* | *Unixbench results file* |
-|----------------------------------------------------------------------+-----------------+------------------+------------------------|
-| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin | BTB = 8         |                  |                        |
+
+#+name: btb_sweep
+|-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+| *Bitstream*                                                             | *Characteristics* | *NPB results file*        | *Unixbench results file*        |
+|-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin  | BTB = 8         | NPB_19700101_000442.txt | unixbench_19700101_002126.txt |
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin | BTB = 32        | NPB_19700101_000504.txt | unixbench_19700101_002518.txt |
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin | BTB = 64        | NPB_19700101_000245.txt | unixbench_19700101_001827.txt |
+|-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+
+** BHT Size Sweep
+
+#+name: bht_sweep
+|-----------------------------------------------------------------------+-----------------+------------------+------------------------|
+| *Bitstream*                                                             | *Characteristics* | *NPB results file* | *Unixbench results file* |
+|-----------------------------------------------------------------------+-----------------+------------------+------------------------|
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin | BHT = 32        |                  |                        |

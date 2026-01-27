@@ -1,0 +1,136 @@
+METADATA|Date|Thu Jan  1 00:21:29 UTC 1970
+METADATA|Kernel|6.6.63
+METADATA|CPU Info|
+processor	: 0
+hart		: 0
+isa		: rv64imafdch_zicntr_zicsr_zifencei_zihpm
+mmu		: sv39
+uarch		: eth, ariane
+mvendorid	: 0x602
+marchid		: 0x3
+mimpid		: 0x0
+
+=============================================
+>>>BEGIN_TEST|Arithmetic_Overhead
+COUNT|24841215|1|lps
+
+[PAPI] Instructions: 105095612
+[PAPI] Cycles:       248223604
+[PAPI] IPC:          0.4234
+>>>END_TEST
+
+>>>BEGIN_TEST|Arithmetic_Register
+COUNT|722413|1|lps
+
+[PAPI] Instructions: 153828429
+[PAPI] Cycles:       248372116
+[PAPI] IPC:          0.6193
+>>>END_TEST
+
+>>>BEGIN_TEST|Arithmetic_Short
+COUNT|723867|1|lps
+
+[PAPI] Instructions: 154131290
+[PAPI] Cycles:       248387098
+[PAPI] IPC:          0.6205
+>>>END_TEST
+
+>>>BEGIN_TEST|Arithmetic_Int
+COUNT|721372|1|lps
+
+[PAPI] Instructions: 153615503
+[PAPI] Cycles:       248135948
+[PAPI] IPC:          0.6191
+>>>END_TEST
+
+>>>BEGIN_TEST|Dhrystone
+COUNT|304863|1|lps
+
+[PAPI] Instructions: 95001074
+[PAPI] Cycles:       192565519
+[PAPI] IPC:          0.4933
+>>>END_TEST
+
+>>>BEGIN_TEST|Arithmetic_Double
+COUNT|721914|1|lps
+
+[PAPI] Instructions: 153737281
+[PAPI] Cycles:       248305536
+[PAPI] IPC:          0.6191
+>>>END_TEST
+
+>>>BEGIN_TEST|Whetstone
+COUNT|21.630|0|MWIPS
+TIME|9.709
+Calibrate
+       0.47 Seconds          1   Passes (x 100)
+       2.31 Seconds          5   Passes (x 100)
+
+Use 21  passes (x 100)
+
+          Double Precision C/C++ Whetstone Benchmark
+
+Loop content                  Result              MFLOPS      MOPS   Seconds
+
+N1 floating point     -1.12398255667391744         8.994              0.045
+N2 floating point     -1.12187079889295727        12.890              0.219
+N3 if then else        1.00000000000000000               22640.625    0.000
+N4 fixed point        12.00000000000000000               70372.340    0.000
+N5 sin,cos etc.        0.49902937281517734                   0.303    5.769
+N6 floating point      0.99999987890767417         6.717              1.686
+N7 assignments         3.00000000000000000                  11.146    0.348
+N8 exp,sqrt etc.       0.75100163018454191                   0.476    1.641
+
+[PAPI] Instructions: 113729469
+[PAPI] Cycles:       251258539
+[PAPI] IPC:          0.4526
+
+MWIPS                                             21.630              9.709
+
+>>>END_TEST
+
+>>>BEGIN_TEST|Syscall_Mix
+COUNT|29736|1|lps
+
+[PAPI] Instructions: 54966441
+[PAPI] Cycles:       248259602
+[PAPI] IPC:          0.2214
+>>>END_TEST
+
+>>>BEGIN_TEST|Syscall_GetPID
+COUNT|239050|1|lps
+
+[PAPI] Instructions: 63779515
+[PAPI] Cycles:       246966885
+[PAPI] IPC:          0.2583
+>>>END_TEST
+
+>>>BEGIN_TEST|Syscall_Exec
+COUNT|26|1|lps
+
+[PAPI] Instructions: 2779975
+[PAPI] Cycles:       19247016
+[PAPI] IPC:          0.1444
+>>>END_TEST
+
+>>>BEGIN_TEST|Pipe_Throughput
+COUNT|16822|1|lps
+
+[PAPI] Instructions: 60325441
+[PAPI] Cycles:       248120192
+[PAPI] IPC:          0.2431
+>>>END_TEST
+
+>>>BEGIN_TEST|Context_Switching
+COUNT|1545|1|lps
+
+[PAPI] Instructions: 18992095
+[PAPI] Cycles:       114781765
+[PAPI] IPC:          0.1655
+COUNT|1546|1|lps
+
+[PAPI] Instructions: 19006483
+[PAPI] Cycles:       114901493
+[PAPI] IPC:          0.1654
+>>>END_TEST
+

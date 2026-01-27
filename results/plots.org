@@ -1,0 +1,102 @@
+#+title: Plots
+
+
+#+begin_src jupyter-python :results output
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import numpy as np
+from scipy.stats import gmean
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# 1. Setup & Load
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
+EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "cache_sweep_benchmark_results.csv")
+
+df_base = pd.read_csv(BASELINE_FILE)
+df_exp = pd.read_csv(EXPERIMENT_FILE)
+
+# 2. Merge & Calculate
+df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
+df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
+df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
+
+def extract_size(config_str):
+    m = re.search(r'(\d+)k', str(config_str), re.IGNORECASE)
+    if m: return int(m.group(1))
+    return 0
+
+df_merged['size_kb'] = df_merged['config'].apply(extract_size)
+df_merged = df_merged.sort_values(by='size_kb')
+
+# =============================================================================
+# PLOT A: UnixBench Performance (The "System" Benchmarks)
+# =============================================================================
+plt.figure(figsize=(12, 6))
+sns.set_theme(style="whitegrid")
+
+# Filter Data
+unix_data = df_merged[df_merged['suite'] == 'UnixBench']
+
+chart = sns.barplot(
+    data=unix_data,
+    x="name",
+    y="speedup",
+    hue="config",
+    palette="viridis"
+)
+
+# Formatting
+plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
+plt.title("UnixBench Suite: Sensitivity to Cache Size", fontsize=16)
+plt.ylabel("Speedup (Higher is Better)")
+plt.xlabel("Benchmark Name")
+plt.xticks(rotation=45, ha='right')
+plt.ylim(0.9, 1.05)
+plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+plt.tight_layout()
+plt.show()
+
+# =============================================================================
+# PLOT B: NPB Performance (The "Scientific" Benchmarks)
+# =============================================================================
+plt.figure(figsize=(12, 6))
+sns.set_theme(style="whitegrid")
+
+# Filter Data
+npb_data = df_merged[df_merged['suite'] == 'NPB']
+
+chart = sns.barplot(
+    data=npb_data,
+    x="name",
+    y="speedup",
+    hue="config",
+    palette="viridis"
+)
+
+# Formatting
+plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
+plt.title("NAS Parallel Benchmarks (NPB): Sensitivity to Cache Size", fontsize=16)
+plt.ylabel("Speedup (Higher is Better)")
+plt.xlabel("Benchmark Name")
+plt.ylim(0.9, 1.15)
+plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+plt.tight_layout()
+plt.show()
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/96cd0364d79c75de0a6d392d61aabf9a07a6291e.png]]
+[[file:./.ob-jupyter/04e1956230de534afda7bac8223d8ed602eba02d.png]]
+:END:
