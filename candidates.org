@@ -328,6 +328,144 @@ Total rows: 80
 | ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Associativity 8 way | NPB_19700101_000259.txt | unixbench_19700101_002625.txt |
 |-----------------------------------------------------------------------+---------------------+-------------------------+-------------------------------|
 
+#+begin_src jupyter-python :var assoc_sweep=assoc_sweep  :results output drawer :exports results
+import os
+import re
+import pandas as pd
+
+# 1. Setup Paths
+NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB"
+UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench"
+OUTPUT_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "associativity_sweep_benchmark_results.csv")
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# 2. Regex Patterns
+re_begin_npb = re.compile(r">>>BEGIN_TEST\|NPB_(\w+)_")
+re_begin_unix = re.compile(r">>>BEGIN_TEST\|(\w+)")
+re_end = re.compile(r">>>END_TEST")
+
+# Metrics
+re_mops = re.compile(r"\s*Mop/s total\s*=\s*([\d\.]+)")
+re_unix_count = re.compile(r"COUNT\|([\d\.]+)\|(\d+)\|(\w+)")
+re_papi_inst = re.compile(r"\[PAPI\] Instructions:\s*(\d+)")
+re_papi_cyc = re.compile(r"\[PAPI\] Cycles:\s*(\d+)")
+re_papi_ipc = re.compile(r"\[PAPI\] IPC:\s*([\d\.]+)")
+
+def parse_logs(file_path, suite_type):
+    if not os.path.exists(file_path):
+        print(f"Warning: File not found: {file_path}")
+        return []
+
+    results = []
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    current_test = None
+    metrics = {}
+    captured_score = False
+
+    for line in lines:
+        # Detect Start
+        test_name = None
+        if suite_type == "NPB":
+            m = re_begin_npb.match(line)
+            if m: test_name = m.group(1)
+        elif suite_type == "UnixBench":
+            m = re_begin_unix.match(line)
+            if m: test_name = m.group(1)
+
+        if test_name:
+            current_test = test_name
+            metrics = {}
+            captured_score = False
+            continue
+
+        # Detect End
+        if re_end.match(line):
+            if current_test and 'score' in metrics:
+                metrics['name'] = current_test
+                results.append(metrics)
+            current_test = None
+            continue
+
+        # Parse Metrics
+        if current_test:
+            if not captured_score:
+                if suite_type == "NPB":
+                    m = re_mops.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = "Mop/s"
+                        captured_score = True
+                elif suite_type == "UnixBench":
+                    m = re_unix_count.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = m.group(3)
+                        captured_score = True
+
+            # PAPI Stats
+            m_inst = re_papi_inst.match(line)
+            if m_inst: metrics['instructions'] = int(m_inst.group(1))
+            m_cyc = re_papi_cyc.match(line)
+            if m_cyc: metrics['cycles'] = int(m_cyc.group(1))
+            m_ipc = re_papi_ipc.match(line)
+            if m_ipc: metrics['ipc'] = float(m_ipc.group(1))
+
+    return results
+
+# 3. Process Associativity Data
+all_data = []
+
+# Handle header row if present
+input_rows = assoc_sweep
+if len(input_rows) > 0 and ("Bitstream" in input_rows[0][0] or "*Bitstream*" in input_rows[0][0]):
+    input_rows = input_rows[1:]
+
+for row in input_rows:
+    desc = row[1]
+    npb_file = row[2]
+    unix_file = row[3]
+
+    # Clean up description for plotting (e.g., "Associativity 1 way" -> "1w")
+    # This creates short tags: 1w, 2w, 8w
+    config_tag = desc.lower().replace("associativity ", "").replace(" way", "w").strip()
+
+    # Parse NPB
+    for res in parse_logs(os.path.join(NPB_DIR, npb_file), "NPB"):
+        res['config'] = config_tag
+        res['suite'] = "NPB"
+        all_data.append(res)
+
+    # Parse UnixBench
+    for res in parse_logs(os.path.join(UNIX_DIR, unix_file), "UnixBench"):
+        res['config'] = config_tag
+        res['suite'] = "UnixBench"
+        all_data.append(res)
+
+# 4. Save to CSV
+if all_data:
+    df = pd.DataFrame(all_data)
+    cols = ['config', 'suite', 'name', 'score', 'units', 'instructions', 'cycles', 'ipc']
+    df = df[[c for c in cols if c in df.columns]]
+
+    df.to_csv(OUTPUT_FILE, index=False)
+    print(f"Success! Associativity data saved to: {OUTPUT_FILE}")
+    print(f"Total rows: {len(df)}")
+else:
+    print("Error: No data extracted.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess! Associativity data saved to: /home/han4n/cva6_experiments/results/associativity_sweep_benchmark_results.csv
+Total rows: 60
+#+end_example
+:end:
+
+
 ** BTB Size Sweep
 
 #+name: btb_sweep
@@ -339,10 +477,276 @@ Total rows: 80
 | ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin | BTB = 64        | NPB_19700101_000245.txt | unixbench_19700101_001827.txt |
 |-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
 
+#+begin_src jupyter-python :var btb_sweep=btb_sweep :results output drawer :exports results
+import os
+import re
+import pandas as pd
+
+# 1. Setup Paths
+NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB"
+UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench"
+OUTPUT_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "btb_sweep_benchmark_results.csv")
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# 2. Regex Patterns
+re_begin_npb = re.compile(r">>>BEGIN_TEST\|NPB_(\w+)_")
+re_begin_unix = re.compile(r">>>BEGIN_TEST\|(\w+)")
+re_end = re.compile(r">>>END_TEST")
+
+# Metrics
+re_mops = re.compile(r"\s*Mop/s total\s*=\s*([\d\.]+)")
+re_unix_count = re.compile(r"COUNT\|([\d\.]+)\|(\d+)\|(\w+)")
+re_papi_inst = re.compile(r"\[PAPI\] Instructions:\s*(\d+)")
+re_papi_cyc = re.compile(r"\[PAPI\] Cycles:\s*(\d+)")
+re_papi_ipc = re.compile(r"\[PAPI\] IPC:\s*([\d\.]+)")
+
+def parse_logs(file_path, suite_type):
+    if not os.path.exists(file_path):
+        print(f"Warning: File not found: {file_path}")
+        return []
+
+    results = []
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    current_test = None
+    metrics = {}
+    captured_score = False
+
+    for line in lines:
+        test_name = None
+        if suite_type == "NPB":
+            m = re_begin_npb.match(line)
+            if m: test_name = m.group(1)
+        elif suite_type == "UnixBench":
+            m = re_begin_unix.match(line)
+            if m: test_name = m.group(1)
+
+        if test_name:
+            current_test = test_name
+            metrics = {}
+            captured_score = False
+            continue
+
+        if re_end.match(line):
+            if current_test and 'score' in metrics:
+                metrics['name'] = current_test
+                results.append(metrics)
+            current_test = None
+            continue
+
+        if current_test:
+            if not captured_score:
+                if suite_type == "NPB":
+                    m = re_mops.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = "Mop/s"
+                        captured_score = True
+                elif suite_type == "UnixBench":
+                    m = re_unix_count.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = m.group(3)
+                        captured_score = True
+
+            m_inst = re_papi_inst.match(line)
+            if m_inst: metrics['instructions'] = int(m_inst.group(1))
+            m_cyc = re_papi_cyc.match(line)
+            if m_cyc: metrics['cycles'] = int(m_cyc.group(1))
+            m_ipc = re_papi_ipc.match(line)
+            if m_ipc: metrics['ipc'] = float(m_ipc.group(1))
+
+    return results
+
+# 3. Process BTB Data
+all_data = []
+
+input_rows = btb_sweep
+if len(input_rows) > 0 and ("Bitstream" in input_rows[0][0] or "*Bitstream*" in input_rows[0][0]):
+    input_rows = input_rows[1:]
+
+for row in input_rows:
+    desc = row[1]
+    npb_file = row[2]
+    unix_file = row[3]
+
+    # Create Short Config Tag (e.g., "BTB = 8" -> "BTB8")
+    config_tag = desc.replace(" = ", "").strip()
+
+    # Parse NPB
+    for res in parse_logs(os.path.join(NPB_DIR, npb_file), "NPB"):
+        res['config'] = config_tag
+        res['suite'] = "NPB"
+        all_data.append(res)
+
+    # Parse UnixBench
+    for res in parse_logs(os.path.join(UNIX_DIR, unix_file), "UnixBench"):
+        res['config'] = config_tag
+        res['suite'] = "UnixBench"
+        all_data.append(res)
+
+# 4. Save to CSV
+if all_data:
+    df = pd.DataFrame(all_data)
+    cols = ['config', 'suite', 'name', 'score', 'units', 'instructions', 'cycles', 'ipc']
+    df = df[[c for c in cols if c in df.columns]]
+
+    df.to_csv(OUTPUT_FILE, index=False)
+    print(f"Success! BTB data saved to: {OUTPUT_FILE}")
+    print(f"Total rows: {len(df)}")
+else:
+    print("Error: No data extracted.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess! BTB data saved to: /home/han4n/cva6_experiments/results/btb_sweep_benchmark_results.csv
+Total rows: 60
+#+end_example
+:end:
+
+
 ** BHT Size Sweep
 
 #+name: bht_sweep
-|-----------------------------------------------------------------------+-----------------+------------------+------------------------|
-| *Bitstream*                                                             | *Characteristics* | *NPB results file* | *Unixbench results file* |
-|-----------------------------------------------------------------------+-----------------+------------------+------------------------|
-| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin | BHT = 32        |                  |                        |
+|------------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+| *Bitstream*                                                              | *Characteristics* | *NPB results file*        | *Unixbench results file*        |
+|------------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin  | BHT = 32        | NPB_19700101_002319.txt | unixbench_19700101_003551.txt |
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin  | BHT = 64        | NPB_19700101_000352.txt | unixbench_19700101_004015.txt |
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin | BHT = 128       | NPB_19700101_001913.txt | unixbench_19700101_003121.txt |
+|------------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+
+#+begin_src jupyter-python :var bht_sweep=bht_sweep :results output drawer :exports results
+import os
+import re
+import pandas as pd
+
+# 1. Setup Paths
+NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB"
+UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench"
+OUTPUT_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "bht_sweep_benchmark_results.csv")
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# 2. Regex Patterns
+re_begin_npb = re.compile(r">>>BEGIN_TEST\|NPB_(\w+)_")
+re_begin_unix = re.compile(r">>>BEGIN_TEST\|(\w+)")
+re_end = re.compile(r">>>END_TEST")
+
+# Metrics
+re_mops = re.compile(r"\s*Mop/s total\s*=\s*([\d\.]+)")
+re_unix_count = re.compile(r"COUNT\|([\d\.]+)\|(\d+)\|(\w+)")
+re_papi_inst = re.compile(r"\[PAPI\] Instructions:\s*(\d+)")
+re_papi_cyc = re.compile(r"\[PAPI\] Cycles:\s*(\d+)")
+re_papi_ipc = re.compile(r"\[PAPI\] IPC:\s*([\d\.]+)")
+
+def parse_logs(file_path, suite_type):
+    if not os.path.exists(file_path):
+        print(f"Warning: File not found: {file_path}")
+        return []
+
+    results = []
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+    current_test = None
+    metrics = {}
+    captured_score = False
+
+    for line in lines:
+        test_name = None
+        if suite_type == "NPB":
+            m = re_begin_npb.match(line)
+            if m: test_name = m.group(1)
+        elif suite_type == "UnixBench":
+            m = re_begin_unix.match(line)
+            if m: test_name = m.group(1)
+
+        if test_name:
+            current_test = test_name
+            metrics = {}
+            captured_score = False
+            continue
+
+        if re_end.match(line):
+            if current_test and 'score' in metrics:
+                metrics['name'] = current_test
+                results.append(metrics)
+            current_test = None
+            continue
+
+        if current_test:
+            if not captured_score:
+                if suite_type == "NPB":
+                    m = re_mops.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = "Mop/s"
+                        captured_score = True
+                elif suite_type == "UnixBench":
+                    m = re_unix_count.match(line)
+                    if m:
+                        metrics['score'] = float(m.group(1))
+                        metrics['units'] = m.group(3)
+                        captured_score = True
+
+            m_inst = re_papi_inst.match(line)
+            if m_inst: metrics['instructions'] = int(m_inst.group(1))
+            m_cyc = re_papi_cyc.match(line)
+            if m_cyc: metrics['cycles'] = int(m_cyc.group(1))
+            m_ipc = re_papi_ipc.match(line)
+            if m_ipc: metrics['ipc'] = float(m_ipc.group(1))
+
+    return results
+
+# 3. Process BHT Data
+all_data = []
+
+input_rows = bht_sweep
+if len(input_rows) > 0 and ("Bitstream" in input_rows[0][0] or "*Bitstream*" in input_rows[0][0]):
+    input_rows = input_rows[1:]
+
+for row in input_rows:
+    desc = row[1]
+    npb_file = row[2]
+    unix_file = row[3]
+
+    # Create Short Config Tag (e.g., "BHT = 32" -> "BHT32")
+    config_tag = desc.replace(" = ", "").replace("Entries", "").strip()
+
+    # Parse NPB
+    for res in parse_logs(os.path.join(NPB_DIR, npb_file), "NPB"):
+        res['config'] = config_tag
+        res['suite'] = "NPB"
+        all_data.append(res)
+
+    # Parse UnixBench
+    for res in parse_logs(os.path.join(UNIX_DIR, unix_file), "UnixBench"):
+        res['config'] = config_tag
+        res['suite'] = "UnixBench"
+        all_data.append(res)
+
+# 4. Save to CSV
+if all_data:
+    df = pd.DataFrame(all_data)
+    cols = ['config', 'suite', 'name', 'score', 'units', 'instructions', 'cycles', 'ipc']
+    df = df[[c for c in cols if c in df.columns]]
+
+    df.to_csv(OUTPUT_FILE, index=False)
+    print(f"Success! BHT data saved to: {OUTPUT_FILE}")
+    print(f"Total rows: {len(df)}")
+else:
+    print("Error: No data extracted.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess! BHT data saved to: /home/han4n/cva6_experiments/results/bht_sweep_benchmark_results.csv
+Total rows: 60
+#+end_example
+:end:
