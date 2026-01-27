@@ -1073,3 +1073,43 @@ FUNCTIONAL STAGE COMPARISON (Summary)
 | 4 | 5. Memory  | 12,048   | 12,104  | 56    | 12        | 12       | 0      | 4    | 0     |
 | 5 | 6. Commit  | 2,783    | 2,782   | -1    | 0         | 0        | 0      | 2    | 0     |
 :end:
+
+
+#+begin_src jupyter-python :results raw drawer :pandoc no
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 1. Create Data
+x = np.linspace(-5, 5, 100)
+y = np.linspace(-5, 5, 100)
+X, Y = np.meshgrid(x, y)
+R = np.sqrt(X**2 + Y**2)
+Z = np.sin(R)
+
+# 2. Setup 3D Figure
+fig = plt.figure(figsize=(10, 6))
+# '3d' projection is key here
+ax = fig.add_subplot(111, projection='3d')
+
+# 3. Plot the Surface
+surf = ax.plot_surface(X, Y, Z, cmap='viridis',
+                       linewidth=0, antialiased=False)
+
+# 4. Polish labels
+ax.set_title("3D Surface Plot")
+ax.set_xlabel("X Axis")
+ax.set_ylabel("Y Axis")
+ax.set_zlabel("Z Height")
+fig.colorbar(surf, shrink=0.5, aspect=5)
+
+# 5. Show (Emacs will capture this output automatically)
+plt.show()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+#+attr_org: :width 805
+[[file:./.ob-jupyter/0326aeaa8648d67b8d2ae6205dd3d005c4bac002.png]]
+:end:

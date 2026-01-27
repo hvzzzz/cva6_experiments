@@ -20,7 +20,7 @@ Baseline parameters
 * Parameter sweep
 
 |--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
-| Parameter Changed  | Sweep Values (Range)         | Constants (Locked to Baseline) | Goal                                                              |
+| *Parameter Changed*  | *Sweep Values (Range)*         | *Constants (Locked to Baseline)* | *Goal*                                                              |
 |--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
 | Cache Size (I & D) | 2 KB, 8 KB, 16 KB, 32 KB     | Assoc=4, BTB=16, BHT=16        | Measure impact of capacity on cache misses.                       |
 | Associativity      | 1-Way (Direct), 2-Way, 8-Way | Size=4KB, BTB=16, BHT=16       | Measure impact of conflict misses vs. logic complexity.           |
@@ -29,15 +29,38 @@ Baseline parameters
 |--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
 
 * Performed experiment data
+** Baseline
+#+name: baseline
+|-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+| *Bitstream*                                                             | *Characteristics* | *NPB results file*        | *Unixbench results file*        |
+|-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | baseline        | NPB_19700101_001944.txt | unixbench_19700101_004021.txt |
+|-----------------------------------------------------------------------+-----------------+-------------------------+-------------------------------|
 
+** Cache sweep
+#+name: cache_sweep
 |-------------------------------------------------------------------------+-----------------------------------+-------------------------+-------------------------------|
 | *Bitstream*                                                               | *Characteristics*                   | *NPB results file*        | *Unixbench results file*        |
-|-------------------------------------------------------------------------+-----------------------------------+-------------------------+-------------------------------|
-| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin   | baseline                          | NPB_19700101_001944.txt | unixbench_19700101_004021.txt |
 |-------------------------------------------------------------------------+-----------------------------------+-------------------------+-------------------------------|
 | ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin   | Instruction and Data caches = 2k  | NPB_19700101_000455.txt | unixbench_19700101_002109.txt |
 | ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin   | Instruction and Data caches = 8k  | NPB_19700101_000203.txt | unixbench_19700101_001851.txt |
 | ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Instruction and Data caches = 16k | NPB_19700101_000205.txt | unixbench_19700101_001810.txt |
 | ariane_IC32k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Instruction and Data caches = 32k | NPB_19700101_000334.txt | unixbench_19700101_002247.txt |
-|                                                                         |                                   |                         |                               |
 |-------------------------------------------------------------------------+-----------------------------------+-------------------------+-------------------------------|
+
+** Associativity sweep
+
+#+name: assoc_sweep
+|-----------------------------------------------------------------------+---------------------+-------------------------+-------------------------------|
+| *Bitstream*                                                             | *Characteristics*     | *NPB results file*        | *Unixbench results file*        |
+|-----------------------------------------------------------------------+---------------------+-------------------------+-------------------------------|
+| ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Associativity 1 way | NPB_19700101_001807.txt | unixbench_19700101_003157.txt |
+| ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Associativity 2 way | NPB_19700101_000551.txt | unixbench_19700101_002129.txt |
+| ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin | Associativity 8 way | NPB_19700101_000259.txt | unixbench_19700101_002625.txt |
+|-----------------------------------------------------------------------+---------------------+-------------------------+-------------------------------|
+
+** BTB Size Sweep
+|----------------------------------------------------------------------+-----------------+------------------+------------------------|
+| *Bitstream*                                                            | *Characteristics* | *NPB results file* | *Unixbench results file* |
+|----------------------------------------------------------------------+-----------------+------------------+------------------------|
+| ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin | BTB = 8         |                  |                        |
