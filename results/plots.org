@@ -1,7 +1,7 @@
 #+title: Plots
 
-
-#+begin_src jupyter-python :results output
+* Cache sweep
+#+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -61,7 +61,7 @@ plt.title("UnixBench Suite: Sensitivity to Cache Size", fontsize=16)
 plt.ylabel("Speedup (Higher is Better)")
 plt.xlabel("Benchmark Name")
 plt.xticks(rotation=45, ha='right')
-plt.ylim(0.9, 1.05)
+plt.ylim(0.96, 1.05)
 plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
 
 plt.tight_layout()
@@ -92,7 +92,7 @@ plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
 plt.title("NAS Parallel Benchmarks (NPB): Sensitivity to Cache Size", fontsize=16)
 plt.ylabel("Speedup (Higher is Better)")
 plt.xlabel("Benchmark Name")
-plt.ylim(0.9, 1.15)
+plt.ylim(0.975, 1.13)
 plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
 
 plt.tight_layout()
@@ -100,9 +100,336 @@ plt.show()
 #+end_src
 
 #+RESULTS:
-:RESULTS:
+:results:
 #+begin_example
 #+end_example
-[[file:./.ob-jupyter/02ffd2c6050e7fddb55e0c1bfaba89ba214a3895.png]]
-[[file:./.ob-jupyter/8aad4a1fb86b500a09ddd62568f8f2ca7124b11f.png]]
-:END:
+[[file:./.ob-jupyter/fb52b7ad32e355c9498e5ad6f25c53268cca3727.png]]
+[[file:./.ob-jupyter/9cc6a5eef8b2fde0633c52d94332e057af8c39dd.png]]
+:end:
+* Associativity sweep
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# 1. Setup & Load
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
+EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "associativity_sweep_benchmark_results.csv")
+
+if not os.path.exists(EXPERIMENT_FILE):
+    print(f"Error: Experiment file not found at {EXPERIMENT_FILE}")
+    print("Did you run the scraping script for the Associativity Sweep?")
+else:
+    df_base = pd.read_csv(BASELINE_FILE)
+    df_exp = pd.read_csv(EXPERIMENT_FILE)
+
+    # 2. Merge & Calculate
+    df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
+    df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
+    df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
+
+    # 3. Sort by Associativity (Extract number from "1w", "2w")
+    def extract_ways(config_str):
+        # Look for a number at the start or embedded in the string
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    df_merged['ways'] = df_merged['config'].apply(extract_ways)
+    df_merged = df_merged.sort_values(by='ways')
+
+    # =============================================================================
+    # PLOT A: UnixBench Performance
+    # =============================================================================
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    unix_data = df_merged[df_merged['suite'] == 'UnixBench']
+
+    if not unix_data.empty:
+        sns.barplot(
+            data=unix_data,
+            x="name",
+            y="speedup",
+            hue="config",
+            palette="viridis"
+        )
+        plt.rc('text',usetex =True)
+        plt.rc('font',family = 'serif')
+        plt.rcParams['figure.dpi'] = 300
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (4-way)")
+        plt.title("UnixBench: Sensitivity to Cache Associativity", fontsize=16)
+        plt.ylabel("Speedup (Higher is Better)")
+        plt.xlabel("Benchmark Name")
+        plt.xticks(rotation=45, ha='right')
+        plt.ylim(0.98, 1.04)
+        plt.legend(title="Associativity", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No UnixBench data found for Associativity sweep.")
+
+    # =============================================================================
+    # PLOT B: NPB Performance
+    # =============================================================================
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    npb_data = df_merged[df_merged['suite'] == 'NPB']
+
+    if not npb_data.empty:
+        sns.barplot(
+            data=npb_data,
+            x="name",
+            y="speedup",
+            hue="config",
+            palette="viridis"
+        )
+        plt.rc('text',usetex =True)
+        plt.rc('font',family = 'serif')
+        plt.rcParams['figure.dpi'] = 300
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (4-way)")
+        plt.title("NPB: Sensitivity to Cache Associativity", fontsize=16)
+        plt.ylabel("Speedup (Higher is Better)")
+        plt.xlabel("Benchmark Name")
+        plt.ylim(0.95, 1.13)
+        plt.legend(title="Associativity", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No NPB data found for Associativity sweep.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/bbd124c95f600603b2cc4f6cd149636605d769a3.png]]
+[[file:./.ob-jupyter/7c99717ac5d2b8c84eeb14184ee46da5623abace.png]]
+:end:
+* BTB Size Sweep
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# 1. Setup & Load
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
+EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "btb_sweep_benchmark_results.csv")
+
+if not os.path.exists(EXPERIMENT_FILE):
+    print(f"Error: Experiment file not found at {EXPERIMENT_FILE}")
+else:
+    df_base = pd.read_csv(BASELINE_FILE)
+    df_exp = pd.read_csv(EXPERIMENT_FILE)
+
+    # 2. Merge & Calculate
+    df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
+    df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
+    df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
+
+    # 3. Sort by BTB Size (Extract number from "BTB8", "BTB32")
+    def extract_btb_size(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    df_merged['entries'] = df_merged['config'].apply(extract_btb_size)
+    df_merged = df_merged.sort_values(by='entries')
+
+    # =============================================================================
+    # PLOT A: UnixBench Performance
+    # =============================================================================
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    unix_data = df_merged[df_merged['suite'] == 'UnixBench']
+
+    if not unix_data.empty:
+        sns.barplot(
+            data=unix_data,
+            x="name",
+            y="speedup",
+            hue="config",
+            palette="viridis"
+        )
+        plt.rc('text',usetex =True)
+        plt.rc('font',family = 'serif')
+        plt.rcParams['figure.dpi'] = 300
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BTB 16)")
+        plt.title("UnixBench: Sensitivity to BTB Size", fontsize=16)
+        plt.ylabel("Speedup (Higher is Better)")
+        plt.xlabel("Benchmark Name")
+        plt.xticks(rotation=45, ha='right')
+        plt.ylim(0.9, 1.035)
+        plt.legend(title="BTB Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No UnixBench data found for BTB sweep.")
+
+    # =============================================================================
+    # PLOT B: NPB Performance
+    # =============================================================================
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    npb_data = df_merged[df_merged['suite'] == 'NPB']
+
+    if not npb_data.empty:
+        sns.barplot(
+            data=npb_data,
+            x="name",
+            y="speedup",
+            hue="config",
+            palette="viridis"
+        )
+        plt.rc('text',usetex =True)
+        plt.rc('font',family = 'serif')
+        plt.rcParams['figure.dpi'] = 300
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BTB 16)")
+        plt.title("NPB: Sensitivity to BTB Size", fontsize=16)
+        plt.ylabel("Speedup (Higher is Better)")
+        plt.xlabel("Benchmark Name")
+        plt.ylim(0.9, 1.15)
+        plt.legend(title="BTB Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No NPB data found for BTB sweep.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/78439ba7bdba36cf17443cded940b175a0ebdd2c.png]]
+[[file:./.ob-jupyter/698d62939d2a205d854de21a47303cd0c1663efe.png]]
+:end:
+* BHT Size Sweep
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# 1. Setup & Load
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
+EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "bht_sweep_benchmark_results.csv")
+
+if not os.path.exists(EXPERIMENT_FILE):
+    print(f"Error: Experiment file not found at {EXPERIMENT_FILE}")
+else:
+    df_base = pd.read_csv(BASELINE_FILE)
+    df_exp = pd.read_csv(EXPERIMENT_FILE)
+
+    # 2. Merge & Calculate
+    df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
+    df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
+    df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
+
+    # 3. Sort by BHT Entries (Extract number from "BHT32", "BHT128")
+    def extract_bht_entries(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    df_merged['entries'] = df_merged['config'].apply(extract_bht_entries)
+    df_merged = df_merged.sort_values(by='entries')
+
+    # =============================================================================
+    # PLOT A: UnixBench Performance
+    # =============================================================================
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    unix_data = df_merged[df_merged['suite'] == 'UnixBench']
+
+    if not unix_data.empty:
+        sns.barplot(
+            data=unix_data,
+            x="name",
+            y="speedup",
+            hue="config",
+            palette="viridis"
+        )
+        plt.rc('text',usetex =True)
+        plt.rc('font',family = 'serif')
+        plt.rcParams['figure.dpi'] = 300
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BHT 16)")
+        plt.title("UnixBench: Sensitivity to BHT Size", fontsize=16)
+        plt.ylabel("Speedup (Higher is Better)")
+        plt.xlabel("Benchmark Name")
+        plt.xticks(rotation=45, ha='right')
+        plt.ylim(0.96, 1.03)
+        plt.legend(title="BHT Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No UnixBench data found for BHT sweep.")
+
+    # =============================================================================
+    # PLOT B: NPB Performance
+    # =============================================================================
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    npb_data = df_merged[df_merged['suite'] == 'NPB']
+
+    if not npb_data.empty:
+        sns.barplot(
+            data=npb_data,
+            x="name",
+            y="speedup",
+            hue="config",
+            palette="viridis"
+        )
+        plt.rc('text',usetex =True)
+        plt.rc('font',family = 'serif')
+        plt.rcParams['figure.dpi'] = 300
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BHT 16)")
+        plt.title("NPB: Sensitivity to BHT Size", fontsize=16)
+        plt.ylabel("Speedup (Higher is Better)")
+        plt.xlabel("Benchmark Name")
+        plt.ylim(0.95, 1.15)
+        plt.legend(title="BHT Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("No NPB data found for BHT sweep.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/9ed97f6d4e550e9d290fbc53f10f1a4ff5fb1079.png]]
+[[file:./.ob-jupyter/d0170871e732abd056d05c08b955b775b8f1db63.png]]
+:end:
