@@ -1,4 +1,6 @@
 #+title: Plots
+#+OPTIONS: tags:t
+#+EXPORT_EXCLUDE_TAGS: noexport
 
 * Cache sweep
 #+begin_src jupyter-python :results output drawer :exports results
@@ -58,7 +60,7 @@ plt.rc('text',usetex =True)
 plt.rc('font',family = 'serif')
 plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
 plt.title("UnixBench Suite: Sensitivity to Cache Size", fontsize=16)
-plt.ylabel("Speedup (Higher is Better)")
+plt.ylabel("Speedup")
 plt.xlabel("Benchmark Name")
 plt.xticks(rotation=45, ha='right')
 plt.ylim(0.96, 1.05)
@@ -90,7 +92,7 @@ plt.rc('text',usetex =True)
 plt.rc('font',family = 'serif')
 plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
 plt.title("NAS Parallel Benchmarks (NPB): Sensitivity to Cache Size", fontsize=16)
-plt.ylabel("Speedup (Higher is Better)")
+plt.ylabel("Speedup")
 plt.xlabel("Benchmark Name")
 plt.ylim(0.975, 1.13)
 plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
@@ -103,8 +105,8 @@ plt.show()
 :results:
 #+begin_example
 #+end_example
-[[file:./.ob-jupyter/fb52b7ad32e355c9498e5ad6f25c53268cca3727.png]]
-[[file:./.ob-jupyter/9cc6a5eef8b2fde0633c52d94332e057af8c39dd.png]]
+[[file:./.ob-jupyter/f6f8b6ba39b3cce637ab0b32b3201fb7ca27cf7b.png]]
+[[file:./.ob-jupyter/d2efbb1debc29a5c199a0bf8697c1b8149f6bb04.png]]
 :end:
 * Associativity sweep
 
@@ -167,7 +169,7 @@ else:
         plt.rcParams['figure.dpi'] = 300
         plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (4-way)")
         plt.title("UnixBench: Sensitivity to Cache Associativity", fontsize=16)
-        plt.ylabel("Speedup (Higher is Better)")
+        plt.ylabel("Speedup")
         plt.xlabel("Benchmark Name")
         plt.xticks(rotation=45, ha='right')
         plt.ylim(0.98, 1.04)
@@ -199,7 +201,7 @@ else:
         plt.rcParams['figure.dpi'] = 300
         plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (4-way)")
         plt.title("NPB: Sensitivity to Cache Associativity", fontsize=16)
-        plt.ylabel("Speedup (Higher is Better)")
+        plt.ylabel("Speedup")
         plt.xlabel("Benchmark Name")
         plt.ylim(0.95, 1.13)
         plt.legend(title="Associativity", bbox_to_anchor=(1.02, 1), loc='upper left')
@@ -214,8 +216,8 @@ else:
 :results:
 #+begin_example
 #+end_example
-[[file:./.ob-jupyter/bbd124c95f600603b2cc4f6cd149636605d769a3.png]]
-[[file:./.ob-jupyter/7c99717ac5d2b8c84eeb14184ee46da5623abace.png]]
+[[file:./.ob-jupyter/e49a03af9ddbe81b245dad8eac05f311980338b1.png]]
+[[file:./.ob-jupyter/e10aec7e5d9487418d686e9cc525efb9f25e6d16.png]]
 :end:
 * BTB Size Sweep
 #+begin_src jupyter-python :results output drawer :exports results
@@ -275,7 +277,7 @@ else:
         plt.rcParams['figure.dpi'] = 300
         plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BTB 16)")
         plt.title("UnixBench: Sensitivity to BTB Size", fontsize=16)
-        plt.ylabel("Speedup (Higher is Better)")
+        plt.ylabel("Speedup")
         plt.xlabel("Benchmark Name")
         plt.xticks(rotation=45, ha='right')
         plt.ylim(0.9, 1.035)
@@ -307,7 +309,7 @@ else:
         plt.rcParams['figure.dpi'] = 300
         plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BTB 16)")
         plt.title("NPB: Sensitivity to BTB Size", fontsize=16)
-        plt.ylabel("Speedup (Higher is Better)")
+        plt.ylabel("Speedup")
         plt.xlabel("Benchmark Name")
         plt.ylim(0.9, 1.15)
         plt.legend(title="BTB Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
@@ -322,8 +324,8 @@ else:
 :results:
 #+begin_example
 #+end_example
-[[file:./.ob-jupyter/78439ba7bdba36cf17443cded940b175a0ebdd2c.png]]
-[[file:./.ob-jupyter/698d62939d2a205d854de21a47303cd0c1663efe.png]]
+[[file:./.ob-jupyter/65ddbbf18d13a43e0a49da41361aa1fdd9343c88.png]]
+[[file:./.ob-jupyter/5f7c0101e6fd6e7d49b2a259a82e91b0f4813a78.png]]
 :end:
 * BHT Size Sweep
 #+begin_src jupyter-python :results output drawer :exports results
@@ -383,7 +385,7 @@ else:
         plt.rcParams['figure.dpi'] = 300
         plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BHT 16)")
         plt.title("UnixBench: Sensitivity to BHT Size", fontsize=16)
-        plt.ylabel("Speedup (Higher is Better)")
+        plt.ylabel("Speedup")
         plt.xlabel("Benchmark Name")
         plt.xticks(rotation=45, ha='right')
         plt.ylim(0.96, 1.03)
@@ -415,7 +417,7 @@ else:
         plt.rcParams['figure.dpi'] = 300
         plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BHT 16)")
         plt.title("NPB: Sensitivity to BHT Size", fontsize=16)
-        plt.ylabel("Speedup (Higher is Better)")
+        plt.ylabel("Speedup")
         plt.xlabel("Benchmark Name")
         plt.ylim(0.95, 1.15)
         plt.legend(title="BHT Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
@@ -430,6 +432,2789 @@ else:
 :results:
 #+begin_example
 #+end_example
-[[file:./.ob-jupyter/9ed97f6d4e550e9d290fbc53f10f1a4ff5fb1079.png]]
-[[file:./.ob-jupyter/d0170871e732abd056d05c08b955b775b8f1db63.png]]
+[[file:./.ob-jupyter/d219972593f28e3c0d5668d86d98504b273df20f.png]]
+[[file:./.ob-jupyter/18a5d1d0167a3291995d2783f2ac5e7b328c89e0.png]]
 :end:
+* PAPI
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# 1. Setup
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
+
+# Define all your experiments to process in a loop
+experiments = [
+    {
+        "title": "Cache Size Sweep",
+        "filename": "cache_sweep_benchmark_results.csv",
+        "baseline_label": "Baseline (4KB)",
+        "regex": r'(\d+)k',
+        "sort_col": "size_kb"
+    },
+    {
+        "title": "Associativity Sweep",
+        "filename": "associativity_sweep_benchmark_results.csv",
+        "baseline_label": "Baseline (4-way)",
+        "regex": r'(\d+)w',
+        "sort_col": "ways"
+    },
+    {
+        "title": "BTB Size Sweep",
+        "filename": "btb_sweep_benchmark_results.csv",
+        "baseline_label": "Baseline (BTB 16)",
+        "regex": r'BTB(\d+)',
+        "sort_col": "entries"
+    },
+    {
+        "title": "BHT Size Sweep",
+        "filename": "bht_sweep_benchmark_results.csv",
+        "baseline_label": "Baseline (BHT 16)",
+        "regex": r'BHT(\d+)',
+        "sort_col": "entries"
+    }
+]
+
+# Load Baseline once
+if not os.path.exists(BASELINE_FILE):
+    print("Error: Baseline file not found.")
+else:
+    df_base = pd.read_csv(BASELINE_FILE)
+    df_base_clean = df_base[['suite', 'name', 'ipc']].rename(columns={'ipc': 'base_ipc'})
+
+    # 2. Main Loop
+    for exp in experiments:
+        file_path = os.path.join(RESULTS_DIR, exp["filename"])
+
+        if not os.path.exists(file_path):
+            print(f"Skipping {exp['title']}: File not found.")
+            continue
+
+        print(f"Generating IPC Plots for: {exp['title']}...")
+        df_exp = pd.read_csv(file_path)
+
+        # Merge
+        df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
+
+        # Calculate IPC Gain (Normalized Efficiency)
+        df_merged['ipc_gain'] = df_merged['ipc'] / df_merged['base_ipc']
+
+        # Extract sorting value
+        def extract_val(config_str):
+            m = re.search(exp['regex'], str(config_str), re.IGNORECASE)
+            if m: return int(m.group(1))
+            return 0
+
+        df_merged[exp['sort_col']] = df_merged['config'].apply(extract_val)
+        df_merged = df_merged.sort_values(by=exp['sort_col'])
+
+        # Plotting (Separated by Suite for clarity)
+        for suite in ['UnixBench', 'NPB']:
+            subset = df_merged[df_merged['suite'] == suite]
+            if subset.empty: continue
+
+            plt.figure(figsize=(12, 5))
+            sns.set_theme(style="whitegrid")
+
+            sns.barplot(
+                data=subset,
+                x="name",
+                y="ipc_gain",
+                hue="config",
+                palette="rocket" # Different color palette to distinguish from Speedup
+            )
+            plt.rc('text',usetex =True)
+            plt.rc('font',family = 'serif')
+            plt.rcParams['figure.dpi'] = 300
+            plt.axhline(1.0, color='blue', linestyle='--', linewidth=2, label=exp['baseline_label'])
+            plt.title(f"{exp['title']} - {suite}: IPC Efficiency Gain", fontsize=15)
+            plt.ylabel("IPC Gain")
+            plt.xlabel("Benchmark")
+            plt.xticks(rotation=45, ha='right')
+            plt.ylim(0.95, 1.05) # Focus on the changes
+            plt.legend(title="Config", bbox_to_anchor=(1.02, 1), loc='upper left')
+
+            plt.tight_layout()
+            plt.show()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+Generating IPC Plots for: Cache Size Sweep...
+#+end_example
+[[file:./.ob-jupyter/f91b6e8f22ebb06405c67f849b39780b8e4b9498.png]]
+[[file:./.ob-jupyter/fca7a33f27129e5107f13c8450304b2ad67e82a3.png]]
+#+begin_example
+Generating IPC Plots for: Associativity Sweep...
+#+end_example
+[[file:./.ob-jupyter/90091a968f75ad164f441f2ec06bf2d8bca5882c.png]]
+[[file:./.ob-jupyter/66fb8cff7cca5fb90ab104fb90e8fb229e38de66.png]]
+#+begin_example
+Generating IPC Plots for: BTB Size Sweep...
+#+end_example
+[[file:./.ob-jupyter/dd06e7f184dc7697038ba27fe486616edd261a2d.png]]
+[[file:./.ob-jupyter/b6fc162a40c15e60251806e348d591d560c1d50e.png]]
+#+begin_example
+Generating IPC Plots for: BHT Size Sweep...
+#+end_example
+[[file:./.ob-jupyter/ace27f0780895604405ed0bc026fb8b44629cbcb.png]]
+[[file:./.ob-jupyter/94afbd444e14269bb56c2dd507f88993eadcf43f.png]]
+:end:
+
+* Individual benchmarks
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# 1. Setup
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+PLOTS_DIR = os.path.join(RESULTS_DIR, "individual_benchmark_profiles")
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+# 2. Define Sources
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+# 3. Load & Combine
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+benchmarks = df_master['name'].unique()
+palette = {src["name"]: src["color"] for src in sources}
+
+def get_sort_value(config_str):
+    m = re.search(r'(\d+)', str(config_str))
+    if m: return int(m.group(1))
+    return 0
+
+print(f"Generating final plots for {len(benchmarks)} benchmarks...")
+
+for bench in benchmarks:
+    subset = df_master[df_master['name'] == bench].copy()
+    if subset.empty: continue
+    
+    # Sort
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'], 
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"], 
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']), 
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+    
+    # Dynamic Zoom Calculation
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01 
+    y_min = min_score - (diff * 0.5)
+    y_max = max_score + (diff * 0.5)
+    if y_min < 0: y_min = 0
+    
+    # Plotting
+    fig, ax1 = plt.subplots(figsize=(15, 8)) # Increased width slightly for the legend
+    sns.set_theme(style="whitegrid")
+    
+    # 1. Bars (Score)
+    sns.barplot(
+        data=subset,
+        x="config",
+        y="score",
+        hue="sweep_type",
+        palette=palette,
+        dodge=False,
+        ax=ax1,
+        alpha=0.85
+    )
+    
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+    
+    # 2. Line (IPC)
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, 
+        x="config", 
+        y="ipc", 
+        color="red", 
+        markers="o", 
+        scale=0.8, 
+        ax=ax2,
+        linestyles="-"
+    )
+    ax2.set_ylabel("IPC (Instructions Per Cycle)", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+    
+    # 3. Baseline Line with Vertical List Legend
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        # Use newlines (\n) to create the vertical list effect
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            "  • 4k L1 I/D Cache\n"
+            "  • 4-way Associativity\n"
+            "  • BTB 16 Entries\n"
+            "  • BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    # Titles
+    plt.title(f"Performance Profile: {bench}", fontsize=18, pad=20)
+    
+    # 4. Custom Legend Construction
+    # Get handles from the bar chart
+    handles, labels = ax1.get_legend_handles_labels()
+    
+    # We want the "Baseline Config" text to be last.
+    # The sort logic ensures 'Baseline' bar is first, but we want the 'Line' label to be special.
+    
+    # Filter out duplicates and reorganize
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    
+    # Separate the Baseline Line handle from the rest
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    
+    # Re-assemble: Bars first, then the detailed Baseline text
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    # Place Legend outside the plot area
+    ax1.legend(
+        unique_handles, 
+        unique_labels, 
+        title="Experiment Parameters", 
+        bbox_to_anchor=(1.08, 1), 
+        loc='upper left',
+        borderaxespad=0.,
+        frameon=True
+    )
+
+    plt.tight_layout()
+    save_path = os.path.join(PLOTS_DIR, f"profile_{bench}.png")
+    plt.savefig(save_path)
+    plt.close()
+
+print(f"Done! Plots saved to: {PLOTS_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerating final plots for 20 benchmarks...
+Done! Plots saved to: /home/han4n/cva6_experiments/results/individual_benchmark_profiles
+#+end_example
+:end:
+
+
+* Individual scripts :noexport:
+#+name: plot_dhrystone
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- 1. Configuration & Styling ---
+TARGET_BENCHMARK = "Dhrystone"  # <--- Change this for other benchmarks
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+# Latex Formatting
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- 2. Data Loading (Independent for Reproducibility) ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+# Filter for Specific Benchmark
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    # --- 3. Sorting & Preparation ---
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    # Dynamic Zoom Logic
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    # --- 4. Plotting ---
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6)) # Adjusted for A4 paper width
+    sns.set_theme(style="whitegrid")
+
+    # Bar Plot (Score)
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    # Line Plot (IPC)
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    # Baseline Line
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        # Using Latex formatting for bullet points
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    # Legend Logic
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+#+RESULTS: plot_dhrystone
+:RESULTS:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/0f420266d25a1bc93f081bd2b3302ca4835d8190.png]]
+:END:
+
+#+name: plot_whetstone
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Whetstone"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+#+RESULTS: plot_whetstone
+:RESULTS:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/3b66ae81ff87bd0f56844adc7d59691988ec0c47.png]]
+:END:
+#+name: plot_arithmetic_double
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Arithmetic_Double"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_arithmetic_int
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Arithmetic_Int"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_arithmetic_short
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Arithmetic_Short"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_arithmetic_register
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Arithmetic_Register"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_syscall_mix
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Syscall_Mix"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_syscall_getpid
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Syscall_GetPID"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_syscall_exec
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Syscall_Exec"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_pipe_throughput
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Pipe_Throughput"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_context_switching
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "Context_Switching"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_mg
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "MG"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_cg
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "CG"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_is
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "IS"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_ep
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "EP"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_lu
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "LU"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_sp
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "SP"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_bt
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "BT"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
+
+
+
+
+#+name: plot_ft
+#+begin_src jupyter-python :results output :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- Configuration ---
+TARGET_BENCHMARK = "FT"
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+OUTPUT_FILE = f"{RESULTS_DIR}/final_benchmark_profiles_v2/profile_{TARGET_BENCHMARK}.png"
+
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- Data Loading ---
+sources = [
+    {"name": "Baseline",      "file": "baseline_results.csv",                  "color": "gray"},
+    {"name": "Cache Size",    "file": "cache_sweep_benchmark_results.csv",     "color": "dodgerblue"},
+    {"name": "Associativity", "file": "associativity_sweep_benchmark_results.csv", "color": "forestgreen"},
+    {"name": "BTB Size",      "file": "btb_sweep_benchmark_results.csv",       "color": "darkorange"},
+    {"name": "BHT Size",      "file": "bht_sweep_benchmark_results.csv",       "color": "purple"},
+]
+
+df_master = pd.DataFrame()
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        temp_df['sweep_type'] = src["name"]
+        if src["name"] == "Baseline":
+            temp_df['config'] = "Ref"
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+subset = df_master[df_master['name'] == TARGET_BENCHMARK].copy()
+
+if not subset.empty:
+    def get_sort_value(config_str):
+        m = re.search(r'(\d+)', str(config_str))
+        if m: return int(m.group(1))
+        return 0
+
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    min_score = subset['score'].min()
+    max_score = subset['score'].max()
+    diff = max_score - min_score
+    if diff == 0: diff = max_score * 0.01
+    y_min = max(0, min_score - (diff * 0.5))
+    y_max = max_score + (diff * 0.5)
+
+    palette = {src["name"]: src["color"] for src in sources}
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+
+    sns.barplot(
+        data=subset, x="config", y="score", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85
+    )
+    ax1.set_ylim(y_min, y_max)
+    ax1.set_ylabel(f"{subset['units'].iloc[0]}", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2 = ax1.twinx()
+    sns.pointplot(
+        data=subset, x="config", y="ipc", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-"
+    )
+    ax2.set_ylabel("IPC", color="red", fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    base_rows = subset[subset['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score'].values[0]
+        baseline_legend_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4k L1 I/D Cache" "\n"
+            r"$\bullet$ 4-way Assoc" "\n"
+            r"$\bullet$ BTB 16 Entries" "\n"
+            r"$\bullet$ BHT 16 Entries"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_legend_text)
+
+    plt.title(f"Performance Profile: {TARGET_BENCHMARK}", fontsize=16, pad=15)
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    baseline_handle = None
+    baseline_label = None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            baseline_handle = h
+            baseline_label = l
+        elif l not in seen:
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+    if baseline_handle:
+        unique_handles.append(baseline_handle)
+        unique_labels.append(baseline_label)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.1, 1), loc='upper left'
+    )
+
+    plt.tight_layout()
+    plt.show()
+#+end_src
