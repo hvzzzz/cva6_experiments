@@ -535,7 +535,7 @@ for sweep in sweeps:
 
         plt.tight_layout()
 
-        filename = f"grouped_rainbow_blue_{sweep['name'].replace(' ', '_')}_{suite}.png".lower()
+        filename = f"counter_cycle_{sweep['name'].replace(' ', '_')}_{suite}.png".lower()
         plt.savefig(os.path.join(PLOTS_DIR, filename), bbox_inches='tight')
         plt.close()
 
