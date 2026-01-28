@@ -2,573 +2,6 @@
 #+OPTIONS: tags:t
 #+EXPORT_EXCLUDE_TAGS: noexport
 
-* Cache sweep
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import os
-import re
-import numpy as np
-from scipy.stats import gmean
-import warnings
-
-# Suppress warnings
-warnings.filterwarnings("ignore")
-
-# 1. Setup & Load
-RESULTS_DIR = "/home/han4n/cva6_experiments/results"
-BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
-EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "cache_sweep_benchmark_results.csv")
-
-df_base = pd.read_csv(BASELINE_FILE)
-df_exp = pd.read_csv(EXPERIMENT_FILE)
-
-# 2. Merge & Calculate
-df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
-df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
-df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
-
-def extract_size(config_str):
-    m = re.search(r'(\d+)k', str(config_str), re.IGNORECASE)
-    if m: return int(m.group(1))
-    return 0
-
-df_merged['size_kb'] = df_merged['config'].apply(extract_size)
-df_merged = df_merged.sort_values(by='size_kb')
-
-# =============================================================================
-# PLOT A: UnixBench Performance (The "System" Benchmarks)
-# =============================================================================
-plt.figure(figsize=(12, 6))
-plt.rcParams['figure.dpi'] = 300
-sns.set_theme(style="whitegrid")
-
-# Filter Data
-unix_data = df_merged[df_merged['suite'] == 'UnixBench']
-
-chart = sns.barplot(
-    data=unix_data,
-    x="name",
-    y="speedup",
-    hue="config",
-    palette="viridis"
-)
-
-# Formatting
-plt.rc('text',usetex =True)
-plt.rc('font',family = 'serif')
-plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
-plt.title("UnixBench Suite: Sensitivity to Cache Size", fontsize=16)
-plt.ylabel("Speedup")
-plt.xlabel("Benchmark Name")
-plt.xticks(rotation=45, ha='right')
-plt.ylim(0.96, 1.05)
-plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-plt.tight_layout()
-plt.show()
-
-# =============================================================================
-# PLOT B: NPB Performance (The "Scientific" Benchmarks)
-# =============================================================================
-plt.figure(figsize=(12, 6))
-plt.rcParams['figure.dpi'] = 300
-sns.set_theme(style="whitegrid")
-
-# Filter Data
-npb_data = df_merged[df_merged['suite'] == 'NPB']
-
-chart = sns.barplot(
-    data=npb_data,
-    x="name",
-    y="speedup",
-    hue="config",
-    palette="viridis"
-)
-
-# Formatting
-plt.rc('text',usetex =True)
-plt.rc('font',family = 'serif')
-plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline")
-plt.title("NAS Parallel Benchmarks (NPB): Sensitivity to Cache Size", fontsize=16)
-plt.ylabel("Speedup")
-plt.xlabel("Benchmark Name")
-plt.ylim(0.975, 1.13)
-plt.legend(title="Cache Config", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-plt.tight_layout()
-plt.show()
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_example
-#+end_example
-[[file:./.ob-jupyter/f6f8b6ba39b3cce637ab0b32b3201fb7ca27cf7b.png]]
-[[file:./.ob-jupyter/d2efbb1debc29a5c199a0bf8697c1b8149f6bb04.png]]
-:end:
-* Associativity sweep
-
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import os
-import re
-import warnings
-
-# Suppress warnings
-warnings.filterwarnings("ignore")
-
-# 1. Setup & Load
-RESULTS_DIR = "/home/han4n/cva6_experiments/results"
-BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
-EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "associativity_sweep_benchmark_results.csv")
-
-if not os.path.exists(EXPERIMENT_FILE):
-    print(f"Error: Experiment file not found at {EXPERIMENT_FILE}")
-    print("Did you run the scraping script for the Associativity Sweep?")
-else:
-    df_base = pd.read_csv(BASELINE_FILE)
-    df_exp = pd.read_csv(EXPERIMENT_FILE)
-
-    # 2. Merge & Calculate
-    df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
-    df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
-    df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
-
-    # 3. Sort by Associativity (Extract number from "1w", "2w")
-    def extract_ways(config_str):
-        # Look for a number at the start or embedded in the string
-        m = re.search(r'(\d+)', str(config_str))
-        if m: return int(m.group(1))
-        return 0
-
-    df_merged['ways'] = df_merged['config'].apply(extract_ways)
-    df_merged = df_merged.sort_values(by='ways')
-
-    # =============================================================================
-    # PLOT A: UnixBench Performance
-    # =============================================================================
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    unix_data = df_merged[df_merged['suite'] == 'UnixBench']
-
-    if not unix_data.empty:
-        sns.barplot(
-            data=unix_data,
-            x="name",
-            y="speedup",
-            hue="config",
-            palette="viridis"
-        )
-        plt.rc('text',usetex =True)
-        plt.rc('font',family = 'serif')
-        plt.rcParams['figure.dpi'] = 300
-        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (4-way)")
-        plt.title("UnixBench: Sensitivity to Cache Associativity", fontsize=16)
-        plt.ylabel("Speedup")
-        plt.xlabel("Benchmark Name")
-        plt.xticks(rotation=45, ha='right')
-        plt.ylim(0.98, 1.04)
-        plt.legend(title="Associativity", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("No UnixBench data found for Associativity sweep.")
-
-    # =============================================================================
-    # PLOT B: NPB Performance
-    # =============================================================================
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    npb_data = df_merged[df_merged['suite'] == 'NPB']
-
-    if not npb_data.empty:
-        sns.barplot(
-            data=npb_data,
-            x="name",
-            y="speedup",
-            hue="config",
-            palette="viridis"
-        )
-        plt.rc('text',usetex =True)
-        plt.rc('font',family = 'serif')
-        plt.rcParams['figure.dpi'] = 300
-        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (4-way)")
-        plt.title("NPB: Sensitivity to Cache Associativity", fontsize=16)
-        plt.ylabel("Speedup")
-        plt.xlabel("Benchmark Name")
-        plt.ylim(0.95, 1.13)
-        plt.legend(title="Associativity", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("No NPB data found for Associativity sweep.")
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_example
-#+end_example
-[[file:./.ob-jupyter/e49a03af9ddbe81b245dad8eac05f311980338b1.png]]
-[[file:./.ob-jupyter/e10aec7e5d9487418d686e9cc525efb9f25e6d16.png]]
-:end:
-* BTB Size Sweep
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import os
-import re
-import warnings
-
-# Suppress warnings
-warnings.filterwarnings("ignore")
-
-# 1. Setup & Load
-RESULTS_DIR = "/home/han4n/cva6_experiments/results"
-BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
-EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "btb_sweep_benchmark_results.csv")
-
-if not os.path.exists(EXPERIMENT_FILE):
-    print(f"Error: Experiment file not found at {EXPERIMENT_FILE}")
-else:
-    df_base = pd.read_csv(BASELINE_FILE)
-    df_exp = pd.read_csv(EXPERIMENT_FILE)
-
-    # 2. Merge & Calculate
-    df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
-    df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
-    df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
-
-    # 3. Sort by BTB Size (Extract number from "BTB8", "BTB32")
-    def extract_btb_size(config_str):
-        m = re.search(r'(\d+)', str(config_str))
-        if m: return int(m.group(1))
-        return 0
-
-    df_merged['entries'] = df_merged['config'].apply(extract_btb_size)
-    df_merged = df_merged.sort_values(by='entries')
-
-    # =============================================================================
-    # PLOT A: UnixBench Performance
-    # =============================================================================
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    unix_data = df_merged[df_merged['suite'] == 'UnixBench']
-
-    if not unix_data.empty:
-        sns.barplot(
-            data=unix_data,
-            x="name",
-            y="speedup",
-            hue="config",
-            palette="viridis"
-        )
-        plt.rc('text',usetex =True)
-        plt.rc('font',family = 'serif')
-        plt.rcParams['figure.dpi'] = 300
-        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BTB 16)")
-        plt.title("UnixBench: Sensitivity to BTB Size", fontsize=16)
-        plt.ylabel("Speedup")
-        plt.xlabel("Benchmark Name")
-        plt.xticks(rotation=45, ha='right')
-        plt.ylim(0.9, 1.035)
-        plt.legend(title="BTB Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("No UnixBench data found for BTB sweep.")
-
-    # =============================================================================
-    # PLOT B: NPB Performance
-    # =============================================================================
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    npb_data = df_merged[df_merged['suite'] == 'NPB']
-
-    if not npb_data.empty:
-        sns.barplot(
-            data=npb_data,
-            x="name",
-            y="speedup",
-            hue="config",
-            palette="viridis"
-        )
-        plt.rc('text',usetex =True)
-        plt.rc('font',family = 'serif')
-        plt.rcParams['figure.dpi'] = 300
-        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BTB 16)")
-        plt.title("NPB: Sensitivity to BTB Size", fontsize=16)
-        plt.ylabel("Speedup")
-        plt.xlabel("Benchmark Name")
-        plt.ylim(0.9, 1.15)
-        plt.legend(title="BTB Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("No NPB data found for BTB sweep.")
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_example
-#+end_example
-[[file:./.ob-jupyter/65ddbbf18d13a43e0a49da41361aa1fdd9343c88.png]]
-[[file:./.ob-jupyter/5f7c0101e6fd6e7d49b2a259a82e91b0f4813a78.png]]
-:end:
-* BHT Size Sweep
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import os
-import re
-import warnings
-
-# Suppress warnings
-warnings.filterwarnings("ignore")
-
-# 1. Setup & Load
-RESULTS_DIR = "/home/han4n/cva6_experiments/results"
-BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
-EXPERIMENT_FILE = os.path.join(RESULTS_DIR, "bht_sweep_benchmark_results.csv")
-
-if not os.path.exists(EXPERIMENT_FILE):
-    print(f"Error: Experiment file not found at {EXPERIMENT_FILE}")
-else:
-    df_base = pd.read_csv(BASELINE_FILE)
-    df_exp = pd.read_csv(EXPERIMENT_FILE)
-
-    # 2. Merge & Calculate
-    df_base_clean = df_base[['suite', 'name', 'score']].rename(columns={'score': 'base_score'})
-    df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
-    df_merged['speedup'] = df_merged['score'] / df_merged['base_score']
-
-    # 3. Sort by BHT Entries (Extract number from "BHT32", "BHT128")
-    def extract_bht_entries(config_str):
-        m = re.search(r'(\d+)', str(config_str))
-        if m: return int(m.group(1))
-        return 0
-
-    df_merged['entries'] = df_merged['config'].apply(extract_bht_entries)
-    df_merged = df_merged.sort_values(by='entries')
-
-    # =============================================================================
-    # PLOT A: UnixBench Performance
-    # =============================================================================
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    unix_data = df_merged[df_merged['suite'] == 'UnixBench']
-
-    if not unix_data.empty:
-        sns.barplot(
-            data=unix_data,
-            x="name",
-            y="speedup",
-            hue="config",
-            palette="viridis"
-        )
-        plt.rc('text',usetex =True)
-        plt.rc('font',family = 'serif')
-        plt.rcParams['figure.dpi'] = 300
-        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BHT 16)")
-        plt.title("UnixBench: Sensitivity to BHT Size", fontsize=16)
-        plt.ylabel("Speedup")
-        plt.xlabel("Benchmark Name")
-        plt.xticks(rotation=45, ha='right')
-        plt.ylim(0.96, 1.03)
-        plt.legend(title="BHT Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("No UnixBench data found for BHT sweep.")
-
-    # =============================================================================
-    # PLOT B: NPB Performance
-    # =============================================================================
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    npb_data = df_merged[df_merged['suite'] == 'NPB']
-
-    if not npb_data.empty:
-        sns.barplot(
-            data=npb_data,
-            x="name",
-            y="speedup",
-            hue="config",
-            palette="viridis"
-        )
-        plt.rc('text',usetex =True)
-        plt.rc('font',family = 'serif')
-        plt.rcParams['figure.dpi'] = 300
-        plt.axhline(1.0, color='red', linestyle='--', linewidth=2, label="Baseline (BHT 16)")
-        plt.title("NPB: Sensitivity to BHT Size", fontsize=16)
-        plt.ylabel("Speedup")
-        plt.xlabel("Benchmark Name")
-        plt.ylim(0.95, 1.15)
-        plt.legend(title="BHT Entries", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("No NPB data found for BHT sweep.")
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_example
-#+end_example
-[[file:./.ob-jupyter/d219972593f28e3c0d5668d86d98504b273df20f.png]]
-[[file:./.ob-jupyter/18a5d1d0167a3291995d2783f2ac5e7b328c89e0.png]]
-:end:
-* PAPI
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import os
-import re
-import warnings
-
-warnings.filterwarnings("ignore")
-
-# 1. Setup
-RESULTS_DIR = "/home/han4n/cva6_experiments/results"
-BASELINE_FILE = os.path.join(RESULTS_DIR, "baseline_results.csv")
-
-# Define all your experiments to process in a loop
-experiments = [
-    {
-        "title": "Cache Size Sweep",
-        "filename": "cache_sweep_benchmark_results.csv",
-        "baseline_label": "Baseline (4KB)",
-        "regex": r'(\d+)k',
-        "sort_col": "size_kb"
-    },
-    {
-        "title": "Associativity Sweep",
-        "filename": "associativity_sweep_benchmark_results.csv",
-        "baseline_label": "Baseline (4-way)",
-        "regex": r'(\d+)w',
-        "sort_col": "ways"
-    },
-    {
-        "title": "BTB Size Sweep",
-        "filename": "btb_sweep_benchmark_results.csv",
-        "baseline_label": "Baseline (BTB 16)",
-        "regex": r'BTB(\d+)',
-        "sort_col": "entries"
-    },
-    {
-        "title": "BHT Size Sweep",
-        "filename": "bht_sweep_benchmark_results.csv",
-        "baseline_label": "Baseline (BHT 16)",
-        "regex": r'BHT(\d+)',
-        "sort_col": "entries"
-    }
-]
-
-# Load Baseline once
-if not os.path.exists(BASELINE_FILE):
-    print("Error: Baseline file not found.")
-else:
-    df_base = pd.read_csv(BASELINE_FILE)
-    df_base_clean = df_base[['suite', 'name', 'ipc']].rename(columns={'ipc': 'base_ipc'})
-
-    # 2. Main Loop
-    for exp in experiments:
-        file_path = os.path.join(RESULTS_DIR, exp["filename"])
-
-        if not os.path.exists(file_path):
-            print(f"Skipping {exp['title']}: File not found.")
-            continue
-
-        print(f"Generating IPC Plots for: {exp['title']}...")
-        df_exp = pd.read_csv(file_path)
-
-        # Merge
-        df_merged = pd.merge(df_exp, df_base_clean, on=['suite', 'name'], how='inner')
-
-        # Calculate IPC Gain (Normalized Efficiency)
-        df_merged['ipc_gain'] = df_merged['ipc'] / df_merged['base_ipc']
-
-        # Extract sorting value
-        def extract_val(config_str):
-            m = re.search(exp['regex'], str(config_str), re.IGNORECASE)
-            if m: return int(m.group(1))
-            return 0
-
-        df_merged[exp['sort_col']] = df_merged['config'].apply(extract_val)
-        df_merged = df_merged.sort_values(by=exp['sort_col'])
-
-        # Plotting (Separated by Suite for clarity)
-        for suite in ['UnixBench', 'NPB']:
-            subset = df_merged[df_merged['suite'] == suite]
-            if subset.empty: continue
-
-            plt.figure(figsize=(12, 5))
-            sns.set_theme(style="whitegrid")
-
-            sns.barplot(
-                data=subset,
-                x="name",
-                y="ipc_gain",
-                hue="config",
-                palette="rocket" # Different color palette to distinguish from Speedup
-            )
-            plt.rc('text',usetex =True)
-            plt.rc('font',family = 'serif')
-            plt.rcParams['figure.dpi'] = 300
-            plt.axhline(1.0, color='blue', linestyle='--', linewidth=2, label=exp['baseline_label'])
-            plt.title(f"{exp['title']} - {suite}: IPC Efficiency Gain", fontsize=15)
-            plt.ylabel("IPC Gain")
-            plt.xlabel("Benchmark")
-            plt.xticks(rotation=45, ha='right')
-            plt.ylim(0.95, 1.05) # Focus on the changes
-            plt.legend(title="Config", bbox_to_anchor=(1.02, 1), loc='upper left')
-
-            plt.tight_layout()
-            plt.show()
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_example
-Generating IPC Plots for: Cache Size Sweep...
-#+end_example
-[[file:./.ob-jupyter/f91b6e8f22ebb06405c67f849b39780b8e4b9498.png]]
-[[file:./.ob-jupyter/fca7a33f27129e5107f13c8450304b2ad67e82a3.png]]
-#+begin_example
-Generating IPC Plots for: Associativity Sweep...
-#+end_example
-[[file:./.ob-jupyter/90091a968f75ad164f441f2ec06bf2d8bca5882c.png]]
-[[file:./.ob-jupyter/66fb8cff7cca5fb90ab104fb90e8fb229e38de66.png]]
-#+begin_example
-Generating IPC Plots for: BTB Size Sweep...
-#+end_example
-[[file:./.ob-jupyter/dd06e7f184dc7697038ba27fe486616edd261a2d.png]]
-[[file:./.ob-jupyter/b6fc162a40c15e60251806e348d591d560c1d50e.png]]
-#+begin_example
-Generating IPC Plots for: BHT Size Sweep...
-#+end_example
-[[file:./.ob-jupyter/ace27f0780895604405ed0bc026fb8b44629cbcb.png]]
-[[file:./.ob-jupyter/94afbd444e14269bb56c2dd507f88993eadcf43f.png]]
-:end:
-
 * Individual benchmarks
 
 #+begin_src jupyter-python :results output drawer :exports results
@@ -782,4 +215,161 @@ print(f"Success! All images saved to: {PLOTS_DIR}")
 Success! All images saved to: /home/han4n/cva6_experiments/results/individual_benchmark_profiles
 #+end_example
 :end:
+* Speedup Plots
 
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- 1. Global Setup ---
+RESULTS_DIR = "/home/han4n/cva6_experiments/results"
+PLOTS_DIR = os.path.join(RESULTS_DIR, "speedup_plots")
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+# LaTeX & Style
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- 2. Helper Functions ---
+def prettify_config(conf):
+    """Translates config names to clean labels."""
+    if conf == "Ref": return "Baseline"
+    m = re.search(r'IC/DC (\d+)k', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}KB"
+    m = re.search(r'^(\d+)w$', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Way"
+    m = re.search(r'BTB(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"BTB-{m.group(1)}"
+    m = re.search(r'BHT(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"BHT-{m.group(1)}"
+    return conf
+
+def get_sort_value(config_str):
+    m = re.search(r'(\d+)', str(config_str))
+    if m: return int(m.group(1))
+    return 0
+
+# --- 3. Load & Process Data ---
+sweeps = [
+    {"name": "Cache Size Sweep",    "file": "cache_sweep_benchmark_results.csv",     "palette": "Blues_d"},
+    {"name": "Associativity Sweep", "file": "associativity_sweep_benchmark_results.csv", "palette": "Greens_d"},
+    {"name": "BTB Size Sweep",      "file": "btb_sweep_benchmark_results.csv",       "palette": "Oranges_d"},
+    {"name": "BHT Size Sweep",      "file": "bht_sweep_benchmark_results.csv",       "palette": "Purples_d"},
+]
+
+baseline_df = pd.read_csv(os.path.join(RESULTS_DIR, "baseline_results.csv"))
+base_clean = baseline_df[['suite', 'name', 'score', 'ipc']].rename(
+    columns={'score': 'base_score', 'ipc': 'base_ipc'}
+)
+
+print("Generating Zoomed Combined Speedup Plots...")
+
+for sweep in sweeps:
+    file_path = os.path.join(RESULTS_DIR, sweep["file"])
+    if not os.path.exists(file_path):
+        continue
+
+    df = pd.read_csv(file_path)
+    df_merged = pd.merge(df, base_clean, on=['suite', 'name'], how='inner')
+
+    # Calculate Speedups
+    df_merged['Performance Speedup'] = df_merged['score'] / df_merged['base_score']
+    df_merged['IPC Speedup'] = df_merged['ipc'] / df_merged['base_ipc']
+
+    df_merged['Config Label'] = df_merged['config'].apply(prettify_config)
+    df_merged['sort_val'] = df_merged['config'].apply(get_sort_value)
+    df_merged = df_merged.sort_values(by=['sort_val'])
+
+    # --- PLOTTING ---
+    for suite in df_merged['suite'].unique():
+        subset = df_merged[df_merged['suite'] == suite]
+        if subset.empty: continue
+
+        plt.figure(figsize=(14, 7))
+        sns.set_theme(style="whitegrid")
+
+        # 1. BARS = Performance Speedup
+        bar_plot = sns.barplot(
+            data=subset,
+            x="name",
+            y="Performance Speedup",
+            hue="Config Label",
+            palette=sweep["palette"],
+            edgecolor="black",
+            linewidth=0.5,
+            alpha=0.8
+        )
+
+        # 2. MARKERS = IPC Speedup
+        sns.stripplot(
+            data=subset,
+            x="name",
+            y="IPC Speedup",
+            hue="Config Label",
+            palette=['black'] * len(subset['Config Label'].unique()),
+            dodge=True,
+            marker='D',
+            size=5,
+            jitter=False,
+            legend=False
+        )
+
+        # Reference Line
+        plt.axhline(1.0, color='red', linestyle='--', linewidth=1.5, zorder=0)
+
+        # --- DYNAMIC Y-AXIS ZOOM ---
+        # Gather all Y-values (Bars + Dots) to find the active range
+        all_y = pd.concat([subset['Performance Speedup'], subset['IPC Speedup']])
+        y_min = all_y.min()
+        y_max = all_y.max()
+
+        # Calculate spread and apply padding
+        spread = y_max - y_min
+        if spread == 0: spread = 0.05
+        padding = spread * 0.20 # 20% breathing room
+
+        # Set limits
+        plt.ylim(y_min - padding, y_max + padding)
+
+        # Labels & Layout
+        plt.title(f"{sweep['name']} ({suite}): Performance vs. Efficiency", fontsize=16, pad=15)
+        plt.ylabel(r"Speedup Factor (Baseline = 1.0)", fontsize=12)
+        plt.xlabel("Hardware Configuration", fontsize=10, style='italic', color='#444444')
+
+        plt.xticks(rotation=70, ha='right', rotation_mode='anchor', fontsize=10)
+
+        # Custom Legend
+        handles, labels = bar_plot.get_legend_handles_labels()
+        from matplotlib.lines import Line2D
+        diamond_proxy = Line2D([0], [0], color='w', marker='D', markerfacecolor='black', markersize=6, label='IPC Speedup (Efficiency)')
+        handles.append(diamond_proxy)
+        labels.append("IPC Speedup (Efficiency)")
+
+        plt.legend(
+            handles, labels,
+            title="Configuration",
+            bbox_to_anchor=(1.01, 1),
+            loc='upper left'
+        )
+
+        plt.tight_layout()
+
+        filename = f"{sweep['name'].replace(' ', '_')}_{suite}.png".lower()
+        plt.savefig(os.path.join(PLOTS_DIR, filename), bbox_inches='tight')
+        plt.close()
+
+print(f"Done! plots saved to: {PLOTS_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerating Zoomed Combined Speedup Plots...
+Done! plots saved to: /home/han4n/cva6_experiments/results/speedup_plots
+#+end_example
+:end:

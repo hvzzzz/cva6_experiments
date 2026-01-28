@@ -465,7 +465,6 @@ Total rows: 60
 #+end_example
 :end:
 
-
 ** BTB Size Sweep
 
 #+name: btb_sweep
@@ -607,7 +606,6 @@ else:
 Total rows: 60
 #+end_example
 :end:
-
 
 ** BHT Size Sweep
 
