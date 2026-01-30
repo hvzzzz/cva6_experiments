@@ -19,14 +19,14 @@ Baseline parameters
 
 * Parameter sweep
 
-|--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
-| *Parameter Changed*  | *Sweep Values (Range)*         | *Constants (Locked to Baseline)* | *Goal*                                                              |
-|--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
-| Cache Size (I & D) | 2 KB, 8 KB, 16 KB, 32 KB     | Assoc=4, BTB=16, BHT=16        | Measure impact of capacity on cache misses.                       |
-| Associativity      | 1-Way (Direct), 2-Way, 8-Way | Size=4KB, BTB=16, BHT=16       | Measure impact of conflict misses vs. logic complexity.           |
-| BTB Entries        | 8, 32, 64                    | Size=4KB, Assoc=4, BHT=16      | Measure impact on branch target prediction (loops/jumps).         |
-| BHT Entries        | 32, 128, 256                 | Size=4KB, Assoc=4, BTB=16      | Measure impact on conditional branch direction (taken/not taken). |
-|--------------------+------------------------------+--------------------------------+-------------------------------------------------------------------|
+|--------------------+------------------------------------+--------------------------------+-------------------------------------------------------------------|
+| *Parameter Changed*  | *Sweep Values (Range)*               | *Constants (Locked to Baseline)* | *Goal*                                                              |
+|--------------------+------------------------------------+--------------------------------+-------------------------------------------------------------------|
+| Cache Size (I & D) | 2 KB, 8 KB, 16 KB, 32 KB,...,128kb | Assoc=4, BTB=16, BHT=16        | Measure impact of capacity on cache misses.                       |
+| Associativity      | 1-Way (Direct), 2-Way, 8-Way       | Size=4KB, BTB=16, BHT=16       | Measure impact of conflict misses vs. logic complexity.           |
+| BTB Entries        | 8, 32, 64,...,32kb                 | Size=4KB, Assoc=4, BHT=16      | Measure impact on branch target prediction (loops/jumps).         |
+| BHT Entries        | 32, 128, 256,...,16kb              | Size=4KB, Assoc=4, BTB=16      | Measure impact on conditional branch direction (taken/not taken). |
+|--------------------+------------------------------------+--------------------------------+-------------------------------------------------------------------|
 
 * Performed experiment data
 ** Baseline

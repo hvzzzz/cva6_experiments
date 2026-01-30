@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2024.1 (lin64) Build 5076996 Wed May 22 18:36:09 MDT 2024
-| Date             : Mon Jan 26 19:56:17 2026
+| Date             : Thu Jan 29 16:44:25 2026
 | Host             : pop-os running 64-bit Pop!_OS 22.04 LTS
 | Command          : report_power -file /home/han4n/cva6_experiments/bitstreams/reports/power/power_ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.rpt
 | Design           : SoC_wrapper
@@ -30,7 +30,7 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 1.568        |
+| Total On-Chip Power (W)  | 1.569        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
 | Dynamic (W)              | 1.424        |
@@ -53,22 +53,22 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.019 |        7 |       --- |             --- |
-| Slice Logic              |     0.013 |    84372 |       --- |             --- |
-|   LUT as Logic           |     0.012 |    46506 |     53200 |           87.42 |
+| Slice Logic              |     0.013 |    84371 |       --- |             --- |
+|   LUT as Logic           |     0.012 |    46463 |     53200 |           87.34 |
 |   CARRY4                 |    <0.001 |     1973 |     13300 |           14.83 |
-|   Register               |    <0.001 |    22327 |    106400 |           20.98 |
+|   Register               |    <0.001 |    22322 |    106400 |           20.98 |
+|   F7/F8 Muxes            |    <0.001 |     1361 |     53200 |            2.56 |
 |   LUT as Distributed RAM |    <0.001 |     1196 |     17400 |            6.87 |
-|   F7/F8 Muxes            |    <0.001 |     1364 |     53200 |            2.56 |
 |   LUT as Shift Register  |    <0.001 |       28 |     17400 |            0.16 |
 |   Others                 |     0.000 |      760 |       --- |             --- |
-| Signals                  |     0.020 |    69265 |       --- |             --- |
+| Signals                  |     0.020 |    69286 |       --- |             --- |
 | Block RAM                |     0.007 |     29.5 |       140 |           21.07 |
 | MMCM                     |     0.106 |        1 |         4 |           25.00 |
 | DSPs                     |    <0.001 |       27 |       220 |           12.27 |
 | I/O                      |    <0.001 |        8 |       125 |            6.40 |
 | PS7                      |     1.258 |        1 |       --- |             --- |
 | Static Power             |     0.144 |          |           |                 |
-| Total                    |     1.568 |          |           |                 |
+| Total                    |     1.569 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -158,7 +158,7 @@ Table of Contents
 | Name                     | Power (W) |
 +--------------------------+-----------+
 | SoC_wrapper              |     1.424 |
-|   SoC_i                  |     1.423 |
+|   SoC_i                  |     1.424 |
 |     ariane_peripherals_0 |     0.004 |
 |       inst               |     0.004 |
 |     axi_mem_intercon     |     0.002 |

@@ -1,4 +1,6 @@
 #+title: Resource Usage
+#+OPTIONS: tags:t
+#+EXPORT_EXCLUDE_TAGS: noexport
 * Baseline bitstream
 #+begin_src jupyter-python :results output drawer :exports results
 import matplotlib.pyplot as plt
@@ -1112,4 +1114,1549 @@ plt.show()
 #+end_example
 #+attr_org: :width 805
 [[file:./.ob-jupyter/0326aeaa8648d67b8d2ae6205dd3d005c4bac002.png]]
+:end:
+* Sweeps :noexport:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import re
+import glob
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+REPORT_DIR = "bitstreams/reports/full"
+
+# STRICT REGEX: Matches only your specific experiment files
+FILENAME_REGEX = (
+    r"util_ariane_"
+    r"IC(\d+k?)_(\d+)w_(\d+)L_"     # IC params
+    r"DC(\d+k?)_(\d+)w_(\d+)L_"     # DC params
+    r"BTB(\d+)_BHT(\d+)_"           # Branch Predictor
+    r"RAS(\d+)_ITLB(\d+)_DTLB(\d+)" # MMU & RAS
+    r"\.rpt$"
+)
+
+# ==============================================================================
+# PARSING LOGIC
+# ==============================================================================
+def parse_size(val_str):
+    """Converts '4k' to 4096, '32' to 32"""
+    if 'k' in val_str:
+        return int(val_str.replace('k', '')) * 1024
+    return int(val_str)
+
+def get_resources(filepath):
+    """Extracts LUT, FF, BRAM, and DSP from the Vivado report"""
+    data = { "LUT": 0, "FF": 0, "BRAM": 0, "DSP": 0 }
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            if "| SoC_wrapper" in line:
+                parts = [x.strip() for x in line.split('|')]
+                # Table Format (Standard 2024.1):
+                # | Instance | Module | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP |
+                # Idx: 0     1        2            3            4         5      6     7        8        9     10
+                if len(parts) > 10:
+                    try:
+                        data["LUT"]  = int(parts[3])
+                        data["FF"]   = int(parts[7])
+                        ramb36       = int(parts[8])
+                        data["BRAM"] = ramb36
+                        data["DSP"]  = int(parts[10]) # DSP Column
+                    except ValueError:
+                        pass
+                break
+    return data
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+search_pattern = os.path.join(REPORT_DIR, "util_ariane_IC*.rpt")
+files = glob.glob(search_pattern)
+results = []
+
+print(f"Scanning {REPORT_DIR}...")
+print(f"Found {len(files)} experiment reports.\n")
+
+for filepath in files:
+    filename = os.path.basename(filepath)
+    match = re.match(FILENAME_REGEX, filename)
+
+    if match:
+        # Extract Parameters
+        ic_size = parse_size(match.group(1))
+        ic_way  = int(match.group(2))
+        dc_size = parse_size(match.group(4))
+        dc_way  = int(match.group(5))
+        btb     = int(match.group(7))
+        bht     = int(match.group(8))
+
+        res = get_resources(filepath)
+
+        results.append({
+            "IC": ic_size, "IC_W": ic_way,
+            "DC": dc_size, "DC_W": dc_way,
+            "BTB": btb, "BHT": bht,
+            "LUT": res["LUT"], "FF": res["FF"], "BRAM": res["BRAM"], "DSP": res["DSP"]
+        })
+
+# Sort for readability
+results.sort(key=lambda x: (x["IC"], x["IC_W"], x["BTB"], x["BHT"]))
+
+# ==============================================================================
+# PRINT FULL DATA TABLE
+# ==============================================================================
+print("\n" + "="*105)
+print(f"{'IC Size':<8} {'Ways':<5} {'DC Size':<8} {'Ways':<5} {'BTB':<5} {'BHT':<5} | {'BRAM':<6} {'LUTs':<8} {'FFs':<8} {'DSPs':<5}")
+print("-" * 105)
+
+for r in results:
+    ic_fmt = f"{r['IC']//1024}KB" if r['IC'] >= 1024 else f"{r['IC']}B"
+    dc_fmt = f"{r['DC']//1024}KB" if r['DC'] >= 1024 else f"{r['DC']}B"
+
+    print(f"{ic_fmt:<8} {r['IC_W']:<5} {dc_fmt:<8} {r['DC_W']:<5} {r['BTB']:<5} {r['BHT']:<5} | {r['BRAM']:<6} {r['LUT']:<8} {r['FF']:<8} {r['DSP']:<5}")
+print("="*105)
+
+# ==============================================================================
+# DIAGNOSTICS & SANITY CHECKS
+# ==============================================================================
+print("\n[DIAGNOSTICS]")
+
+# 1. BRAM SCALING (Expect Monotonic Increase with Size)
+print("1. Cache Size Scaling (BRAM Check):")
+cache_runs = [r for r in results if r['IC_W'] == 4 and r['BTB'] == 16 and r['BHT'] == 16]
+if cache_runs:
+    brams = [r['BRAM'] for r in cache_runs]
+    sizes = [f"{r['IC']//1024}KB" for r in cache_runs]
+    print(f"   Sizes: {sizes}")
+    print(f"   BRAMs: {brams}")
+
+    if len(brams) > 1 and brams[-1] > brams[0]:
+        print("   >>> PASS: Memory usage scales with size.")
+    else:
+        print("   >>> FAIL: BRAM usage is flat or inconsistent.")
+
+# 2. LOGIC SCALING (Expect LUT Increase with Associativity)
+print("\n2. Associativity Scaling (LUT Check):")
+assoc_runs = [r for r in results if r['IC'] == 4096 and r['BTB'] == 16 and r['BHT'] == 16]
+if assoc_runs:
+    luts = [r['LUT'] for r in assoc_runs]
+    ways = [r['IC_W'] for r in assoc_runs]
+    print(f"   Ways: {ways}")
+    print(f"   LUTs: {luts}")
+
+    if len(luts) > 1 and luts[-1] > luts[0]:
+        print("   >>> PASS: Logic complexity increases with associativity.")
+    else:
+        print("   >>> WARN: LUT usage is flat.")
+
+# 3. DSP STABILITY CHECK (Should be CONSTANT)
+print("\n3. DSP Stability Check:")
+dsps = [r['DSP'] for r in results]
+unique_dsps = set(dsps)
+if len(unique_dsps) == 1:
+    print(f"   >>> PASS: DSP usage is constant at {dsps[0]} blocks (Expected behavior).")
+else:
+    print(f"   >>> WARN: DSP usage varies! Found values: {unique_dsps}. Check if math logic is changing.")
+
+# 4. FF INTEGRITY CHECK (Should NOT drop drastically)
+print("\n4. FF Integrity Check:")
+ffs = [r['FF'] for r in results]
+min_ff = min(ffs)
+max_ff = max(ffs)
+variation = (max_ff - min_ff) / max_ff
+print(f"   Range: {min_ff} - {max_ff} (Variation: {variation:.1%})")
+
+if variation < 0.05: # Less than 5% variation is typical for simple config changes
+    print("   >>> PASS: Flip-Flop count is stable.")
+else:
+    print("   >>> INFO: Flip-Flop count varies significantly. Verify pipeline depth changes.")
+
+print("\nDone.")
+#+end_src
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import re
+import pandas as pd
+
+# ==============================================================================
+# 1. CONFIGURATION
+# ==============================================================================
+REPORTS_DIR = "/home/han4n/cva6_experiments/verification_reports"
+
+# Map filenames to readable labels based on your ls output
+FILE_LABELS = {
+    "util_ariane_IC2k_1w_128L_DC2k_1w_128L_BTB8_BHT32_RAS2_ITLB4_DTLB4.rpt":   "01_MIN (2KB)",
+    "util_ariane_IC8k_2w_128L_DC8k_2w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.rpt":  "02_MID (8KB)",
+    "util_ariane_IC16k_4w_128L_DC16k_4w_128L_BTB32_BHT128_RAS2_ITLB4_DTLB4.rpt": "03_BASE+ (16KB)",
+    "util_ariane_IC32k_8w_128L_DC32k_8w_128L_BTB64_BHT256_RAS2_ITLB4_DTLB4.rpt": "04_MAX (32KB)"
+}
+
+# ==============================================================================
+# 2. PARSING ENGINE
+# ==============================================================================
+def get_total_resources(filepath):
+    """
+    Finds the top-level 'SoC_wrapper' row and returns total counts.
+    """
+    with open(filepath, 'r') as f:
+        for line in f:
+            if "SoC_wrapper" in line and "|" in line:
+                parts = [x.strip() for x in line.split('|')]
+                if len(parts) > 10:
+                    try:
+                        return {
+                            "LUT":  int(parts[3]),
+                            "FF":   int(parts[7]),
+                            "BRAM": (int(parts[8]) * 2) + int(parts[9]), # 18K Equiv
+                            "DSP":  int(parts[10])
+                        }
+                    except: continue
+    return None
+
+def get_top_contributors(filepath, metric="BRAM", top_n=5):
+    """
+    Scans the file for the top N modules consuming a specific resource.
+    """
+    contributors = []
+    with open(filepath, 'r') as f:
+        for line in f:
+            if "|" not in line or "+--" in line: continue
+            parts = [x.strip() for x in line.split('|')]
+            if len(parts) < 10: continue
+
+            try:
+                name = re.sub(r'[\(\)\s]', '', parts[1])
+                val = 0
+                if metric == "BRAM":
+                    val = (int(parts[8]) * 2) + int(parts[9])
+                elif metric == "LUT": val = int(parts[3])
+                elif metric == "FF":  val = int(parts[7])
+                elif metric == "DSP": val = int(parts[10])
+
+                # Filter out the top-level wrappers to find interesting sub-modules
+                if val > 0 and name not in ["SoC_wrapper", "SoC_i", "cpu_0", "inst", "i_cva6_wrapper", "i_ariane", "i_cva6"]:
+                    contributors.append((val, name))
+            except: continue
+
+    # Sort and take top N unique counts (simple dedup)
+    contributors.sort(key=lambda x: x[0], reverse=True)
+    return contributors[:top_n]
+
+# ==============================================================================
+# 3. MAIN REPORT GENERATOR
+# ==============================================================================
+if __name__ == "__main__":
+    if not os.path.exists(REPORTS_DIR):
+        print(f"Error: Directory not found {REPORTS_DIR}")
+        exit()
+
+    # 1. SUMMARY TABLE
+    print("="*80)
+    print(f"{'VERIFICATION SUMMARY: RESOURCE SCALING':^80}")
+    print("="*80)
+    print(f"{'CONFIGURATION':<20} | {'BRAM':<10} | {'LUT':<10} | {'FF':<10} | {'DSP':<10}")
+    print("-" * 75)
+
+    files_found = []
+
+    # Sort by filename to ensure Min -> Max order if possible
+    # Or rely on our label mapping if keys match
+    sorted_files = sorted([f for f in os.listdir(REPORTS_DIR) if f in FILE_LABELS],
+                          key=lambda x: FILE_LABELS[x])
+
+    for fname in sorted_files:
+        path = os.path.join(REPORTS_DIR, fname)
+        label = FILE_LABELS[fname]
+        res = get_total_resources(path)
+
+        if res:
+            print(f"{label:<20} | {res['BRAM']:<10} | {res['LUT']:<10} | {res['FF']:<10} | {res['DSP']:<10}")
+            files_found.append((label, path))
+        else:
+            print(f"{label:<20} | [Error parsing file]")
+
+    # 2. DETAILED BREAKDOWN (MIN vs MAX)
+    if len(files_found) >= 2:
+        print("\n" + "="*80)
+        print(f"{'DEEP DIVE: WHERE DID THE RESOURCES GO?':^80}")
+        print("="*80)
+
+        min_conf = files_found[0]
+        max_conf = files_found[-1] # Assuming sorted order 01..04
+
+        for metric in ["BRAM", "LUT", "FF"]:
+            print(f"\n>>> Top {metric} Consumers")
+            print(f"{'Module Name':<50} | {min_conf[0]:<12} | {max_conf[0]:<12} | {'Delta':<8}")
+            print("-" * 90)
+
+            # Get data for Max config
+            max_data = get_top_contributors(max_conf[1], metric, top_n=8)
+            min_data_full = get_top_contributors(min_conf[1], metric, top_n=100) # Get more to find matches
+            min_dict = {name: val for val, name in min_data_full}
+
+            for val_max, name in max_data:
+                val_min = min_dict.get(name, 0)
+                delta = val_max - val_min
+                print(f"{name[-48:]:<50} | {val_min:<12} | {val_max:<12} | +{delta}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example================================================================================
+                     VERIFICATION SUMMARY: RESOURCE SCALING
+================================================================================
+CONFIGURATION        | BRAM       | LUT        | FF         | DSP
+---------------------------------------------------------------------------
+01_MIN (2KB)         | 23         | 46858      | 22290      | 27
+02_MID (8KB)         | 35         | 47267      | 22302      | 27
+03_BASE+ (16KB)      | 63         | 47644      | 22198      | 27
+04_MAX (32KB)        | 111        | 48489      | 22250      | 27
+
+================================================================================
+                     DEEP DIVE: WHERE DID THE RESOURCES GO?
+================================================================================
+
+>>> Top BRAM Consumers
+Module Name                                        | 01_MIN (2KB) | 04_MAX (32KB) | Delta
+------------------------------------------------------------------------------------------
+gen_cache_wt.i_cache_subsystem                     | 12           | 96           | +84
+i_cva6_icache                                      | 6            | 48           | +42
+i_wt_dcache                                        | 6            | 48           | +42
+i_wt_dcache_mem                                    | 6            | 48           | +42
+gen_data_banks[0].i_data_sram                      | 2            | 16           | +14
+data_sram                                          | 2            | 16           | +14
+gen_data_banks[1].i_data_sram                      | 2            | 16           | +14
+data_sram                                          | 2            | 16           | +14
+
+>>> Top LUT Consumers
+Module Name                                        | 01_MIN (2KB) | 04_MAX (32KB) | Delta
+------------------------------------------------------------------------------------------
+ex_stage_i                                         | 18590        | 18639        | +49
+issue_stage_i                                      | 11161        | 11249        | +88
+i_issue_read_operands                              | 8050         | 8460         | +410
+lsu_i                                              | 8358         | 8149         | +-209
+i_issue_read_operands                              | 8050         | 8002         | +-48
+fpu_gen.fpu_i                                      | 7936         | 7931         | +-5
+fpu_gen.i_fpnew_bulk                               | 7936         | 7931         | +-5
+gen_cache_wt.i_cache_subsystem                     | 4445         | 6199         | +1754
+
+>>> Top FF Consumers
+Module Name                                        | 01_MIN (2KB) | 04_MAX (32KB) | Delta
+------------------------------------------------------------------------------------------
+ex_stage_i                                         | 6293         | 6288         | +-5
+lsu_i                                              | 3920         | 3920         | +0
+issue_stage_i                                      | 3356         | 3355         | +-1
+northbridge                                        | 3340         | 3340         | +0
+i_scoreboard                                       | 2865         | 2865         | +0
+axi_interconnect_0                                 | 2753         | 2753         | +0
+csr_regfile_i                                      | 2411         | 2415         | +4
+gen_cache_wt.i_cache_subsystem                     | 2008         | 2100         | +92
+#+end_example
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import re
+import glob
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+REPORT_DIR = "verification_reports"
+
+# STRICT REGEX: Matches only your specific experiment files
+FILENAME_REGEX = (
+    r"util_ariane_"
+    r"IC(\d+k?)_(\d+)w_(\d+)L_"     # IC params
+    r"DC(\d+k?)_(\d+)w_(\d+)L_"     # DC params
+    r"BTB(\d+)_BHT(\d+)_"           # Branch Predictor
+    r"RAS(\d+)_ITLB(\d+)_DTLB(\d+)" # MMU & RAS
+    r"\.rpt$"
+)
+
+# ==============================================================================
+# PARSING LOGIC
+# ==============================================================================
+def parse_size(val_str):
+    """Converts '4k' to 4096, '32' to 32"""
+    if 'k' in val_str:
+        return int(val_str.replace('k', '')) * 1024
+    return int(val_str)
+
+def get_resources(filepath):
+    """Extracts LUT, FF, BRAM, and DSP from the Vivado report"""
+    data = { "LUT": 0, "FF": 0, "BRAM": 0, "DSP": 0 }
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            if "| SoC_wrapper" in line:
+                parts = [x.strip() for x in line.split('|')]
+                # Table Format (Standard 2024.1):
+                # | Instance | Module | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP |
+                # Idx: 0     1        2            3            4         5      6     7        8        9     10
+                if len(parts) > 10:
+                    try:
+                        data["LUT"]  = int(parts[3])
+                        data["FF"]   = int(parts[7])
+                        ramb36       = int(parts[8])
+                        data["BRAM"] = ramb36
+                        data["DSP"]  = int(parts[10]) # DSP Column
+                    except ValueError:
+                        pass
+                break
+    return data
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+search_pattern = os.path.join(REPORT_DIR, "util_ariane_IC*.rpt")
+files = glob.glob(search_pattern)
+results = []
+
+print(f"Scanning {REPORT_DIR}...")
+print(f"Found {len(files)} experiment reports.\n")
+
+for filepath in files:
+    filename = os.path.basename(filepath)
+    match = re.match(FILENAME_REGEX, filename)
+
+    if match:
+        # Extract Parameters
+        ic_size = parse_size(match.group(1))
+        ic_way  = int(match.group(2))
+        dc_size = parse_size(match.group(4))
+        dc_way  = int(match.group(5))
+        btb     = int(match.group(7))
+        bht     = int(match.group(8))
+
+        res = get_resources(filepath)
+
+        results.append({
+            "IC": ic_size, "IC_W": ic_way,
+            "DC": dc_size, "DC_W": dc_way,
+            "BTB": btb, "BHT": bht,
+            "LUT": res["LUT"], "FF": res["FF"], "BRAM": res["BRAM"], "DSP": res["DSP"]
+        })
+
+# Sort for readability
+results.sort(key=lambda x: (x["IC"], x["IC_W"], x["BTB"], x["BHT"]))
+
+# ==============================================================================
+# PRINT FULL DATA TABLE
+# ==============================================================================
+print("\n" + "="*105)
+print(f"{'IC Size':<8} {'Ways':<5} {'DC Size':<8} {'Ways':<5} {'BTB':<5} {'BHT':<5} | {'BRAM':<6} {'LUTs':<8} {'FFs':<8} {'DSPs':<5}")
+print("-" * 105)
+
+for r in results:
+    ic_fmt = f"{r['IC']//1024}KB" if r['IC'] >= 1024 else f"{r['IC']}B"
+    dc_fmt = f"{r['DC']//1024}KB" if r['DC'] >= 1024 else f"{r['DC']}B"
+
+    print(f"{ic_fmt:<8} {r['IC_W']:<5} {dc_fmt:<8} {r['DC_W']:<5} {r['BTB']:<5} {r['BHT']:<5} | {r['BRAM']:<6} {r['LUT']:<8} {r['FF']:<8} {r['DSP']:<5}")
+print("="*105)
+
+# ==============================================================================
+# DIAGNOSTICS & SANITY CHECKS
+# ==============================================================================
+print("\n[DIAGNOSTICS]")
+
+# 1. BRAM SCALING (Expect Monotonic Increase with Size)
+print("1. Cache Size Scaling (BRAM Check):")
+cache_runs = [r for r in results if r['IC_W'] == 4 and r['BTB'] == 16 and r['BHT'] == 16]
+if cache_runs:
+    brams = [r['BRAM'] for r in cache_runs]
+    sizes = [f"{r['IC']//1024}KB" for r in cache_runs]
+    print(f"   Sizes: {sizes}")
+    print(f"   BRAMs: {brams}")
+
+    if len(brams) > 1 and brams[-1] > brams[0]:
+        print("   >>> PASS: Memory usage scales with size.")
+    else:
+        print("   >>> FAIL: BRAM usage is flat or inconsistent.")
+
+# 2. LOGIC SCALING (Expect LUT Increase with Associativity)
+print("\n2. Associativity Scaling (LUT Check):")
+assoc_runs = [r for r in results if r['IC'] == 4096 and r['BTB'] == 16 and r['BHT'] == 16]
+if assoc_runs:
+    luts = [r['LUT'] for r in assoc_runs]
+    ways = [r['IC_W'] for r in assoc_runs]
+    print(f"   Ways: {ways}")
+    print(f"   LUTs: {luts}")
+
+    if len(luts) > 1 and luts[-1] > luts[0]:
+        print("   >>> PASS: Logic complexity increases with associativity.")
+    else:
+        print("   >>> WARN: LUT usage is flat.")
+
+# 3. DSP STABILITY CHECK (Should be CONSTANT)
+print("\n3. DSP Stability Check:")
+dsps = [r['DSP'] for r in results]
+unique_dsps = set(dsps)
+if len(unique_dsps) == 1:
+    print(f"   >>> PASS: DSP usage is constant at {dsps[0]} blocks (Expected behavior).")
+else:
+    print(f"   >>> WARN: DSP usage varies! Found values: {unique_dsps}. Check if math logic is changing.")
+
+# 4. FF INTEGRITY CHECK (Should NOT drop drastically)
+print("\n4. FF Integrity Check:")
+ffs = [r['FF'] for r in results]
+min_ff = min(ffs)
+max_ff = max(ffs)
+variation = (max_ff - min_ff) / max_ff
+print(f"   Range: {min_ff} - {max_ff} (Variation: {variation:.1%})")
+
+if variation < 0.05: # Less than 5% variation is typical for simple config changes
+    print("   >>> PASS: Flip-Flop count is stable.")
+else:
+    print("   >>> INFO: Flip-Flop count varies significantly. Verify pipeline depth changes.")
+
+print("\nDone.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleScanning verification_reports...
+Found 4 experiment reports.
+
+
+=========================================================================================================
+IC Size  Ways  DC Size  Ways  BTB   BHT   | BRAM   LUTs     FFs      DSPs 
+---------------------------------------------------------------------------------------------------------
+2KB      1     2KB      1     8     32    | 10     46858    22290    27   
+8KB      2     8KB      2     16    64    | 16     47267    22302    27   
+16KB     4     16KB     4     32    128   | 30     47644    22198    27   
+32KB     8     32KB     8     64    256   | 54     48489    22250    27   
+=========================================================================================================
+
+[DIAGNOSTICS]
+1. Cache Size Scaling (BRAM Check):
+
+2. Associativity Scaling (LUT Check):
+
+3. DSP Stability Check:
+   >>> PASS: DSP usage is constant at 27 blocks (Expected behavior).
+
+4. FF Integrity Check:
+   Range: 22198 - 22302 (Variation: 0.5%)
+   >>> PASS: Flip-Flop count is stable.
+
+Done.
+#+end_example
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import sys
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+DIRS = {
+    "GUI":  "gui",
+    "BASH": "bash",
+    "PY":   "py"
+}
+
+# Map the experiment names to specific filenames in each directory
+EXPERIMENTS = [
+    {
+        "name": "2KB Config",
+        "files": {
+            "GUI":  "2k.rpt",
+            "BASH": "util_ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.rpt",
+            "PY":   "util_ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.rpt"
+        }
+    },
+    {
+        "name": "32KB Config",
+        "files": {
+            "GUI":  "32k.rpt",
+            "BASH": "util_ariane_IC32k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.rpt",
+            "PY":   "util_ariane_IC32k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.rpt"
+        }
+    }
+]
+
+# ==============================================================================
+# PARSING LOGIC
+# ==============================================================================
+def get_resources(filepath):
+    data = { "LUT": 0, "BRAM": 0, "FF": 0 }
+    if not os.path.exists(filepath):
+        return None
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            if "| SoC_wrapper" in line:
+                parts = [x.strip() for x in line.split('|')]
+                if len(parts) > 10:
+                    try:
+                        data["LUT"]  = int(parts[3])
+                        data["FF"]   = int(parts[7])
+                        data["BRAM"] = int(parts[8]) # RAMB36
+                    except ValueError:
+                        pass
+                break
+    return data
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+print(f"{'EXPERIMENT':<15} | {'METRIC':<5} | {'GUI':<6} {'PY':<6} {'BASH':<6} | {'STATUS'}")
+print("-" * 65)
+
+overall_status = "PASS"
+
+for exp in EXPERIMENTS:
+    print(f"{exp['name']:<65}")
+
+    # 1. Gather Data
+    results = {}
+    for source, filename in exp['files'].items():
+        path = os.path.join(DIRS[source], filename)
+        results[source] = get_resources(path)
+
+    # 2. Compare Metrics
+    for metric in ["BRAM", "LUT", "FF"]:
+        val_gui  = results["GUI"][metric] if results["GUI"] else "N/A"
+        val_py   = results["PY"][metric]  if results["PY"]  else "N/A"
+        val_bash = results["BASH"][metric] if results["BASH"] else "N/A"
+
+        # Check against GUI as truth
+        match_py   = (val_gui == val_py)
+        match_bash = (val_gui == val_bash)
+
+        # LUTs/FFs allow slight variance (<1%), BRAM must be exact
+        if metric != "BRAM" and isinstance(val_gui, int):
+             if isinstance(val_py, int): match_py = abs(val_gui - val_py) < (val_gui * 0.01)
+             if isinstance(val_bash, int): match_bash = abs(val_gui - val_bash) < (val_gui * 0.01)
+
+        # Status String
+        if match_py and match_bash:
+            status = "ALL MATCH"
+        elif match_py and not match_bash:
+            status = "BASH FAIL"
+            overall_status = "FAIL"
+        elif not match_py and match_bash:
+            status = "PY FAIL"
+            overall_status = "FAIL"
+        else:
+            status = "TOTAL MISMATCH"
+            overall_status = "FAIL"
+
+        print(f"{'':<15} | {metric:<5} | {str(val_gui):<6} {str(val_py):<6} {str(val_bash):<6} | {status}")
+    print("-" * 65)
+
+print("\n[VERDICT]")
+if overall_status == "PASS":
+    print(">>> SUCCESS: All methods generate identical hardware.")
+    print("    You can safely use the Bash script if you prefer it.")
+else:
+    print(">>> WARNING: Discrepancies detected. Trust the column matching 'GUI'.")
+    print("    Likely the Bash script is failing to update parameters correctly.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+EXPERIMENT      | METRIC | GUI    PY     BASH   | STATUS
+-----------------------------------------------------------------
+2KB Config
+                | BRAM  | 28     28     28     | ALL MATCH
+                | LUT   | 47714  47714  47714  | ALL MATCH
+                | FF    | 22317  22317  22317  | ALL MATCH
+-----------------------------------------------------------------
+32KB Config
+                | BRAM  | 28     28     28     | ALL MATCH
+                | LUT   | 47714  47736  47736  | ALL MATCH
+                | FF    | 22317  22328  22328  | ALL MATCH
+-----------------------------------------------------------------
+
+[VERDICT]
+>>> SUCCESS: All methods generate identical hardware.
+    You can safely use the Bash script if you prefer it.
+#+end_example
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import glob
+import re
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+REPORT_DIR = "gui"
+# Regex to match your manual filenames: 2k_new.rpt, 128k_new.rpt
+FILENAME_REGEX = r"(\d+)k_new\.rpt"
+
+# ==============================================================================
+# PARSING LOGIC
+# ==============================================================================
+def get_resources(filepath):
+    """Extracts resources from Vivado utilization report."""
+    data = { "LUT": 0, "FF": 0, "BRAM": 0, "DSP": 0 }
+
+    if not os.path.exists(filepath):
+        print(f"[ERROR] File not found: {filepath}")
+        return data
+
+    with open(filepath, 'r') as f:
+        found_table = False
+        for line in f:
+            # Look for the wrapper line in the hierarchy table
+            if "| SoC_wrapper" in line:
+                parts = [x.strip() for x in line.split('|')]
+                # Standard Column Indexing for Vivado 2024.1:
+                # | Instance | Module | Total LUTs | Logic LUTs | ... | FFs | RAMB36 | ... | DSP |
+                if len(parts) > 10:
+                    try:
+                        data["LUT"]  = int(parts[3])
+                        data["FF"]   = int(parts[7])
+                        data["BRAM"] = int(parts[8]) # RAMB36 blocks
+                        data["DSP"]  = int(parts[10])
+                        found_table = True
+                    except ValueError:
+                        pass
+                break
+    return data
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+print(f"{'CACHE CONFIG':<15} | {'BRAM (36k)':<12} {'LUTs':<10} {'FFs':<10} {'DSPs':<5}")
+print("-" * 65)
+
+files = glob.glob(os.path.join(REPORT_DIR, "*_new.rpt"))
+results = []
+
+for filepath in files:
+    filename = os.path.basename(filepath)
+    match = re.match(FILENAME_REGEX, filename)
+
+    if match:
+        size_kb = int(match.group(1))
+        res = get_resources(filepath)
+
+        results.append({
+            "size": size_kb,
+            "BRAM": res["BRAM"],
+            "LUT": res["LUT"],
+            "FF": res["FF"],
+            "DSP": res["DSP"]
+        })
+
+# Sort by cache size (2 -> 32 -> 64 -> 128)
+results.sort(key=lambda x: x["size"])
+
+# Print Table
+for r in results:
+    label = f"{r['size']}KB"
+    print(f"{label:<15} | {r['BRAM']:<12} {r['LUT']:<10} {r['FF']:<10} {r['DSP']:<5}")
+
+print("-" * 65)
+
+# ==============================================================================
+# AUTOMATED DIAGNOSTICS
+# ==============================================================================
+print("\n[DIAGNOSTICS]")
+
+# 1. BRAM SCALING CHECK
+print("1. Memory Scaling (BRAM):")
+brams = [r['BRAM'] for r in results]
+sizes = [r['size'] for r in results]
+
+# We expect BRAM usage to roughly double as cache size doubles
+is_monotonic = all(x < y for x, y in zip(brams, brams[1:]))
+print(f"   Trend: {brams}")
+
+if is_monotonic:
+    print("   >>> PASS: BRAM usage scales monotonically with cache size.")
+
+    # Check for "Stuck" values (e.g. if 64k and 128k have same BRAM)
+    if len(set(brams)) == len(brams):
+         print("   >>> PASS: Distinct resource profile for every configuration.")
+    else:
+         print("   >>> WARN: Some configurations have identical BRAM usage. Check table.")
+else:
+    print("   >>> FAIL: BRAM usage is flat or inconsistent. (Potential caching issue?)")
+
+# 2. DSP STABILITY CHECK
+print("\n2. Arithmetic Logic (DSP):")
+dsps = [r['DSP'] for r in results]
+if all(x == dsps[0] for x in dsps):
+    print(f"   >>> PASS: DSP usage is constant at {dsps[0]} (Correct behavior).")
+else:
+    print(f"   >>> FAIL: DSP usage varies: {dsps}. (Unexpected for cache resizing).")
+
+# 3. LOGIC OVERHEAD CHECK
+print("\n3. Logic Overhead (LUTs):")
+luts = [r['LUT'] for r in results]
+if luts[-1] > luts[0]:
+    print("   >>> PASS: Larger caches require slightly more logic (muxing/tags).")
+else:
+    print("   >>> INFO: Logic usage is flat (Optimization might be very efficient).")
+
+print("\nDone.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleCACHE CONFIG    | BRAM (36k)   LUTs       FFs        DSPs
+-----------------------------------------------------------------
+2KB             | 28           47714      22317      27
+32KB            | 28           47736      22328      27
+64KB            | 52           47772      22331      27
+128KB           | 92           47952      22334      27
+-----------------------------------------------------------------
+
+#+end_example
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import glob
+import re
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+REPORT_DIR = "bitstreams/reports/full"
+FILENAME_REGEX = (
+    r"util_ariane_"
+    r"IC(\d+k?)_(\d+)w_.*"        # IC params
+    r"DC(\d+k?)_(\d+)w_.*"        # DC params
+    r"BTB(\d+)_BHT(\d+)_"         # Branch Predictor
+    r"RAS(\d+)_ITLB(\d+)_DTLB(\d+)"
+    r"\.rpt$"
+)
+
+# ==============================================================================
+# PARSING LOGIC
+# ==============================================================================
+def parse_size(val_str):
+    if 'k' in val_str: return int(val_str.replace('k', '')) * 1024
+    return int(val_str)
+
+def get_resources(filepath):
+    data = { "LUT": 0, "FF": 0, "BRAM": 0, "DSP": 0 }
+    if not os.path.exists(filepath): return data
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            if "| SoC_wrapper" in line:
+                parts = [x.strip() for x in line.split('|')]
+                if len(parts) > 10:
+                    try:
+                        data["LUT"]  = int(parts[3])
+                        data["FF"]   = int(parts[7])
+                        data["BRAM"] = int(parts[8])
+                        data["DSP"]  = int(parts[10])
+                    except ValueError: pass
+                break
+    return data
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+files = glob.glob(os.path.join(REPORT_DIR, "util_ariane_*.rpt"))
+results = []
+
+for filepath in files:
+    filename = os.path.basename(filepath)
+    match = re.match(FILENAME_REGEX, filename)
+    if match:
+        ic_size = parse_size(match.group(1))
+        ic_way  = int(match.group(2))
+        btb     = int(match.group(5))
+        bht     = int(match.group(6))
+        res = get_resources(filepath)
+        results.append({
+            "IC": ic_size, "IC_W": ic_way, "BTB": btb, "BHT": bht,
+            "LUT": res["LUT"], "FF": res["FF"], "BRAM": res["BRAM"], "DSP": res["DSP"]
+        })
+
+# ==============================================================================
+# PRINT TABLES BY SWEEP TYPE
+# ==============================================================================
+
+def print_table(title, subset, key_metric):
+    print(f"\n=== {title} ===")
+    print(f"{'IC Size':<8} {'Ways':<5} {'BTB':<5} {'BHT':<5} | {'BRAM':<6} {'LUTs':<8} {'FFs':<8}")
+    print("-" * 65)
+    for r in subset:
+        sz = f"{r['IC']//1024}KB"
+        print(f"{sz:<8} {r['IC_W']:<5} {r['BTB']:<5} {r['BHT']:<5} | {r['BRAM']:<6} {r['LUT']:<8} {r['FF']:<8}")
+
+    # Check for "Exact Duplicate" failure (Identical LUTs = Stale Cache)
+    luts = [r['LUT'] for r in subset]
+    if len(set(luts)) == len(luts):
+        print(f">>> PASS: All configs generated unique logic profiles.")
+    else:
+        print(f">>> NOTE: Some configs have identical logic. Check if expected.")
+
+# 1. CACHE SIZE SWEEP (Fixed: 4-way, BTB16, BHT16)
+subset_size = sorted([r for r in results if r['IC_W']==4 and r['BTB']==16 and r['BHT']==16], key=lambda x: x['IC'])
+print_table("CACHE SIZE SWEEP (2KB -> 32KB)", subset_size, "IC")
+print("    * EXPECTATION: BRAMs flat at 28 (Floor Effect). LUTs should vary slightly.")
+
+# 2. ASSOCIATIVITY SWEEP (Fixed: 4KB, BTB16, BHT16)
+subset_assoc = sorted([r for r in results if r['IC']==4096 and r['BTB']==16 and r['BHT']==16], key=lambda x: x['IC_W'])
+print_table("ASSOCIATIVITY SWEEP (1w -> 8w)", subset_assoc, "IC_W")
+print("    * EXPECTATION: BRAMs should jump significantly (10 -> 16 -> 28 -> 52).")
+
+# 3. BRANCH PREDICTION SWEEP (Fixed: 4KB, 4-way)
+subset_bp = sorted([r for r in results if r['IC']==4096 and r['IC_W']==4 and (r['BTB']!=16 or r['BHT']!=16)], key=lambda x: (x['BTB'], x['BHT']))
+# Add baseline for comparison
+baseline = [r for r in results if r['IC']==4096 and r['IC_W']==4 and r['BTB']==16 and r['BHT']==16]
+if baseline: subset_bp.insert(0, baseline[0])
+print_table("BRANCH PREDICTOR SWEEP", subset_bp, "BHT")
+print("    * EXPECTATION: BRAMs flat at 28. LUTs/FFs should increase with table size.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+=== CACHE SIZE SWEEP (2KB -> 32KB) ===
+IC Size  Ways  BTB   BHT   | BRAM   LUTs     FFs
+-----------------------------------------------------------------
+2KB      4     16    16    | 28     47714    22317
+4KB      4     16    16    | 28     47683    22319
+8KB      4     16    16    | 28     47687    22322
+16KB     4     16    16    | 28     47730    22327
+32KB     4     16    16    | 28     47736    22328
+>>> PASS: All configs generated unique logic profiles.
+    * EXPECTATION: BRAMs flat at 28 (Floor Effect). LUTs should vary slightly.
+
+=== ASSOCIATIVITY SWEEP (1w -> 8w) ===
+IC Size  Ways  BTB   BHT   | BRAM   LUTs     FFs
+-----------------------------------------------------------------
+4KB      1     16    16    | 10     46843    22293
+4KB      2     16    16    | 16     47255    22298
+4KB      4     16    16    | 28     47683    22319
+4KB      8     16    16    | 52     48535    22370
+>>> PASS: All configs generated unique logic profiles.
+    * EXPECTATION: BRAMs should jump significantly (10 -> 16 -> 28 -> 52).
+
+=== BRANCH PREDICTOR SWEEP ===
+IC Size  Ways  BTB   BHT   | BRAM   LUTs     FFs
+-----------------------------------------------------------------
+4KB      4     16    16    | 28     47683    22319
+4KB      4     8     16    | 28     47690    22319
+4KB      4     16    32    | 28     47691    22319
+4KB      4     16    64    | 28     47678    22319
+4KB      4     16    128   | 28     47682    22319
+4KB      4     32    16    | 30     47581    22190
+4KB      4     64    16    | 30     47598    22190
+>>> PASS: All configs generated unique logic profiles.
+    * EXPECTATION: BRAMs flat at 28. LUTs/FFs should increase with table size.
+#+end_example
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import os
+import glob
+import re
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+REPORT_DIR = "bitstreams/reports/full"
+
+# Regex to capture all parameters from the filename
+FILENAME_REGEX = (
+    r"util_ariane_"
+    r"IC(\d+k?)_(\d+)w_.*"        # IC params (Size, Ways)
+    r"DC(\d+k?)_(\d+)w_.*"        # DC params
+    r"BTB(\d+)_BHT(\d+)_"         # Branch Predictor
+    r"RAS(\d+)_ITLB(\d+)_DTLB(\d+)"
+    r"\.rpt$"
+)
+
+# ==============================================================================
+# PARSING LOGIC
+# ==============================================================================
+def parse_size(val_str):
+    """Converts '4k' -> 4096, '128k' -> 131072, '2048' -> 2048"""
+    if 'k' in val_str:
+        return int(val_str.replace('k', '')) * 1024
+    return int(val_str)
+
+def get_resources(filepath):
+    data = { "LUT": 0, "FF": 0, "BRAM": 0, "DSP": 0 }
+    if not os.path.exists(filepath): return data
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            # We look for the SoC wrapper line in the hierarchy table
+            if "| SoC_wrapper" in line:
+                parts = [x.strip() for x in line.split('|')]
+                # Standard Vivado 2024.1 Column Indexing
+                if len(parts) > 10:
+                    try:
+                        data["LUT"]  = int(parts[3])
+                        data["FF"]   = int(parts[7])
+                        data["BRAM"] = int(parts[8]) # RAMB36
+                        data["DSP"]  = int(parts[10])
+                    except ValueError: pass
+                break
+    return data
+
+# ==============================================================================
+# DATA INGESTION
+# ==============================================================================
+files = glob.glob(os.path.join(REPORT_DIR, "util_ariane_*.rpt"))
+results = []
+
+print(f"Parsing {len(files)} reports...")
+
+for filepath in files:
+    filename = os.path.basename(filepath)
+    match = re.match(FILENAME_REGEX, filename)
+    if match:
+        ic_size = parse_size(match.group(1))
+        ic_way  = int(match.group(2))
+        btb     = int(match.group(5))
+        bht     = int(match.group(6))
+
+        res = get_resources(filepath)
+
+        results.append({
+            "IC": ic_size, "IC_W": ic_way, "BTB": btb, "BHT": bht,
+            "LUT": res["LUT"], "FF": res["FF"], "BRAM": res["BRAM"], "DSP": res["DSP"],
+            "FILE": filename
+        })
+
+# ==============================================================================
+# REPORT GENERATION HELPERS
+# ==============================================================================
+def print_header(title):
+    print("\n" + "="*80)
+    print(f" {title}")
+    print("="*80)
+
+def print_row(col1, col2, bram, lut, ff, dsp):
+    print(f"{col1:<15} {col2:<10} | {bram:<10} {lut:<10} {ff:<10} {dsp:<5}")
+
+# ==============================================================================
+# 1. CACHE SIZE SWEEP
+#    Filter: Ways=4, BTB=16, BHT=16
+# ==============================================================================
+subset = sorted(
+    [r for r in results if r['IC_W']==4 and r['BTB']==16 and r['BHT']==16],
+    key=lambda x: x['IC']
+)
+
+print_header("EXPERIMENT A: CACHE SIZE SWEEP (2KB -> 128KB)")
+print(f"{'Total Size':<15} {'Ways':<10} | {'BRAM':<10} {'LUTs':<10} {'FFs':<10} {'DSP':<5}")
+print("-" * 80)
+
+for r in subset:
+    sz_label = f"{r['IC']//1024}KB" if r['IC'] >= 1024 else f"{r['IC']}B"
+    print_row(sz_label, r['IC_W'], r['BRAM'], r['LUT'], r['FF'], r['DSP'])
+
+# Diagnostics
+if len(subset) > 1:
+    brams = [r['BRAM'] for r in subset]
+    # Check "Floor" effect (flat then rise)
+    if brams[0] == brams[1] and brams[-1] > brams[0]:
+        print("\n[ANALYSIS] PASS: 'BRAM Floor' detected.")
+        print("           Small caches are constrained by bandwidth (28 BRAMs), not capacity.")
+        print("           Large caches (>32KB) correctly scale BRAM usage.")
+    elif all(x == brams[0] for x in brams):
+        print("\n[ANALYSIS] FAIL: BRAM usage is flat across ALL sizes. (Stuck config?)")
+
+# ==============================================================================
+# 2. ASSOCIATIVITY SWEEP
+#    Filter: Size=4KB, BTB=16, BHT=16
+# ==============================================================================
+subset = sorted(
+    [r for r in results if r['IC']==4096 and r['BTB']==16 and r['BHT']==16],
+    key=lambda x: x['IC_W']
+)
+
+print_header("EXPERIMENT B: ASSOCIATIVITY SWEEP (1-Way -> 16-Way)")
+print(f"{'Ways':<15} {'Size':<10} | {'BRAM':<10} {'LUTs':<10} {'FFs':<10} {'DSP':<5}")
+print("-" * 80)
+
+for r in subset:
+    sz_label = f"{r['IC']//1024}KB"
+    print_row(str(r['IC_W']), sz_label, r['BRAM'], r['LUT'], r['FF'], r['DSP'])
+
+# Diagnostics
+if len(subset) > 1:
+    brams = [r['BRAM'] for r in subset]
+    if brams[-1] > brams[0]:
+        print("\n[ANALYSIS] PASS: Increasing ways significantly increases BRAM/Logic usage.")
+        print("           This confirms the cost of parallel access (complex muxing/banking).")
+
+# ==============================================================================
+# 3. BTB ENTRIES SWEEP
+#    Filter: Size=4KB, Ways=4, BHT=16
+# ==============================================================================
+subset = sorted(
+    [r for r in results if r['IC']==4096 and r['IC_W']==4 and r['BHT']==16],
+    key=lambda x: x['BTB']
+)
+
+print_header("EXPERIMENT C: BTB SIZE SWEEP (8 -> 32k Entries)")
+print(f"{'BTB Entries':<15} {'BHT':<10} | {'BRAM':<10} {'LUTs':<10} {'FFs':<10} {'DSP':<5}")
+print("-" * 80)
+
+for r in subset:
+    print_row(r['BTB'], r['BHT'], r['BRAM'], r['LUT'], r['FF'], r['DSP'])
+
+# Diagnostics
+if len(subset) > 1:
+    print("\n[ANALYSIS] Check for Transition: Does massive BTB (32k) trigger BRAM usage?")
+    if subset[-1]['BRAM'] > subset[0]['BRAM']:
+        print("           YES. Large BTB forced Vivado to switch from Distributed RAM to Block RAM.")
+    else:
+        print("           NO. Logic still handled in LUTRAM (or optimization removed it).")
+
+# ==============================================================================
+# 4. BHT ENTRIES SWEEP
+#    Filter: Size=4KB, Ways=4, BTB=16
+# ==============================================================================
+subset = sorted(
+    [r for r in results if r['IC']==4096 and r['IC_W']==4 and r['BTB']==16],
+    key=lambda x: x['BHT']
+)
+
+print_header("EXPERIMENT D: BHT SIZE SWEEP (16 -> 16k Entries)")
+print(f"{'BHT Entries':<15} {'BTB':<10} | {'BRAM':<10} {'LUTs':<10} {'FFs':<10} {'DSP':<5}")
+print("-" * 80)
+
+for r in subset:
+    print_row(r['BHT'], r['BTB'], r['BRAM'], r['LUT'], r['FF'], r['DSP'])
+
+# Diagnostics
+luts = [r['LUT'] for r in subset]
+if luts[-1] > luts[0]:
+    print("\n[ANALYSIS] PASS: LUT usage increases with history table size.")
+    print(f"           Delta: {luts[-1] - luts[0]} LUTs")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleParsing 25 reports...
+
+================================================================================
+ EXPERIMENT A: CACHE SIZE SWEEP (2KB -> 128KB)
+================================================================================
+Total Size      Ways       | BRAM       LUTs       FFs        DSP
+--------------------------------------------------------------------------------
+2KB             4          | 28         47714      22317      27
+4KB             4          | 28         47683      22319      27
+8KB             4          | 28         47687      22322      27
+16KB            4          | 28         47730      22327      27
+32KB            4          | 28         47736      22328      27
+64KB            4          | 52         47772      22331      27
+128KB           4          | 92         47952      22334      27
+
+[ANALYSIS] PASS: 'BRAM Floor' detected.
+           Small caches are constrained by bandwidth (28 BRAMs), not capacity.
+           Large caches (>32KB) correctly scale BRAM usage.
+
+================================================================================
+ EXPERIMENT B: ASSOCIATIVITY SWEEP (1-Way -> 16-Way)
+================================================================================
+Ways            Size       | BRAM       LUTs       FFs        DSP
+--------------------------------------------------------------------------------
+1               4KB        | 10         46843      22293      27
+2               4KB        | 16         47255      22298      27
+4               4KB        | 28         47683      22319      27
+8               4KB        | 52         48535      22370      27
+16              4KB        | 100        50890      22467      27
+
+[ANALYSIS] PASS: Increasing ways significantly increases BRAM/Logic usage.
+           This confirms the cost of parallel access (complex muxing/banking).
+
+================================================================================
+ EXPERIMENT C: BTB SIZE SWEEP (8 -> 32k Entries)
+================================================================================
+BTB Entries     BHT        | BRAM       LUTs       FFs        DSP
+--------------------------------------------------------------------------------
+8               16         | 28         47690      22319      27
+16              16         | 28         47683      22319      27
+32              16         | 30         47581      22190      27
+64              16         | 30         47598      22190      27
+128             16         | 30         47600      22190      27
+256             16         | 30         47597      22190      27
+512             16         | 30         47594      22190      27
+32768           16         | 92         47935      22240      27
+
+[ANALYSIS] Check for Transition: Does massive BTB (32k) trigger BRAM usage?
+           YES. Large BTB forced Vivado to switch from Distributed RAM to Block RAM.
+
+================================================================================
+ EXPERIMENT D: BHT SIZE SWEEP (16 -> 16k Entries)
+================================================================================
+BHT Entries     BTB        | BRAM       LUTs       FFs        DSP
+--------------------------------------------------------------------------------
+16              16         | 28         47683      22319      27
+32              16         | 28         47691      22319      27
+64              16         | 28         47678      22319      27
+128             16         | 28         47682      22319      27
+256             16         | 28         47719      22321      27
+512             16         | 28         47729      22319      27
+1024            16         | 28         47808      22319      27
+16384           16         | 28         50379      22322      27
+
+[ANALYSIS] PASS: LUT usage increases with history table size.
+           Delta: 2696 LUTs
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import os
+import re
+import pandas as pd
+
+# -----------------------------------------------------------------------------
+# 1. SETUP
+# -----------------------------------------------------------------------------
+report_dir = "/home/han4n/cva6_experiments/bitstreams/reports/full"
+output_csv = "cva6_experiments_stages_summary.csv"
+
+# Regex to extract parameters from the filename
+file_regex = re.compile(
+    r"util_ariane_IC(?P<IC>\d+k?)_(?P<ICw>\d+w)_\d+L_DC(?P<DC>\d+k?)_(?P<DCw>\d+w)_\d+L_BTB(?P<BTB>\d+)_BHT(?P<BHT>\d+)_RAS(?P<RAS>\d+)"
+)
+
+# -----------------------------------------------------------------------------
+# 2. PARSING FUNCTION (Exact User Logic)
+# -----------------------------------------------------------------------------
+def parse_vivado_report(file_path):
+    if not os.path.exists(file_path):
+        print(f"Error: {file_path} not found.")
+        return {}
+
+    raw_data = {}
+
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            # Parsing Columns: [1]=Name, [3]=LUT, [7]=FF, [8]=BRAM, [10]=DSP
+            name_col = parts[1]
+            try:
+                # Regex to get the instance name without spaces
+                name_match = re.search(r'([^\s]+)', name_col.strip())
+                if not name_match: continue
+                raw_name = name_match.group(1)
+
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM": int(parts[8].strip()),
+                    "DSP": int(parts[10].strip()) # Index 10 for DSPs
+                }
+                raw_data[raw_name] = metrics
+            except (ValueError, IndexError):
+                continue
+    return raw_data
+
+# -----------------------------------------------------------------------------
+# 3. STAGE CALCULATION (User Logic Flattened for CSV)
+# -----------------------------------------------------------------------------
+def calculate_stages_flat(raw_data, file_params):
+    """
+    Applies the subtraction logic:
+    - Net Issue = Issue - Scoreboard
+    - Net Execute = Execute - LSU
+    - Memory = LSU + Dcache
+    Returns a flat dictionary for CSV rows.
+    """
+
+    # Helper to safely get metric
+    def get_val(name, metric):
+        return raw_data.get(name, {}).get(metric, 0)
+
+    # Start with the filename parameters (IC, DC, etc.)
+    row_data = file_params.copy()
+
+    metrics_list = ["LUT", "FF", "BRAM", "DSP"]
+
+    # Calculate SoC Total first (using SoC_wrapper as distinct from (SoC_wrapper))
+    # We check for standard wrapper names if 'SoC_wrapper' isn't found exactly
+    soc_keys = ["SoC_wrapper", "SoC_i", "ariane_soc"]
+    soc_found = False
+    for m in metrics_list:
+        val = 0
+        for key in soc_keys:
+            if key in raw_data:
+                val = raw_data[key][m]
+                soc_found = True
+                break
+        row_data[f"SoC_Total_{m}"] = val
+
+    for metric in metrics_list:
+        # --- 1. FETCH ---
+        # (Assuming i_frontend covers logic)
+        fetch_val = get_val("i_frontend", metric)
+
+        # --- 2. DECODE ---
+        decode_val = get_val("id_stage_i", metric)
+
+        # --- 6. COMMIT (Scoreboard) ---
+        commit_val = get_val("i_scoreboard", metric)
+
+        # --- 3. ISSUE (Logic: Issue_Total - Scoreboard) ---
+        issue_total = get_val("issue_stage_i", metric)
+        # Ensure we don't get negative numbers if synthesis optimized things away
+        issue_net = max(0, issue_total - commit_val)
+
+        # --- 5. MEMORY (Logic: LSU + Cache) ---
+        lsu_val = get_val("lsu_i", metric)
+
+        # Check for Write-Through cache instance
+        dcache_val = get_val("i_wt_dcache", metric)
+        # If 0, check for Write-Back subsystem wrapper
+        if dcache_val == 0:
+            dcache_val = get_val("gen_cache_wt.i_cache_subsystem", metric)
+
+        # Add MMU if needed (User list included gen_mmu, which usually appears as i_cva6_mmu)
+        mmu_val = get_val("gen_mmu.i_cva6_mmu", metric)
+
+        memory_val = lsu_val + dcache_val + mmu_val
+
+        # --- 4. EXECUTE (Logic: Execute_Total - LSU) ---
+        ex_total = get_val("ex_stage_i", metric)
+        execute_net = max(0, ex_total - lsu_val)
+
+        # Populate Row
+        row_data[f"S1_Fetch_{metric}"] = fetch_val
+        row_data[f"S2_Decode_{metric}"] = decode_val
+        row_data[f"S3_Issue_Net_{metric}"] = issue_net
+        row_data[f"S4_Execute_Net_{metric}"] = execute_net
+        row_data[f"S5_Memory_Total_{metric}"] = memory_val
+        row_data[f"S6_Commit_{metric}"] = commit_val
+
+    return row_data
+
+# -----------------------------------------------------------------------------
+# 4. MAIN LOOP
+# -----------------------------------------------------------------------------
+all_rows = []
+
+print(f"Reading from: {report_dir}")
+
+for filename in sorted(os.listdir(report_dir)):
+    if filename.endswith(".rpt"):
+        match = file_regex.search(filename)
+        if match:
+            path = os.path.join(report_dir, filename)
+
+            # 1. Parse File
+            raw_metrics = parse_vivado_report(path)
+
+            # 2. Calculate Stages
+            clean_row = calculate_stages_flat(raw_metrics, match.groupdict())
+
+            all_rows.append(clean_row)
+
+if all_rows:
+    df = pd.DataFrame(all_rows)
+
+    # Sorting helper (optional): Convert 'IC' to int for cleaner sorting
+    if 'IC' in df.columns:
+        df['sort_helper'] = df['IC'].apply(lambda x: int(x.replace('k','')) if 'k' in x else int(x))
+        df = df.sort_values('sort_helper').drop(columns=['sort_helper'])
+
+    df.to_csv(output_csv, index=False)
+    print(f"Success. Parsed {len(all_rows)} files.")
+    print(f"Data saved to: {output_csv}")
+
+    # Preview
+    cols_to_show = ['IC', 'ICw', 'SoC_Total_LUT', 'S4_Execute_Net_LUT', 'S5_Memory_Total_LUT']
+    print("\nPreview of Logic and Memory breakdown:")
+    print(df[cols_to_show].head())
+else:
+    print("No matching files found.")
+#+end_src
+
+#+RESULTS:
+#+begin_exampleReading from: /home/han4n/cva6_experiments/bitstreams/reports/full
+Success. Parsed 25 files.
+Data saved to: cva6_experiments_stages_summary.csv
+
+Preview of Logic and Memory breakdown:
+   IC  ICw  SoC_Total_LUT  S4_Execute_Net_LUT  S5_Memory_Total_LUT
+2  2k   4w          47714               10490                15590
+6  4k   2w          47255               10484                15489
+5  4k   1w          46843               10232                15385
+4  4k  16w          50890               10483                18309
+7  4k   4w          47600               10487                15569
+#+end_example
+#+begin_exampleSuccess! Processed 25 files.
+Output saved to: cva6_experiments_stages_summary.csv
+    IC  ICw  SoC_Total_LUT  S4_Execute_Net_LUT
+23  2k   4w          47714               10490
+0   4k  16w          50890               10483
+2   4k   4w          47729               10484
+1   4k   4w          47594               10489
+6   4k   4w          47719               10488
+#+end_example
+* Sweeps Plots
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import re
+
+# -----------------------------------------------------------------------------
+# 1. PLOT STYLING & CONFIGURATION
+# -----------------------------------------------------------------------------
+# Enable LaTeX rendering and set font
+try:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+except:
+    print("Warning: LaTeX not found. Using standard fonts.")
+
+plt.rcParams['figure.dpi'] = 300
+INPUT_CSV = "cva6_experiments_stages_summary.csv"
+
+# Baseline Configuration
+BASELINE = {
+    'IC_num': 4096,  'ICw_num': 4,
+    'DC_num': 4096,  'DCw_num': 4,
+    'BTB_num': 16,   'BHT_num': 16,   'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+try:
+    df = pd.read_csv(INPUT_CSV)
+    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
+        if col in df.columns:
+            df[f'{col}_num'] = df[col].apply(parse_size)
+except FileNotFoundError:
+    print(f"Error: {INPUT_CSV} not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING FUNCTION
+# -----------------------------------------------------------------------------
+def plot_sweep_soc(df_filtered, x_col, x_label, title, filename):
+    if df_filtered.empty:
+        print(f"Skipping {title} (no data)")
+        return
+
+    df_plot = df_filtered.sort_values(f'{x_col}_num')
+    labels = df_plot[x_col].astype(str).tolist()
+
+    # Data
+    luts = df_plot['SoC_Total_LUT'].tolist()
+    ffs = df_plot['SoC_Total_FF'].tolist()
+    brams = df_plot['SoC_Total_BRAM'].tolist()
+    dsps = df_plot['SoC_Total_DSP'].tolist()
+
+    x = np.arange(len(labels))
+    width = 0.2
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    # Bars
+    rects1 = ax.bar(x - 1.5*width, luts, width, label='LUT', color='#4c72b0')
+    rects2 = ax.bar(x - 0.5*width, ffs, width, label='FF', color='#55a868')
+    rects3 = ax.bar(x + 0.5*width, brams, width, label='BRAM', color='#c44e52')
+    rects4 = ax.bar(x + 1.5*width, dsps, width, label='DSP', color='#8172b2')
+
+    # Styling
+    ax.set_xlabel(x_label, fontsize=12)
+    ax.set_ylabel(r'\textbf{Total Utilization (Count)}', fontsize=12)
+    ax.set_title(rf'\textbf{{{title}}}', fontsize=14, pad=15)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=11)
+    ax.grid(axis='y', linestyle='--', alpha=0.5, zorder=0)
+
+    # 1. Dynamic Y-Limit: Increase by 30% to make room for the legend on top
+    max_val = max(max(luts), max(ffs), max(brams), max(dsps))
+    ax.set_ylim(0, max_val * 1.3)
+
+    # 2. Legend: Placed in the empty upper-right space
+    ax.legend(loc='upper right', frameon=True, fontsize=10, ncol=2)
+
+    # 3. Bar Labels: Rotated 90 degrees to fit without crossing borders
+    def add_labels(rects):
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate(f'{int(height)}',
+                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 5),  # 5 points vertical offset
+                        textcoords="offset points",
+                        ha='center', va='bottom', rotation=90, fontsize=8)
+
+    add_labels(rects1)
+    add_labels(rects2)
+    add_labels(rects3)
+    add_labels(rects4)
+
+    plt.tight_layout()
+    # plt.savefig(filename, bbox_inches='tight') # Ensures nothing is cropped
+    plt.show()
+    print(f"Generated {filename}")
+    # plt.close()
+
+# -----------------------------------------------------------------------------
+# 4. GENERATE PLOTS
+# -----------------------------------------------------------------------------
+# Sweep 1: Cache Size
+s1 = df[(df['ICw_num'] == BASELINE['ICw_num']) & (df['DCw_num'] == BASELINE['DCw_num']) &
+        (df['BTB_num'] == BASELINE['BTB_num']) & (df['BHT_num'] == BASELINE['BHT_num'])].copy()
+plot_sweep_soc(s1, 'IC', r'Cache Capacity (Bytes)', 'SoC Resources vs. Cache Size', 'plot_cache.png')
+
+# Sweep 2: Associativity
+s2 = df[(df['IC_num'] == BASELINE['IC_num']) & (df['DC_num'] == BASELINE['DC_num']) &
+        (df['BTB_num'] == BASELINE['BTB_num']) & (df['BHT_num'] == BASELINE['BHT_num'])].copy()
+plot_sweep_soc(s2, 'ICw', r'Associativity (Ways)', 'SoC Resources vs. Associativity', 'plot_assoc.png')
+
+# Sweep 3: BTB
+s3 = df[(df['IC_num'] == BASELINE['IC_num']) & (df['ICw_num'] == BASELINE['ICw_num']) &
+        (df['DC_num'] == BASELINE['DC_num']) & (df['BHT_num'] == BASELINE['BHT_num'])].copy()
+plot_sweep_soc(s3, 'BTB', r'BTB Entries', 'SoC Resources vs. BTB Size', 'plot_btb.png')
+
+# Sweep 4: BHT
+s4 = df[(df['IC_num'] == BASELINE['IC_num']) & (df['ICw_num'] == BASELINE['ICw_num']) &
+        (df['DC_num'] == BASELINE['DC_num']) & (df['BTB_num'] == BASELINE['BTB_num'])].copy()
+plot_sweep_soc(s4, 'BHT', r'BHT Entries', 'SoC Resources vs. BHT Size', 'plot_bht.png')
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+#+end_example
+[[file:./.ob-jupyter/d288a592c6564394352084e72d781ba0b34f5f14.png]]
+#+begin_example
+Generated plot_cache.png
+#+end_example
+[[file:./.ob-jupyter/24ff8c89dd35cbb9b66b3eb44570d45daf446a27.png]]
+#+begin_example
+Generated plot_assoc.png
+#+end_example
+[[file:./.ob-jupyter/b6148d544ea648cd62aa77c3b65c9c5b16ff8ac7.png]]
+#+begin_example
+Generated plot_btb.png
+#+end_example
+[[file:./.ob-jupyter/360b196048d4cf11b41b72cebcae82881b69ae2a.png]]
+#+begin_example
+Generated plot_bht.png
+#+end_example
 :end:
