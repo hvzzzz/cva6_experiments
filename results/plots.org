@@ -1166,7 +1166,7 @@ import warnings
 
 # --- 1. Setup ---
 RESULTS_DIR = "/home/han4n/cva6_experiments/results"
-PLOTS_DIR = os.path.join(RESULTS_DIR, "percentage_relative_plots_auto")
+PLOTS_DIR = os.path.join(RESULTS_DIR, "speedup_plot_cycles_auto")
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 # LaTeX & Style
@@ -1310,16 +1310,16 @@ for sweep in sweeps:
 
         # Labels
         plt.title(f"{suite} Suite: Sensitivity to {sweep['name']}", fontsize=18, pad=15)
-        plt.ylabel(r"Relative to Baseline (\%)", fontsize=14)
+        plt.ylabel(r"Speedup (\%)", fontsize=14)
         plt.xlabel("")
         plt.xticks(rotation=45, ha='right', rotation_mode='anchor', fontsize=11)
 
         # Legend
         handles, labels = bar_plot.get_legend_handles_labels()
         from matplotlib.lines import Line2D
-        diamond_proxy = Line2D([0], [0], color='w', marker='D', markerfacecolor='#222222', markersize=6, label='Cycle Usage (%)')
+        diamond_proxy = Line2D([0], [0], color='w', marker='D', markerfacecolor='#222222', markersize=6, label='Cycle Usage (\%)')
         handles.append(diamond_proxy)
-        labels.append("Cycle Usage (%)")
+        labels.append("Cycle Usage (\%)")
 
         plt.legend(
             handles, labels,
@@ -1330,7 +1330,7 @@ for sweep in sweeps:
         )
 
         plt.tight_layout()
-        filename = f"percent_{sweep['name'].replace(' ', '_')}_{suite}.png".lower()
+        filename = f"{sweep['name'].replace(' ', '_')}_{suite}.png".lower()
         plt.savefig(os.path.join(PLOTS_DIR, filename), bbox_inches='tight')
         plt.close()
 
@@ -1340,7 +1340,7 @@ print(f"Done! Plots saved to: {PLOTS_DIR}")
 #+RESULTS:
 :results:
 #+begin_exampleGenerating Percentage Relative Plots (With Baseline Labels)...
-Done! Plots saved to: /home/han4n/cva6_experiments/results/percentage_relative_plots_auto
+Done! Plots saved to: /home/han4n/cva6_experiments/results/speedup_plot_cycles_auto
 #+end_example
 :end:
 * Utilization Automatic
