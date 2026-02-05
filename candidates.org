@@ -19,14 +19,14 @@ Baseline parameters
 
 * Parameter sweep
 
-|--------------------+------------------------------------+--------------------------------+-------------------------------------------------------------------|
-| *Parameter Changed*  | *Sweep Values (Range)*               | *Constants (Locked to Baseline)* | *Goal*                                                              |
-|--------------------+------------------------------------+--------------------------------+-------------------------------------------------------------------|
-| Cache Size (I & D) | 2 KB, 8 KB, 16 KB, 32 KB,...,128kb | Assoc=4, BTB=16, BHT=16        | Measure impact of capacity on cache misses.                       |
-| Associativity      | 1-Way (Direct), 2-Way, 8-Way       | Size=4KB, BTB=16, BHT=16       | Measure impact of conflict misses vs. logic complexity.           |
-| BTB Entries        | 8, 32, 64,...,32kb                 | Size=4KB, Assoc=4, BHT=16      | Measure impact on branch target prediction (loops/jumps).         |
-| BHT Entries        | 32, 128, 256,...,16kb              | Size=4KB, Assoc=4, BTB=16      | Measure impact on conditional branch direction (taken/not taken). |
-|--------------------+------------------------------------+--------------------------------+-------------------------------------------------------------------|
+|--------------------+--------------------------------------+--------------------------------+-------------------------------------------------------------------|
+| *Parameter Changed*  | *Sweep Values (Range)*                 | *Constants (Locked to Baseline)* | *Goal*                                                              |
+|--------------------+--------------------------------------+--------------------------------+-------------------------------------------------------------------|
+| Cache Size (I & D) | 2 KB, 8 KB, 16 KB, 32 KB,...,128kb   | Assoc=4, BTB=16, BHT=16        | Measure impact of capacity on cache misses.                       |
+| Associativity      | 1-Way (Direct), 2-Way, 8-Way, 16-way | Size=4KB, BTB=16, BHT=16       | Measure impact of conflict misses vs. logic complexity.           |
+| BTB Entries        | 8, 32, 64,...,32kb                   | Size=4KB, Assoc=4, BHT=16      | Measure impact on branch target prediction (loops/jumps).         |
+| BHT Entries        | 32, 128, 256,...,16kb                | Size=4KB, Assoc=4, BTB=16      | Measure impact on conditional branch direction (taken/not taken). |
+|--------------------+--------------------------------------+--------------------------------+-------------------------------------------------------------------|
 
 * Performed experiment data
 ** Baseline
@@ -748,3 +748,445 @@ else:
 Total rows: 60
 #+end_example
 :end:
+* Automated sweep
+#+begin_src jupyter-python :results output drawer :exports results
+import csv
+import re
+import os
+
+# ================= CONFIGURATION =================
+INPUT_CSV = "./results/sweep_results.csv"
+
+BASELINE = {
+    'IC_SIZE': '4k',
+    'IC_ASSOC': '4',
+    'DC_SIZE': '4k',
+    'DC_ASSOC': '4',
+    'BTB': '16',
+    'BHT': '16'
+}
+
+FILENAME_PATTERN = re.compile(
+    r"ariane_IC(\d+k)_(\d+)w_.*?_DC(\d+k)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_"
+)
+
+def parse_bitstream_name(filename):
+    match = FILENAME_PATTERN.search(filename)
+    if match:
+        return {
+            'IC_SIZE': match.group(1),
+            'IC_ASSOC': match.group(2),
+            'DC_SIZE': match.group(3),
+            'DC_ASSOC': match.group(4),
+            'BTB': match.group(5),
+            'BHT': match.group(6)
+        }
+    return None
+
+def is_failed(row):
+    """Checks if the result columns contain error keywords."""
+    # row[1] is NPB, row[2] is UnixBench
+    error_keywords = ["ERROR", "TIMEOUT", "FAIL", "HANG", "SKIPPED"]
+    
+    npb_res = row[1].upper()
+    unix_res = row[2].upper()
+    
+    return any(k in npb_res for k in error_keywords) or any(k in unix_res for k in error_keywords)
+
+def main():
+    if not os.path.exists(INPUT_CSV):
+        print(f"Error: {INPUT_CSV} not found.")
+        return
+
+    sweeps = {
+        'BASELINE': [],
+        'CACHE_SIZE': [],
+        'ASSOCIATIVITY': [],
+        'BTB_SIZE': [],
+        'BHT_SIZE': []
+    }
+    
+    failed_experiments = []
+
+    print(f"Reading {INPUT_CSV}...\n")
+
+    with open(INPUT_CSV, 'r') as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+
+        for row in reader:
+            if not row: continue
+            bitstream = row[0]
+            
+            # 1. FILTER ERRORS
+            if is_failed(row):
+                failed_experiments.append(row)
+                continue
+
+            # 2. PARSE VALID ROWS
+            p = parse_bitstream_name(bitstream)
+            if not p:
+                print(f"[WARN] Cannot parse filename: {bitstream}")
+                continue
+
+            # 3. CLASSIFY
+            # Identify Baseline
+            if (p['IC_SIZE'] == BASELINE['IC_SIZE'] and 
+                p['IC_ASSOC'] == BASELINE['IC_ASSOC'] and 
+                p['BTB'] == BASELINE['BTB'] and 
+                p['BHT'] == BASELINE['BHT']):
+                sweeps['BASELINE'].append(f"{bitstream} (REF)")
+                continue
+
+            # Identify Sweeps
+            if p['IC_SIZE'] != BASELINE['IC_SIZE']:
+                sweeps['CACHE_SIZE'].append(f"{bitstream} [Size: {p['IC_SIZE']}]")
+            
+            elif p['IC_ASSOC'] != BASELINE['IC_ASSOC']:
+                sweeps['ASSOCIATIVITY'].append(f"{bitstream} [Assoc: {p['IC_ASSOC']}w]")
+
+            elif p['BTB'] != BASELINE['BTB']:
+                sweeps['BTB_SIZE'].append(f"{bitstream} [BTB: {p['BTB']}]")
+
+            elif p['BHT'] != BASELINE['BHT']:
+                sweeps['BHT_SIZE'].append(f"{bitstream} [BHT: {p['BHT']}]")
+
+    # --- PRINT VALID RESULTS ---
+    print("="*60)
+    print("  VALID EXPERIMENTS (Ready for Processing)")
+    print("="*60)
+
+    def sort_key(s):
+        nums = re.findall(r'\d+', s)
+        return int(nums[-1]) if nums else 0
+
+    for category, items in sweeps.items():
+        if not items: continue
+        items.sort(key=sort_key)
+        
+        print(f"\n>>> {category} ({len(items)} items)")
+        for item in items:
+            print(f"  - {item}")
+
+    # --- PRINT FAILED RESULTS ---
+    if failed_experiments:
+        print("\n" + "="*60)
+        print("  FAILED EXPERIMENTS")
+        print("="*60)
+        for row in failed_experiments:
+            # Print Bitstream + Error Reason
+            print(f"  [X] {row[0]}")
+            print(f"      Status: NPB={row[1]}, Unix={row[2]}")
+    else:
+        print("\n" + "="*60)
+        print("  NO ERRORS FOUND! (100% Success)")
+        print("="*60)
+
+if __name__ == "__main__":
+    main()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleReading ./results/sweep_results.csv...
+
+============================================================
+  VALID EXPERIMENTS (Ready for Processing)
+============================================================
+
+>>> BASELINE (1 items)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
+
+>>> CACHE_SIZE (3 items)
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+
+>>> ASSOCIATIVITY (4 items)
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+
+>>> BTB_SIZE (12 items)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB128_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB256_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB512_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB1024_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB2048_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB4096_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8192_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16384_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32768_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32768]
+
+>>> BHT_SIZE (10 items)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin [BHT: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin [BHT: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin [BHT: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT256_RAS2_ITLB4_DTLB4.bit.bin [BHT: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT512_RAS2_ITLB4_DTLB4.bit.bin [BHT: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT1024_RAS2_ITLB4_DTLB4.bit.bin [BHT: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT2048_RAS2_ITLB4_DTLB4.bit.bin [BHT: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT4096_RAS2_ITLB4_DTLB4.bit.bin [BHT: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT8192_RAS2_ITLB4_DTLB4.bit.bin [BHT: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16384_RAS2_ITLB4_DTLB4.bit.bin [BHT: 16384]
+
+============================================================
+  FAILED EXPERIMENTS
+============================================================
+  [X] ariane_IC128k_4w_128L_DC128k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC32k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC64k_4w_128L_DC64k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+#+end_example
+:end:
+
+#+begin_src jupyter-python :results output drawer :exports results
+import csv
+import re
+import os
+
+# ================= CONFIGURATION =================
+# Input File
+INPUT_CSV = "./results/sweep_results.csv"
+
+# Output Files
+OUTPUT_FILES = {
+    'CACHE': "./results/sweep_cache.csv",
+    'ASSOC': "./results/sweep_assoc.csv",
+    'BTB':   "./results/sweep_btb.csv",
+    'BHT':   "./results/sweep_bht.csv"
+}
+
+# Directories containing the raw .txt files
+# Make sure you have copied these folders from the board to your PC!
+NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB_auto"
+UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench_auto"
+
+# Baseline Configuration (The Reference)
+# This config is added to ALL sweep files for comparison
+BASELINE = {
+    'IC_SIZE': '4k', 'IC_ASSOC': '4',
+    'DC_SIZE': '4k', 'DC_ASSOC': '4',
+    'BTB': '16',     'BHT': '16'
+}
+
+# Regex to parse the bitstream filename
+FILENAME_PATTERN = re.compile(
+    r"ariane_IC(\d+k)_(\d+)w_.*?_DC(\d+k)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_"
+)
+
+# --- CONTENT PARSING REGEX ---
+# NPB
+NPB_NAME_REGEX   = re.compile(r"NPB_([A-Z]+)_S")
+NPB_SCORE_REGEX  = re.compile(r"Mop/s total\s*=\s*([\d\.]+)")
+
+# UnixBench
+UNIX_NAME_REGEX  = re.compile(r"([A-Za-z_]+)")
+UNIX_COUNT_REGEX = re.compile(r"COUNT\|([\d\.]+)\|\d+\|([A-Za-z]+)")
+
+# PAPI Metrics (Instructions, Cycles, IPC)
+INST_REGEX = re.compile(r"\[PAPI\] Instructions:\s+(\d+)")
+CYC_REGEX  = re.compile(r"\[PAPI\] Cycles:\s+(\d+)")
+IPC_REGEX  = re.compile(r"\[PAPI\] IPC:\s+([\d\.]+)")
+
+# Error codes to skip
+ERROR_CODES = ["BOOT_TIMEOUT", "HANG_TIMEOUT", "FLASH_FAIL", "ERROR", "SKIPPED"]
+
+# =================================================
+
+def parse_bitstream_name(filename):
+    """Extracts parameters from the bitstream filename."""
+    match = FILENAME_PATTERN.search(filename)
+    if match:
+        return {
+            'IC_SIZE': match.group(1), 'IC_ASSOC': match.group(2),
+            'DC_SIZE': match.group(3), 'DC_ASSOC': match.group(4),
+            'BTB': match.group(5),     'BHT': match.group(6)
+        }
+    return None
+
+def parse_content_block(block_text, suite_type):
+    """Parses a single benchmark block (between BEGIN_TEST and END_TEST)."""
+    data = {'score': '0', 'units': '-', 'inst': '0', 'cyc': '0', 'ipc': '0'}
+    
+    # 1. Parse Score & Units
+    if suite_type == 'NPB':
+        m = NPB_SCORE_REGEX.search(block_text)
+        if m:
+            data['score'] = m.group(1)
+            data['units'] = "Mop/s"
+            
+    elif suite_type == 'UnixBench':
+        # Finds first occurrence of COUNT (handles Context Switching duplicates)
+        m = UNIX_COUNT_REGEX.search(block_text)
+        if m:
+            data['score'] = m.group(1)
+            data['units'] = m.group(2)
+
+    # 2. Parse PAPI Metrics
+    m_inst = INST_REGEX.search(block_text)
+    m_cyc = CYC_REGEX.search(block_text)
+    m_ipc = IPC_REGEX.search(block_text)
+
+    if m_inst: data['inst'] = m_inst.group(1)
+    if m_cyc:  data['cyc']  = m_cyc.group(1)
+    if m_ipc:  data['ipc']  = m_ipc.group(1)
+    
+    return data
+
+def process_file_content(filepath, suite_type):
+    """Reads a file, splits it by test blocks, and returns a dict of results."""
+    results = {}
+    
+    if not os.path.exists(filepath):
+        # Only print once per run to avoid spam
+        # print(f"[WARN] File missing: {filepath}")
+        return results
+
+    try:
+        with open(filepath, 'r', errors='replace') as f:
+            content = f.read()
+    except Exception as e:
+        print(f"[WARN] Read error {filepath}: {e}")
+        return results
+
+    # Split content by the test delimiter
+    blocks = content.split('>>>BEGIN_TEST|')
+    
+    for block in blocks[1:]:
+        lines = block.split('\n', 1)
+        header = lines[0].strip()
+        body = lines[1] if len(lines) > 1 else ""
+
+        bench_name = None
+        if suite_type == 'NPB':
+            m = NPB_NAME_REGEX.match(header)
+            if m: bench_name = m.group(1)
+        elif suite_type == 'UnixBench':
+            m = UNIX_NAME_REGEX.match(header)
+            if m: bench_name = m.group(1)
+
+        if bench_name:
+            results[bench_name] = parse_content_block(body, suite_type)
+
+    return results
+
+def get_config_label(p, sweep_type):
+    """Generates the label (first column) based on the sweep type."""
+    if sweep_type == 'CACHE': return f"IC/DC {p['IC_SIZE']}"
+    if sweep_type == 'ASSOC': return f"{p['IC_ASSOC']}w"
+    if sweep_type == 'BTB':   return f"BTB{p['BTB']}"
+    if sweep_type == 'BHT':   return f"BHT{p['BHT']}"
+    return "Unknown"
+
+def generate_rows(p, sweep_type, npb_data, unix_data):
+    """Creates the list of CSV rows for a specific config."""
+    rows = []
+    config_label = get_config_label(p, sweep_type)
+
+    # NPB Benchmarks
+    for bname in ['EP', 'IS', 'CG', 'MG', 'FT', 'BT', 'SP', 'LU']:
+        if bname in npb_data:
+            d = npb_data[bname]
+            rows.append([config_label, "NPB", bname, d['score'], d['units'], d['inst'], d['cyc'], d['ipc']])
+
+    # UnixBench Benchmarks
+    unix_order = ['Arithmetic_Overhead', 'Arithmetic_Register', 'Arithmetic_Short', 'Arithmetic_Int', 
+                  'Dhrystone', 'Arithmetic_Double', 'Whetstone', 'Syscall_Mix', 'Syscall_GetPID', 
+                  'Syscall_Exec', 'Pipe_Throughput', 'Context_Switching']
+    for bname in unix_order:
+        if bname in unix_data:
+            d = unix_data[bname]
+            rows.append([config_label, "UnixBench", bname, d['score'], d['units'], d['inst'], d['cyc'], d['ipc']])
+            
+    return rows
+
+def is_error(filename):
+    """Checks if the filename field contains an error code."""
+    return any(code in filename for code in ERROR_CODES)
+
+def main():
+    print("Starting Processing...")
+    
+    # Buffers to hold data for each file
+    csv_buffers = { 'CACHE': [], 'ASSOC': [], 'BTB': [], 'BHT': [] }
+    
+    with open(INPUT_CSV, 'r') as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+
+        for row in reader:
+            if not row or len(row) < 3: continue
+            bitstream, npb_file, unix_file = row[0], row[1], row[2]
+
+            # Skip failed experiments
+            if is_error(npb_file) or is_error(unix_file):
+                continue
+
+            p = parse_bitstream_name(bitstream)
+            if not p: continue
+
+            # Parse the actual result files
+            npb_data = process_file_content(os.path.join(NPB_DIR, npb_file), 'NPB')
+            unix_data = process_file_content(os.path.join(UNIX_DIR, unix_file), 'UnixBench')
+
+            # Identify Baseline
+            is_baseline = (p['IC_SIZE'] == BASELINE['IC_SIZE'] and 
+                           p['IC_ASSOC'] == BASELINE['IC_ASSOC'] and 
+                           p['BTB'] == BASELINE['BTB'] and 
+                           p['BHT'] == BASELINE['BHT'])
+
+            # --- DISTRIBUTE DATA TO BUFFERS ---
+            
+            # 1. Cache Sweep (Include if Baseline OR Cache Size changed)
+            if is_baseline or (p['IC_SIZE'] != BASELINE['IC_SIZE']):
+                csv_buffers['CACHE'].extend(generate_rows(p, 'CACHE', npb_data, unix_data))
+
+            # 2. Associativity Sweep (Include if Baseline OR Assoc changed)
+            if is_baseline or (p['IC_ASSOC'] != BASELINE['IC_ASSOC']):
+                csv_buffers['ASSOC'].extend(generate_rows(p, 'ASSOC', npb_data, unix_data))
+
+            # 3. BTB Sweep (Include if Baseline OR BTB changed)
+            if is_baseline or (p['BTB'] != BASELINE['BTB']):
+                csv_buffers['BTB'].extend(generate_rows(p, 'BTB', npb_data, unix_data))
+
+            # 4. BHT Sweep (Include if Baseline OR BHT changed)
+            if is_baseline or (p['BHT'] != BASELINE['BHT']):
+                csv_buffers['BHT'].extend(generate_rows(p, 'BHT', npb_data, unix_data))
+
+    # --- WRITE TO FILES ---
+    header_row = ["config", "suite", "name", "score", "units", "instructions", "cycles", "ipc"]
+    
+    for key, filename in OUTPUT_FILES.items():
+        if csv_buffers[key]:
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(header_row)
+                writer.writerows(csv_buffers[key])
+            print(f"Created {filename}: {len(csv_buffers[key])} rows")
+        else:
+            print(f"Warning: No data found for {filename}")
+
+    print("Done!")
+
+if __name__ == "__main__":
+    main()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleStarting Processing...
+Created ./results/sweep_cache.csv: 80 rows
+Created ./results/sweep_assoc.csv: 100 rows
+Created ./results/sweep_btb.csv: 260 rows
+Created ./results/sweep_bht.csv: 220 rows
+Done!
+#+end_example
+:end:
+
