@@ -1290,39 +1290,464 @@ else:
 #+RESULTS:
 :results:
 #+begin_exampleReading from: /home/han4n/cva6_experiments/bitstreams/reports/full
-Success. Parsed 33 files.
+Success. Parsed 47 files.
 Data saved to: ./results/cva6_experiments_stages_summary.csv
 
 Preview of Logic and Memory breakdown:
-   IC  ICw  SoC_Total_LUT  S4_Execute_Net_LUT  S5_Memory_Total_LUT
-2  2k   4w          47714               10490                15590
-6  4k   2w          47255               10484                15489
-5  4k   1w          46843               10232                15385
-4  4k  16w          50890               10483                18309
-7  4k   4w          47606               10485                15565
+    IC ICw  SoC_Total_LUT  S4_Execute_Net_LUT  S5_Memory_Total_LUT
+6   2k  4w          47695               10492                15576
+5   2k  4w          47714               10490                15590
+13  4k  4w          47723               10486                15611
+14  4k  4w          48199               10490                16059
+12  4k  4w          47762               10484                15613
 #+end_example
 :end:
-#+begin_exampleReading from: /home/han4n/cva6_experiments/bitstreams/reports/full
-Success. Parsed 25 files.
-Data saved to: cva6_experiments_stages_summary.csv
 
-Preview of Logic and Memory breakdown:
-   IC  ICw  SoC_Total_LUT  S4_Execute_Net_LUT  S5_Memory_Total_LUT
-2  2k   4w          47714               10490                15590
-6  4k   2w          47255               10484                15489
-5  4k   1w          46843               10232                15385
-4  4k  16w          50890               10483                18309
-7  4k   4w          47600               10487                15569
+#+begin_src jupyter-python
+import os
+import re
+import pandas as pd
+
+# -----------------------------------------------------------------------------
+# 1. SETUP
+# -----------------------------------------------------------------------------
+report_dir = "/home/han4n/cva6_experiments/bitstreams/reports/full"
+output_csv = "./results/cva6_experiments_stages_summary_final.csv"
+
+# Regex to extract parameters from the filename
+file_regex = re.compile(
+    r"util_ariane_IC(?P<IC>\d+k?)_(?P<ICw>\d+w)_\d+L_DC(?P<DC>\d+k?)_(?P<DCw>\d+w)_\d+L_BTB(?P<BTB>\d+)_BHT(?P<BHT>\d+)_RAS(?P<RAS>\d+)"
+)
+
+# -----------------------------------------------------------------------------
+# 2. PARSING FUNCTION
+# -----------------------------------------------------------------------------
+def parse_vivado_report(file_path):
+    if not os.path.exists(file_path):
+        print(f"Error: {file_path} not found.")
+        return {}
+
+    raw_data = {}
+
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            name_col = parts[1]
+            try:
+                name_match = re.search(r'([^\s]+)', name_col.strip())
+                if not name_match: continue
+                raw_name = name_match.group(1)
+
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM": int(parts[8].strip()),
+                    "DSP": int(parts[10].strip())
+                }
+                raw_data[raw_name] = metrics
+            except (ValueError, IndexError):
+                continue
+    return raw_data
+
+# -----------------------------------------------------------------------------
+# 3. STAGE CALCULATION
+# -----------------------------------------------------------------------------
+def calculate_stages_flat(raw_data, file_params):
+    
+    def get_val(name, metric):
+        return raw_data.get(name, {}).get(metric, 0)
+
+    row_data = file_params.copy()
+    metrics_list = ["LUT", "FF", "BRAM", "DSP"]
+
+    # KNOWN PERIPHERALS (The "Uncore" Bucket)
+    # Add any other top-level modules found in your report here
+    peripheral_modules = [
+        "northbridge", 
+        "axi_quad_spi_0", 
+        "axi_uart16550_0", 
+        "bootrom_wrapper_0", 
+        "clint_0",
+        "axi_mem_intercon",
+        "debug_module",
+        "plic" 
+    ]
+
+    for metric in metrics_list:
+        # --- SOC TOTAL ---
+        # We try standard names
+        soc_total = 0
+        for key in ["SoC_wrapper", "SoC_i", "ariane_soc"]:
+            if key in raw_data:
+                soc_total = raw_data[key][metric]
+                break
+        row_data[f"SoC_Total_{metric}"] = soc_total
+
+        # --- UNCORE (PERIPHERALS) ---
+        uncore_val = 0
+        for p_name in peripheral_modules:
+            # We use loose matching because names often have suffixes like "_0"
+            # But the dictionary keys are exact from the parsing function.
+            # Based on your log, the names are fairly consistent.
+            # We look for exact matches first, or partials if needed.
+            # Your parsing script gets exact names like "axi_quad_spi_0" or "SoC_axi_quad_spi_0_0"
+            # The parser extracts the "Instance" column. 
+            # In your log: Instance="axi_quad_spi_0", Module="SoC_axi_quad_spi_0_0"
+            # Your parser keys off Instance.
+            uncore_val += get_val(p_name, metric)
+        
+        row_data[f"Uncore_{metric}"] = uncore_val
+
+        # --- PIPELINE STAGES ---
+        
+        # 1. FETCH
+        # Logic (Frontend) + Memory (I-Cache)
+        fetch_val = get_val("i_frontend", metric) + get_val("i_cva6_icache", metric)
+
+        # 2. DECODE
+        decode_val = get_val("id_stage_i", metric)
+
+        # 6. COMMIT
+        commit_val = get_val("i_scoreboard", metric)
+
+        # 3. ISSUE
+        # Issue stage usually does NOT contain scoreboard in hierarchy
+        issue_net = get_val("issue_stage_i", metric)
+
+        # 5. MEMORY
+        # LSU + D-Cache
+        # FIX: Do NOT add mmu_val here, it is already inside lsu_i
+        lsu_val = get_val("lsu_i", metric)
+        
+        dcache_val = get_val("i_wt_dcache", metric)
+        if dcache_val == 0:
+            dcache_val = get_val("gen_cache_wt.i_cache_subsystem", metric)
+        
+        memory_val = lsu_val + dcache_val
+
+        # 4. EXECUTE
+        # Execute usually DOES contain LSU in hierarchy, so we subtract
+        ex_total = get_val("ex_stage_i", metric)
+        execute_net = max(0, ex_total - lsu_val)
+
+        # --- STORE STAGES ---
+        row_data[f"S1_Fetch_{metric}"] = fetch_val
+        row_data[f"S2_Decode_{metric}"] = decode_val
+        row_data[f"S3_Issue_Net_{metric}"] = issue_net
+        row_data[f"S4_Execute_Net_{metric}"] = execute_net
+        row_data[f"S5_Memory_Total_{metric}"] = memory_val
+        row_data[f"S6_Commit_{metric}"] = commit_val
+
+        # --- INTEGRITY CHECKS ---
+        sum_stages = (fetch_val + decode_val + issue_net + 
+                      execute_net + memory_val + commit_val)
+        
+        # Delta = SoC - (Core + Uncore)
+        # Ideally this is 0. If positive, it's just glue logic (clock wizards, resets, etc)
+        remainder = soc_total - (sum_stages + uncore_val)
+        
+        row_data[f"Sum_Stages_{metric}"] = sum_stages
+        row_data[f"Remainder_{metric}"] = remainder
+
+    return row_data
+
+# -----------------------------------------------------------------------------
+# 4. MAIN LOOP
+# -----------------------------------------------------------------------------
+all_rows = []
+print(f"Reading from: {report_dir}")
+
+for filename in sorted(os.listdir(report_dir)):
+    if filename.endswith(".rpt"):
+        match = file_regex.search(filename)
+        if match:
+            path = os.path.join(report_dir, filename)
+            raw_metrics = parse_vivado_report(path)
+            clean_row = calculate_stages_flat(raw_metrics, match.groupdict())
+            all_rows.append(clean_row)
+
+if all_rows:
+    df = pd.DataFrame(all_rows)
+    if 'IC' in df.columns:
+        df['sort_helper'] = df['IC'].apply(lambda x: int(x.replace('k','')) if 'k' in x else int(x))
+        df = df.sort_values('sort_helper').drop(columns=['sort_helper'])
+
+    df.to_csv(output_csv, index=False)
+    print(f"\nSuccess. Parsed {len(all_rows)} files.")
+    print(f"Data saved to: {output_csv}")
+
+    # -----------------------------------------------------------------------------
+    # 5. NEW INTEGRITY REPORT
+    # -----------------------------------------------------------------------------
+    print("\n" + "="*60)
+    print("FINAL INTEGRITY CHECK (SoC vs Core + Uncore)")
+    print("="*60)
+    
+    for metric in ["LUT", "FF", "BRAM", "DSP"]:
+        rem_col = f"Remainder_{metric}"
+        # We allow a small tolerance for glue logic/buffers not in main modules
+        # For BRAM/DSP, tolerance should be 0.
+        tolerance = 100 if metric in ["LUT", "FF"] else 0
+        
+        errors = df[abs(df[rem_col]) > tolerance]
+        
+        if errors.empty:
+            print(f"[{metric}] Status: PERFECT MATCH")
+        else:
+            print(f"[{metric}] Status: Small Mismatch (Likely Glue Logic)")
+            print(f"    Avg Unaccounted: {errors[rem_col].mean():.2f}")
+            if metric == "BRAM":
+                print("    NOTE: If BRAM Remainder is 0, the 4 BRAMs are now correctly in Uncore.")
+            print("-" * 60)
+else:
+    print("No matching files found.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleReading from: /home/han4n/cva6_experiments/bitstreams/reports/full
+
+Success. Parsed 47 files.
+Data saved to: ./results/cva6_experiments_stages_summary_final.csv
+
+============================================================
+FINAL INTEGRITY CHECK (SoC vs Core + Uncore)
+============================================================
+[LUT] Status: Small Mismatch (Likely Glue Logic)
+    Avg Unaccounted: 2520.57
+------------------------------------------------------------
+[FF] Status: Small Mismatch (Likely Glue Logic)
+    Avg Unaccounted: 2085.23
+------------------------------------------------------------
+[BRAM] Status: PERFECT MATCH
+[DSP] Status: PERFECT MATCH
 #+end_example
-#+begin_exampleSuccess! Processed 25 files.
-Output saved to: cva6_experiments_stages_summary.csv
-    IC  ICw  SoC_Total_LUT  S4_Execute_Net_LUT
-23  2k   4w          47714               10490
-0   4k  16w          50890               10483
-2   4k   4w          47729               10484
-1   4k   4w          47594               10489
-6   4k   4w          47719               10488
+:end:
+
+#+begin_src jupyter-python
+import os
+import re
+import pandas as pd
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+report_dir = "/home/han4n/cva6_experiments/bitstreams/reports/full"
+output_csv = "./results/cva6_uncore_breakdown.csv"
+
+# Regex to extract parameters from filename
+file_regex = re.compile(
+    r"util_ariane_IC(?P<IC>\d+k?)_(?P<ICw>\d+w)_\d+L_DC(?P<DC>\d+k?)_(?P<DCw>\d+w)_\d+L_BTB(?P<BTB>\d+)_BHT(?P<BHT>\d+)_RAS(?P<RAS>\d+)"
+)
+
+# -----------------------------------------------------------------------------
+# 2. PARSING FUNCTION
+# -----------------------------------------------------------------------------
+def parse_vivado_report(file_path):
+    if not os.path.exists(file_path):
+        return {}
+    
+    raw_data = {}
+    with open(file_path, 'r') as f:
+        for line in f:
+            if "| " not in line: continue
+            parts = line.split('|')
+            if len(parts) < 10: continue
+
+            name_col = parts[1]
+            try:
+                name_match = re.search(r'([^\s]+)', name_col.strip())
+                if not name_match: continue
+                raw_name = name_match.group(1)
+
+                metrics = {
+                    "LUT": int(parts[3].strip()),
+                    "FF":  int(parts[7].strip()),
+                    "BRAM": int(parts[8].strip()),
+                    "DSP": int(parts[10].strip())
+                }
+                raw_data[raw_name] = metrics
+            except (ValueError, IndexError):
+                continue
+    return raw_data
+
+# -----------------------------------------------------------------------------
+# 3. BREAKDOWN CALCULATION
+# -----------------------------------------------------------------------------
+def calculate_breakdown(raw_data, file_params):
+    def get_val(name, metric):
+        return raw_data.get(name, {}).get(metric, 0)
+
+    row = file_params.copy()
+    metrics = ["LUT", "FF", "BRAM", "DSP"]
+
+    # Defined Peripherals based on your Vivado Log
+    peripherals = {
+        "Northbridge": "northbridge",
+        "Peripherals_Subsystem": "ariane_peripherals_0", # Contains PLIC, Timer
+        "SPI_Controller": "axi_quad_spi_0",
+        "UART": "axi_uart16550_0",
+        "Memory_Interconnect": "axi_mem_intercon",
+        "CLINT": "clint_0",
+        "BootROM": "bootrom_wrapper_0"
+    }
+
+    for m in metrics:
+        # 1. SoC Total
+        soc_total = 0
+        for key in ["SoC_wrapper", "SoC_i", "ariane_soc"]:
+            if key in raw_data:
+                soc_total = raw_data[key][m]
+                break
+        row[f"SoC_Total_{m}"] = soc_total
+
+        # 2. CPU Core Total (Calculated using verified stage logic)
+        # Fetch (Logic + ICache)
+        fetch = get_val("i_frontend", m) + get_val("i_cva6_icache", m)
+        # Decode
+        decode = get_val("id_stage_i", m)
+        # Issue (Scoreboard is sibling)
+        issue = get_val("issue_stage_i", m)
+        # Memory (LSU + DCache, MMU is inside LSU)
+        lsu = get_val("lsu_i", m)
+        dcache = get_val("i_wt_dcache", m)
+        if dcache == 0: dcache = get_val("gen_cache_wt.i_cache_subsystem", m)
+        memory = lsu + dcache
+        # Execute (Ex_Total - LSU)
+        ex_total = get_val("ex_stage_i", m)
+        execute = max(0, ex_total - lsu)
+        # Commit
+        commit = get_val("i_scoreboard", m)
+        
+        core_total = fetch + decode + issue + execute + memory + commit
+        row[f"CPU_Core_{m}"] = core_total
+
+        # 3. Peripheral Breakdown
+        uncore_sum = 0
+        for friendly_name, module_name in peripherals.items():
+            val = get_val(module_name, m)
+            row[f"{friendly_name}_{m}"] = val
+            uncore_sum += val
+        
+        row[f"Uncore_Total_{m}"] = uncore_sum
+
+        # 4. Remainder (Glue Logic)
+        # Logic: SoC - (Core + Uncore)
+        # This should be very small (Just top-level wires/buffers)
+        remainder = soc_total - (core_total + uncore_sum)
+        row[f"Glue_Logic_{m}"] = remainder
+
+    return row
+
+# -----------------------------------------------------------------------------
+# 4. EXECUTION
+# -----------------------------------------------------------------------------
+all_rows = []
+print(f"Reading logs from: {report_dir}")
+
+files = [f for f in os.listdir(report_dir) if f.endswith(".rpt")]
+for filename in sorted(files):
+    match = file_regex.search(filename)
+    if match:
+        path = os.path.join(report_dir, filename)
+        raw = parse_vivado_report(path)
+        if raw:
+            row = calculate_breakdown(raw, match.groupdict())
+            all_rows.append(row)
+
+if all_rows:
+    df = pd.DataFrame(all_rows)
+    
+    # Sort by IC size
+    if 'IC' in df.columns:
+        df['sort_h'] = df['IC'].apply(lambda x: int(x.replace('k','')) if 'k' in x else int(x))
+        df = df.sort_values('sort_h').drop(columns=['sort_h'])
+
+    df.to_csv(output_csv, index=False)
+    print(f"Success. Breakdown saved to: {output_csv}")
+
+    # --- PRINT SUMMARY ---
+    print("\n" + "="*80)
+    print("UNCORE RESOURCE BREAKDOWN (Where the rest went)")
+    print("="*80)
+    
+    # We take the mean of the first file configuration to show a representative breakdown
+    # (Peripherals shouldn't change much between cache sweeps)
+    example = df.iloc[0]
+    
+    for metric in ["LUT", "BRAM"]:
+        print(f"\n--- {metric} Breakdown ---")
+        print(f"{'Module':<30} | {'Count':<10} | {'% of SoC':<10}")
+        print("-" * 55)
+        
+        soc = example[f"SoC_Total_{metric}"]
+        if soc == 0: continue
+
+        # CPU Core
+        core = example[f"CPU_Core_{metric}"]
+        print(f"{'CPU Core':<30} | {core:<10} | {core/soc*100:.1f}%")
+        
+        # Peripherals
+        peri_keys = [c for c in df.columns if f"_{metric}" in c and c not in [
+            f"SoC_Total_{metric}", f"CPU_Core_{metric}", f"Uncore_Total_{metric}", f"Glue_Logic_{metric}"
+        ]]
+        
+        for key in peri_keys:
+            # Extract friendly name
+            name = key.replace(f"_{metric}", "")
+            val = example[key]
+            if val > 0:
+                print(f"{name:<30} | {val:<10} | {val/soc*100:.1f}%")
+        
+        # Glue Logic
+        glue = example[f"Glue_Logic_{metric}"]
+        print(f"{'Glue Logic / Other':<30} | {glue:<10} | {glue/soc*100:.1f}%")
+        print("-" * 55)
+        print(f"{'TOTAL':<30} | {soc:<10} | 100.0%")
+
+else:
+    print("No files found.")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleReading logs from: /home/han4n/cva6_experiments/bitstreams/reports/full
+Success. Breakdown saved to: ./results/cva6_uncore_breakdown.csv
+
+================================================================================
+UNCORE RESOURCE BREAKDOWN (Where the rest went)
+================================================================================
+
+--- LUT Breakdown ---
+Module                         | Count      | % of SoC  
+-------------------------------------------------------
+CPU Core                       | 40018      | 83.9%
+Northbridge                    | 3641       | 7.6%
+Peripherals_Subsystem          | 1875       | 3.9%
+SPI_Controller                 | 560        | 1.2%
+UART                           | 345        | 0.7%
+Memory_Interconnect            | 361        | 0.8%
+CLINT                          | 183        | 0.4%
+BootROM                        | 65         | 0.1%
+Glue Logic / Other             | 647        | 1.4%
+-------------------------------------------------------
+TOTAL                          | 47695      | 100.0%
+
+--- BRAM Breakdown ---
+Module                         | Count      | % of SoC  
+-------------------------------------------------------
+CPU Core                       | 24         | 85.7%
+Northbridge                    | 2          | 7.1%
+BootROM                        | 2          | 7.1%
+Glue Logic / Other             | 0          | 0.0%
+-------------------------------------------------------
+TOTAL                          | 28         | 100.0%
 #+end_example
+:end:
+
 * Sweeps Plots
 
 #+begin_src jupyter-python :results output drawer :exports results

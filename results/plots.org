@@ -1356,7 +1356,7 @@ import os
 # 1. CONFIGURATION
 # -----------------------------------------------------------------------------
 INPUT_CSV = "cva6_experiments_stages_summary.csv"
-OUTPUT_DIR = "utilization_plots_auto"
+OUTPUT_DIR = "utilization_plots_auto_final"
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
@@ -1540,38 +1540,40 @@ plot_split_metric(s4, 'BHT', 'BHT Entries', 'BHT Size Sweep', 'sweep_bht')
 
 #+RESULTS:
 :results:
-#+begin_exampleGenerated: utilization_plots_auto/sweep_cache_LUT.png
-Generated: utilization_plots_auto/sweep_cache_FF.png
-Generated: utilization_plots_auto/sweep_cache_BRAM.png
-Generated: utilization_plots_auto/sweep_cache_DSP.png
-Generated: utilization_plots_auto/sweep_assoc_LUT.png
-Generated: utilization_plots_auto/sweep_assoc_FF.png
-Generated: utilization_plots_auto/sweep_assoc_BRAM.png
-Generated: utilization_plots_auto/sweep_assoc_DSP.png
-Generated: utilization_plots_auto/sweep_btb_LUT.png
-Generated: utilization_plots_auto/sweep_btb_FF.png
-Generated: utilization_plots_auto/sweep_btb_BRAM.png
-Generated: utilization_plots_auto/sweep_btb_DSP.png
-Generated: utilization_plots_auto/sweep_bht_LUT.png
-Generated: utilization_plots_auto/sweep_bht_FF.png
-Generated: utilization_plots_auto/sweep_bht_BRAM.png
-Generated: utilization_plots_auto/sweep_bht_DSP.png
+#+begin_exampleGenerated: utilization_plots_auto_final/sweep_cache_LUT.png
+Generated: utilization_plots_auto_final/sweep_cache_FF.png
+Generated: utilization_plots_auto_final/sweep_cache_BRAM.png
+Generated: utilization_plots_auto_final/sweep_cache_DSP.png
+Generated: utilization_plots_auto_final/sweep_assoc_LUT.png
+Generated: utilization_plots_auto_final/sweep_assoc_FF.png
+Generated: utilization_plots_auto_final/sweep_assoc_BRAM.png
+Generated: utilization_plots_auto_final/sweep_assoc_DSP.png
+Generated: utilization_plots_auto_final/sweep_btb_LUT.png
+Generated: utilization_plots_auto_final/sweep_btb_FF.png
+Generated: utilization_plots_auto_final/sweep_btb_BRAM.png
+Generated: utilization_plots_auto_final/sweep_btb_DSP.png
+Generated: utilization_plots_auto_final/sweep_bht_LUT.png
+Generated: utilization_plots_auto_final/sweep_bht_FF.png
+Generated: utilization_plots_auto_final/sweep_bht_BRAM.png
+Generated: utilization_plots_auto_final/sweep_bht_DSP.png
 #+end_example
 :end:
 
 
-#+begin_src jupyter-python
+#+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 import numpy as np
 import os
+from mpl_toolkits.mplot3d import Axes3D
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURATION
 # -----------------------------------------------------------------------------
-INPUT_CSV = "cva6_experiments_stages_summary.csv"
-OUTPUT_DIR = "utilization_plots_auto"
+INPUT_CSV = "cva6_experiments_stages_summary_final.csv"
+OUTPUT_DIR = "utilization_plots_auto_final"
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
@@ -1585,7 +1587,7 @@ except:
 
 plt.rcParams['figure.dpi'] = 300
 
-# Baseline for filtering & Labeling
+# Baseline for filtering
 BASELINE = {
     'IC_num': 4096,  'ICw_num': 4,
     'DC_num': 4096,  'DCw_num': 4,
@@ -1604,10 +1606,14 @@ def parse_size(val):
     return val
 
 def get_text_color(hex_color):
-    """Returns 'black' or 'white' based on background brightness."""
     rgb = mcolors.hex2color(hex_color)
     brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
     return 'black' if brightness > 0.55 else 'white'
+
+def format_size_label(num_bytes):
+    if num_bytes >= 1024:
+        return f"{int(num_bytes/1024)}k"
+    return str(num_bytes)
 
 # -----------------------------------------------------------------------------
 # 3. DATA LOADING
@@ -1622,35 +1628,22 @@ except FileNotFoundError:
     exit()
 
 # -----------------------------------------------------------------------------
-# 4. PLOTTING FUNCTION
+# 4. PLOTTING FUNCTIONS
 # -----------------------------------------------------------------------------
-def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
+
+def plot_3d_stacked_cache_sweep(df_filtered, filename_prefix):
+    """
+    Generates a 3D Stacked Bar plot.
+    X: Instruction Cache
+    Y: Data Cache
+    Z: Metric Count (Stacked by Stage)
+    """
     if df_filtered.empty:
         return
 
-    df_plot = df_filtered.sort_values(f'{x_col}_num')
-    
-    # --- MODIFIED LABEL GENERATION ---
-    labels = []
-    baseline_key = f"{x_col}_num"
-    baseline_val = BASELINE.get(baseline_key)
-
-    for index, row in df_plot.iterrows():
-        lbl = str(row[x_col])
-        val = row[baseline_key]
-        
-        # Check if this row matches the global baseline value
-        if val == baseline_val:
-            # Append (Base) label using LaTeX bolding
-            labels.append(rf"{lbl} \textbf{{(Base)}}")
-        else:
-            labels.append(lbl)
-
-    x = np.arange(len(labels))
-    width = 0.65
-
     metrics = ['LUT', 'FF', 'BRAM', 'DSP']
 
+    # Define Stages and Colors (Same as 2D plots)
     stages = [
         ('S1_Fetch', 'Fetch', '#4e79a7'),        # Blue
         ('S2_Decode', 'Decode', '#f28e2b'),      # Orange
@@ -1658,6 +1651,112 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
         ('S4_Execute_Net', 'Execute', '#76b7b2'),# Cyan/Teal
         ('S5_Memory_Total', 'Memory', '#59a14f'),# Green
         ('S6_Commit', 'Commit', '#edc948')       # Yellow
+    ]
+
+    # Get unique sorted sizes for axes
+    ic_sizes = sorted(df_filtered['IC_num'].unique())
+    dc_sizes = sorted(df_filtered['DC_num'].unique())
+
+    # Map sizes to integer indices (0, 1, 2...)
+    ic_map = {val: i for i, val in enumerate(ic_sizes)}
+    dc_map = {val: i for i, val in enumerate(dc_sizes)}
+
+    ic_labels = [format_size_label(x) for x in ic_sizes]
+    dc_labels = [format_size_label(x) for x in dc_sizes]
+
+    for metric in metrics:
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # To calculate the Z-limit for scaling, we need the max total height
+        stage_cols = [f"{s[0]}_{metric}" for s in stages]
+        max_height = df_filtered[stage_cols].sum(axis=1).max()
+
+        # Iterate through every configuration (row)
+        for _, row in df_filtered.iterrows():
+            ic_val = row['IC_num']
+            dc_val = row['DC_num']
+            
+            x_idx = ic_map[ic_val]
+            y_idx = dc_map[dc_val]
+            
+            # Start stacking from Z=0 for this bar
+            current_z = 0
+            
+            # Stack the stages
+            for stage_code, stage_name, stage_color in stages:
+                col_name = f"{stage_code}_{metric}"
+                height = row[col_name]
+                
+                if pd.notna(height) and height > 0:
+                    # Draw bar segment
+                    # x, y, z, dx, dy, dz
+                    ax.bar3d(x_idx - 0.2,  # X pos (centered slightly)
+                             y_idx - 0.2,  # Y pos
+                             current_z,    # Z start
+                             0.4,          # Width
+                             0.4,          # Depth
+                             height,       # Height
+                             color=stage_color, 
+                             shade=True)
+                    
+                    current_z += height
+
+        # --- AXIS LABELS & STYLING ---
+        ax.set_xticks(range(len(ic_sizes)))
+        ax.set_xticklabels(ic_labels, rotation=-15, ha='left')
+        
+        ax.set_yticks(range(len(dc_sizes)))
+        ax.set_yticklabels(dc_labels, rotation=15, ha='right')
+
+        ax.set_xlabel(r'\textbf{Instruction Cache}', labelpad=15, fontsize=12)
+        ax.set_ylabel(r'\textbf{Data Cache}', labelpad=15, fontsize=12)
+        ax.set_zlabel(rf'\textbf{{{metric} Utilization (Count)}}', labelpad=10, fontsize=12)
+        
+        ax.set_title(rf'\textbf{{Cache Sweep: {metric} Distribution}}', fontsize=16, pad=20)
+        
+        if max_height > 0:
+            ax.set_zlim(0, max_height * 1.1)
+
+        # --- LEGEND ---
+        # Create proxy artists for the legend (since bar3d doesn't support labels directly)
+        legend_handles = [mpatches.Patch(color=color, label=name) for _, name, color in stages]
+        
+        # Place legend outside to prevent cluttering the 3D view
+        ax.legend(handles=legend_handles[::-1], # Reverse to match visual stack order if desired
+                  bbox_to_anchor=(1.05, 1), loc='upper left', 
+                  title="Pipeline Stage", fontsize=10, frameon=True)
+
+        # Adjust viewing angle
+        ax.view_init(elev=30, azim=-60)
+        
+        # plt.tight_layout()
+        save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_3d.png")
+        plt.savefig(save_path, bbox_inches='tight')
+        print(f"Generated: {save_path}")
+        plt.close()
+
+def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
+    """
+    Standard 2D Stacked Bar Plot (Unchanged for other sweeps)
+    """
+    if df_filtered.empty:
+        return
+
+    df_plot = df_filtered.sort_values(f'{x_col}_num')
+    labels = df_plot[x_col].astype(str).tolist()
+    x = np.arange(len(labels))
+    width = 0.65
+
+    metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+    stages = [
+        ('S1_Fetch', 'Fetch', '#4e79a7'),
+        ('S2_Decode', 'Decode', '#f28e2b'),
+        ('S3_Issue_Net', 'Issue', '#e15759'),
+        ('S4_Execute_Net', 'Execute', '#76b7b2'),
+        ('S5_Memory_Total', 'Memory', '#59a14f'),
+        ('S6_Commit', 'Commit', '#edc948')
     ]
 
     for metric in metrics:
@@ -1676,25 +1775,27 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
 
             text_color = get_text_color(s_color)
 
-            # --- ROBUST ANNOTATION ---
             for i, rect in enumerate(bars):
                 height = rect.get_height()
                 total = totals[i]
                 pct = (height / total * 100) if total > 0 else 0
 
-                # Format Count
                 val_str = f"{int(height)}" if height < 1000 else f"{height/1000:.1f}k"
                 if metric == 'DSP': val_str = f"{int(height)}"
 
                 label_text = ""
                 font_size = 7
-
-                # Case 1: Large Segment (> 5%) -> Show "Count (Pct%)"
-                if pct > 5:
-                    label_text = rf"\textbf{{{val_str}}} ({int(pct)}\%)"
+                # if pct > 20:
+                #     # label_text = rf"\textbf{{{val_str}}} \\ ({int(pct)}\%)"
+                #     label_text = rf"\shortstack[c]{{\textbf{{{val_str}}} \\ ({int(pct)}\%)}}"
+                #     font_size = 8
+                # elif pct > 1.0:
+                # # elif pct > 0.5:
+                #     label_text = rf"\textbf{{{val_str}}}"
+                #     font_size = 6
+                if pct > 5 and height > 10: 
+                    label_text = rf"\shortstack[c]{{\textbf{{{val_str}}} \\ ({int(pct)}\%)}}"
                     font_size = 8
-
-                # Case 2: Small Segment (1% - 5%) -> Show "Count" only
                 elif pct > 1.0:
                     label_text = rf"\textbf{{{val_str}}}"
                     font_size = 6
@@ -1702,18 +1803,16 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
                 if label_text:
                     ax.annotate(label_text,
                                 xy=(rect.get_x() + rect.get_width() / 2, bottoms[i] + height / 2),
-                                xytext=(0, 0),
-                                textcoords="offset points",
+                                xytext=(0, 0), textcoords="offset points",
                                 ha='center', va='center',
                                 color=text_color, fontsize=font_size)
 
             bottoms += values
 
-        # Styling
         ax.set_ylabel(rf'\textbf{{{metric} Utilization (Count)}}', fontsize=12)
         ax.set_xlabel(rf'\textbf{{{x_label}}}', fontsize=12)
         ax.set_title(rf'\textbf{{{title_prefix}: {metric} Distribution}}', fontsize=14, pad=15)
-
+        
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=0, fontsize=11)
         ax.grid(axis='y', linestyle='--', alpha=0.4)
@@ -1725,7 +1824,6 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
                   borderaxespad=0., frameon=True, fontsize=10, title="Pipeline Stage")
 
         plt.tight_layout()
-
         save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}.png")
         plt.savefig(save_path, bbox_inches='tight')
         print(f"Generated: {save_path}")
@@ -1734,14 +1832,20 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
 # -----------------------------------------------------------------------------
 # 5. EXECUTE SWEEPS
 # -----------------------------------------------------------------------------
+
+# --- SWEEP 1: Cache Sizes (3D STACKED PLOT) ---
+# We keep rows where Associativity, BTB, and BHT are baseline
 s1 = df[
     (df['ICw_num'] == BASELINE['ICw_num']) &
     (df['DCw_num'] == BASELINE['DCw_num']) &
     (df['BTB_num'] == BASELINE['BTB_num']) &
     (df['BHT_num'] == BASELINE['BHT_num'])
 ].copy()
-plot_split_metric(s1, 'IC', 'Cache Capacity (Bytes)', 'Cache Size Sweep', 'sweep_cache')
 
+# Call the NEW 3D plotting function for S1
+plot_3d_stacked_cache_sweep(s1, 'sweep_cache')
+
+# --- SWEEP 2: Associativity (Standard 2D) ---
 s2 = df[
     (df['IC_num'] == BASELINE['IC_num']) &
     (df['DC_num'] == BASELINE['DC_num']) &
@@ -1750,6 +1854,7 @@ s2 = df[
 ].copy()
 plot_split_metric(s2, 'ICw', 'Associativity (Ways)', 'Associativity Sweep', 'sweep_assoc')
 
+# --- SWEEP 3: BTB Size (Standard 2D) ---
 s3 = df[
     (df['IC_num'] == BASELINE['IC_num']) &
     (df['ICw_num'] == BASELINE['ICw_num']) &
@@ -1759,6 +1864,7 @@ s3 = df[
 ].copy()
 plot_split_metric(s3, 'BTB', 'BTB Entries', 'BTB Size Sweep', 'sweep_btb')
 
+# --- SWEEP 4: BHT Size (Standard 2D) ---
 s4 = df[
     (df['IC_num'] == BASELINE['IC_num']) &
     (df['ICw_num'] == BASELINE['ICw_num']) &
@@ -1771,21 +1877,2115 @@ plot_split_metric(s4, 'BHT', 'BHT Entries', 'BHT Size Sweep', 'sweep_bht')
 
 #+RESULTS:
 :results:
-#+begin_exampleGenerated: utilization_plots_auto/sweep_cache_LUT.png
-Generated: utilization_plots_auto/sweep_cache_FF.png
-Generated: utilization_plots_auto/sweep_cache_BRAM.png
-Generated: utilization_plots_auto/sweep_cache_DSP.png
-Generated: utilization_plots_auto/sweep_assoc_LUT.png
-Generated: utilization_plots_auto/sweep_assoc_FF.png
-Generated: utilization_plots_auto/sweep_assoc_BRAM.png
-Generated: utilization_plots_auto/sweep_assoc_DSP.png
-Generated: utilization_plots_auto/sweep_btb_LUT.png
-Generated: utilization_plots_auto/sweep_btb_FF.png
-Generated: utilization_plots_auto/sweep_btb_BRAM.png
-Generated: utilization_plots_auto/sweep_btb_DSP.png
-Generated: utilization_plots_auto/sweep_bht_LUT.png
-Generated: utilization_plots_auto/sweep_bht_FF.png
-Generated: utilization_plots_auto/sweep_bht_BRAM.png
-Generated: utilization_plots_auto/sweep_bht_DSP.png
+#+begin_exampleGenerated: utilization_plots_auto_final/sweep_cache_LUT_3d.png
+Generated: utilization_plots_auto_final/sweep_cache_FF_3d.png
+Generated: utilization_plots_auto_final/sweep_cache_BRAM_3d.png
+Generated: utilization_plots_auto_final/sweep_cache_DSP_3d.png
+Generated: utilization_plots_auto_final/sweep_assoc_LUT.png
+Generated: utilization_plots_auto_final/sweep_assoc_FF.png
+Generated: utilization_plots_auto_final/sweep_assoc_BRAM.png
+Generated: utilization_plots_auto_final/sweep_assoc_DSP.png
+Generated: utilization_plots_auto_final/sweep_btb_LUT.png
+Generated: utilization_plots_auto_final/sweep_btb_FF.png
+Generated: utilization_plots_auto_final/sweep_btb_BRAM.png
+Generated: utilization_plots_auto_final/sweep_btb_DSP.png
+Generated: utilization_plots_auto_final/sweep_bht_LUT.png
+Generated: utilization_plots_auto_final/sweep_bht_FF.png
+Generated: utilization_plots_auto_final/sweep_bht_BRAM.png
+Generated: utilization_plots_auto_final/sweep_bht_DSP.png
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import sys
+
+# -----------------------------------------------------------------------------
+# CONFIGURATION
+# -----------------------------------------------------------------------------
+INPUT_CSV = "cva6_experiments_stages_summary.csv"
+
+# -----------------------------------------------------------------------------
+# SCRIPT
+# -----------------------------------------------------------------------------
+try:
+    df = pd.read_csv(INPUT_CSV)
+except FileNotFoundError:
+    print(f"Error: {INPUT_CSV} not found.")
+    sys.exit(1)
+
+# Columns representing the breakdown stages
+stage_bram_cols = [
+    'S1_Fetch_BRAM', 'S2_Decode_BRAM', 'S3_Issue_Net_BRAM', 
+    'S4_Execute_Net_BRAM', 'S5_Memory_Total_BRAM', 'S6_Commit_BRAM'
+]
+
+# Filter for the two interesting cases
+# Case A: Large IC, Small DC
+case_a = df[(df['IC'] == '256k') & (df['DC'] == '4k')]
+
+# Case B: Small IC, Large DC
+case_b = df[(df['IC'] == '4k') & (df['DC'] == '256k')]
+
+def print_distribution(row, name):
+    print(f"\n{'='*40}")
+    print(f"DISTRIBUTION FOR: {name}")
+    print(f"{'='*40}")
+    
+    if row.empty:
+        print("Configuration not found in CSV.")
+        return
+
+    # Extract values
+    soc_total = row['SoC_Total_BRAM'].values[0]
+    stages_sum = row[stage_bram_cols].sum(axis=1).values[0]
+    unaccounted = soc_total - stages_sum
+    
+    # Print Table
+    print(f"{'Location':<25} | {'BRAM Count':>10}")
+    print("-" * 38)
+    
+    # Print Stages
+    for col in stage_bram_cols:
+        val = row[col].values[0]
+        # Clean up name for display
+        clean_name = col.replace('_BRAM', '')
+        print(f"{clean_name:<25} | {val:>10}")
+    
+    print("-" * 38)
+    print(f"{'Sum of Stages':<25} | {stages_sum:>10}")
+    print(f"{'UNACCOUNTED (SoC - Sum)':<25} | {unaccounted:>10}  <-- LIKELY HERE")
+    print("-" * 38)
+    print(f"{'SoC Total Reported':<25} | {soc_total:>10}")
+
+# Run analysis
+print_distribution(case_a, "IC=256k (Big IC), DC=4k")
+print_distribution(case_b, "IC=4k, DC=256k (Big DC)")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+========================================
+DISTRIBUTION FOR: IC=256k (Big IC), DC=4k
+========================================
+Location                  | BRAM Count
+--------------------------------------
+S1_Fetch                  |          0
+S2_Decode                 |          0
+S3_Issue_Net              |          0
+S4_Execute_Net            |          0
+S5_Memory_Total           |         12
+S6_Commit                 |          0
+--------------------------------------
+Sum of Stages             |         12
+UNACCOUNTED (SoC - Sum)   |         92  <-- LIKELY HERE
+--------------------------------------
+SoC Total Reported        |        104
+
+========================================
+DISTRIBUTION FOR: IC=4k, DC=256k (Big DC)
+========================================
+Location                  | BRAM Count
+--------------------------------------
+S1_Fetch                  |          0
+S2_Decode                 |          0
+S3_Issue_Net              |          0
+S4_Execute_Net            |          0
+S5_Memory_Total           |         88
+S6_Commit                 |          0
+--------------------------------------
+Sum of Stages             |         88
+UNACCOUNTED (SoC - Sum)   |         16  <-- LIKELY HERE
+--------------------------------------
+SoC Total Reported        |        104
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.colors as mcolors
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+INPUT_CSV = "cva6_experiments_stages_summary_final.csv"
+OUTPUT_DIR = "utilization_plots_cache_2d"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Enable LaTeX styling
+try:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+except:
+    print("Warning: LaTeX not found. Using standard fonts.")
+
+plt.rcParams['figure.dpi'] = 300
+
+# Baseline for filtering (Used to fix the "other" variable when sweeping)
+BASELINE = {
+    'IC_num': 4096,  'ICw_num': 4,
+    'DC_num': 4096,  'DCw_num': 4,
+    'BTB_num': 16,   'BHT_num': 16,   'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def get_text_color(hex_color):
+    rgb = mcolors.hex2color(hex_color)
+    brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
+    return 'black' if brightness > 0.55 else 'white'
+
+# -----------------------------------------------------------------------------
+# 3. DATA LOADING
+# -----------------------------------------------------------------------------
+try:
+    df = pd.read_csv(INPUT_CSV)
+    # Parse size columns to numeric for sorting/filtering
+    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
+        if col in df.columns:
+            df[f'{col}_num'] = df[col].apply(parse_size)
+except FileNotFoundError:
+    print(f"Error: {INPUT_CSV} not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING FUNCTION (2D Stacked)
+# -----------------------------------------------------------------------------
+def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
+    """
+    Generates 2D Stacked Bar plots for specific metrics.
+    """
+    if df_filtered.empty:
+        print(f"Warning: No data found for {title_prefix}")
+        return
+
+    # Sort by the numeric value of the x-axis column
+    df_plot = df_filtered.sort_values(f'{x_col}_num')
+    labels = df_plot[x_col].astype(str).tolist()
+    x = np.arange(len(labels))
+    width = 0.65
+
+    # ---------------------------------------------------------
+    # CONFIG: Metrics to plot
+    # Uncomment others if you want LUT/FF/DSP as well
+    # ---------------------------------------------------------
+    metrics = ['BRAM'] 
+    # metrics = ['LUT', 'FF', 'BRAM', 'DSP'] 
+
+    stages = [
+        ('S1_Fetch', 'Fetch', '#4e79a7'),
+        ('S2_Decode', 'Decode', '#f28e2b'),
+        ('S3_Issue_Net', 'Issue', '#e15759'),
+        ('S4_Execute_Net', 'Execute', '#76b7b2'),
+        ('S5_Memory_Total', 'Memory', '#59a14f'),
+        ('S6_Commit', 'Commit', '#edc948')
+    ]
+
+    for metric in metrics:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        bottoms = np.zeros(len(df_plot))
+        stage_cols = [f"{s[0]}_{metric}" for s in stages]
+        totals = df_plot[stage_cols].sum(axis=1).tolist()
+
+        # Stack the bars
+        for s_code, s_name, s_color in stages:
+            col_name = f"{s_code}_{metric}"
+            # Handle missing columns gracefully
+            if col_name not in df_plot.columns:
+                values = [0] * len(df_plot)
+            else:
+                values = df_plot[col_name].fillna(0).tolist()
+
+            bars = ax.bar(x, values, width, bottom=bottoms, label=s_name,
+                          color=s_color, edgecolor='white', linewidth=0.5)
+
+            text_color = get_text_color(s_color)
+
+            # Add labels inside bars
+            for i, rect in enumerate(bars):
+                height = rect.get_height()
+                total = totals[i]
+                pct = (height / total * 100) if total > 0 else 0
+
+                val_str = f"{int(height)}" if height < 1000 else f"{height/1000:.1f}k"
+                if metric == 'DSP': val_str = f"{int(height)}"
+
+                label_text = ""
+                font_size = 7
+                
+                # Dynamic labeling logic to avoid clutter
+                if pct > 5 and height > 1: 
+                    label_text = rf"\shortstack[c]{{\textbf{{{val_str}}} \\ ({int(pct)}\%)}}"
+                    font_size = 8
+                elif pct > 1.0:
+                    label_text = rf"\textbf{{{val_str}}}"
+                    font_size = 6
+
+                if label_text:
+                    ax.annotate(label_text,
+                                xy=(rect.get_x() + rect.get_width() / 2, bottoms[i] + height / 2),
+                                xytext=(0, 0), textcoords="offset points",
+                                ha='center', va='center',
+                                color=text_color, fontsize=font_size)
+
+            bottoms += values
+
+        # Formatting
+        ax.set_ylabel(rf'\textbf{{{metric} Utilization (Count)}}', fontsize=12)
+        ax.set_xlabel(rf'\textbf{{{x_label}}}', fontsize=12)
+        ax.set_title(rf'\textbf{{{title_prefix}: {metric} Distribution}}', fontsize=14, pad=15)
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=0, fontsize=11)
+        ax.grid(axis='y', linestyle='--', alpha=0.4)
+
+        if len(totals) > 0 and max(totals) > 0:
+            ax.set_ylim(0, max(totals) * 1.1)
+
+        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left',
+                  borderaxespad=0., frameon=True, fontsize=10, title="Pipeline Stage")
+
+        plt.tight_layout()
+        save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}.png")
+        plt.savefig(save_path, bbox_inches='tight')
+        print(f"Generated: {save_path}")
+        plt.close()
+
+# -----------------------------------------------------------------------------
+# 5. EXECUTE SWEEPS
+# -----------------------------------------------------------------------------
+
+# Filter for the "Cache Sweep" context 
+# (where Associativity, BTB, and BHT are fixed at baseline)
+cache_sweep_base = df[
+    (df['ICw_num'] == BASELINE['ICw_num']) &
+    (df['DCw_num'] == BASELINE['DCw_num']) &
+    (df['BTB_num'] == BASELINE['BTB_num']) &
+    (df['BHT_num'] == BASELINE['BHT_num'])
+].copy()
+
+# --- PLOT 1: Instruction Cache (IC) vs Count ---
+# To see the effect of IC, we must fix DC to the baseline value
+df_ic_sweep = cache_sweep_base[
+    cache_sweep_base['DC_num'] == BASELINE['DC_num']
+].copy()
+
+plot_split_metric(
+    df_ic_sweep, 
+    x_col='IC', 
+    x_label='Instruction Cache Size', 
+    title_prefix='IC Size Sweep', 
+    filename_prefix='sweep_IC_only'
+)
+
+# --- PLOT 2: Data Cache (DC) vs Count ---
+# To see the effect of DC, we must fix IC to the baseline value
+df_dc_sweep = cache_sweep_base[
+    cache_sweep_base['IC_num'] == BASELINE['IC_num']
+].copy()
+
+plot_split_metric(
+    df_dc_sweep, 
+    x_col='DC', 
+    x_label='Data Cache Size', 
+    title_prefix='DC Size Sweep', 
+    filename_prefix='sweep_DC_only'
+)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerated: utilization_plots_cache_2d/sweep_IC_only_BRAM.png
+Generated: utilization_plots_cache_2d/sweep_DC_only_BRAM.png
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.colors as mcolors
+import numpy as np
+import os
+from mpl_toolkits.mplot3d import Axes3D
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+INPUT_CSV = "cva6_experiments_stages_summary_final.csv"
+OUTPUT_DIR = "utilization_plots_3d_rotated"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Enable LaTeX styling
+try:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+except:
+    pass
+
+plt.rcParams['figure.dpi'] = 300
+
+BASELINE = {
+    'ICw_num': 4,
+    'DCw_num': 4,
+    'BTB_num': 16,   'BHT_num': 16,   'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def format_size_label(num_bytes):
+    if num_bytes >= 1024:
+        return f"{int(num_bytes/1024)}k"
+    return str(num_bytes)
+
+# -----------------------------------------------------------------------------
+# 3. DATA LOADING
+# -----------------------------------------------------------------------------
+try:
+    df = pd.read_csv(INPUT_CSV)
+    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
+        if col in df.columns:
+            df[f'{col}_num'] = df[col].apply(parse_size)
+except FileNotFoundError:
+    print(f"Error: {INPUT_CSV} not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING FUNCTION (Rotated Views)
+# -----------------------------------------------------------------------------
+def plot_3d_rotated_views(df_filtered, filename_prefix):
+    if df_filtered.empty: return
+
+    # We only care about BRAM as per previous context, but easy to add others
+    metrics = ['BRAM'] 
+
+    stages = [
+        ('S1_Fetch', 'Fetch', '#4e79a7'),        # Blue
+        ('S2_Decode', 'Decode', '#f28e2b'),      # Orange
+        ('S3_Issue_Net', 'Issue', '#e15759'),    # Red
+        ('S4_Execute_Net', 'Execute', '#76b7b2'),# Cyan
+        ('S5_Memory_Total', 'Memory', '#59a14f'),# Green
+        ('S6_Commit', 'Commit', '#edc948')       # Yellow
+    ]
+
+    # Data Prep
+    ic_sizes = sorted(df_filtered['IC_num'].unique())
+    dc_sizes = sorted(df_filtered['DC_num'].unique())
+    ic_map = {val: i for i, val in enumerate(ic_sizes)}
+    dc_map = {val: i for i, val in enumerate(dc_sizes)}
+    ic_labels = [format_size_label(x) for x in ic_sizes]
+    dc_labels = [format_size_label(x) for x in dc_sizes]
+
+    for metric in metrics:
+        fig = plt.figure(figsize=(14, 10)) # Large canvas
+        ax = fig.add_subplot(111, projection='3d')
+
+        # --- DRAW BARS ---
+        for _, row in df_filtered.iterrows():
+            ic_val = row['IC_num']
+            dc_val = row['DC_num']
+            x_idx = ic_map[ic_val]
+            y_idx = dc_map[dc_val]
+            current_z = 0
+            
+            for stage_code, stage_name, stage_color in stages:
+                col_name = f"{stage_code}_{metric}"
+                height = row[col_name]
+                if pd.notna(height) and height > 0:
+                    ax.bar3d(x_idx - 0.25, y_idx - 0.25, current_z, 
+                             0.5, 0.5, height, # Slightly wider bars
+                             color=stage_color, shade=True)
+                    current_z += height
+
+        # --- LABELS ---
+        ax.set_xticks(range(len(ic_sizes)))
+        ax.set_xticklabels(ic_labels, fontsize=10, rotation=-15, ha='left')
+        ax.set_yticks(range(len(dc_sizes)))
+        ax.set_yticklabels(dc_labels, fontsize=10, rotation=15, ha='right')
+        
+        ax.set_xlabel(r'\textbf{Instruction Cache}', labelpad=15, fontsize=12)
+        ax.set_ylabel(r'\textbf{Data Cache}', labelpad=15, fontsize=12)
+        ax.set_zlabel(rf'\textbf{{{metric} Count}}', labelpad=10, fontsize=12)
+        ax.set_title(rf'\textbf{{{metric} Distribution}}', fontsize=18)
+
+        # Legend
+        legend_handles = [mpatches.Patch(color=color, label=name) for _, name, color in stages]
+        ax.legend(handles=legend_handles[::-1], bbox_to_anchor=(1.05, 1), loc='upper left', title="Stage")
+
+        # --- SAVE 3 DIFFERENT VIEWS ---
+
+        # 1. Standard Isometric View
+        ax.view_init(elev=30, azim=-60)
+        plt.savefig(os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_iso.png"), bbox_inches='tight')
+        print(f"Saved ISO view for {metric}")
+
+        # 2. Instruction Cache View (Looking at the X-Z plane)
+        # azim=-90 aligns the Y-axis (Data Cache) away from viewer, showing IC clearly
+        ax.view_init(elev=10, azim=-90)
+        plt.savefig(os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_side_IC.png"), bbox_inches='tight')
+        print(f"Saved IC side view for {metric}")
+
+        # 3. Data Cache View (Looking at the Y-Z plane)
+        # azim=0 aligns the X-axis (Instruction Cache) away from viewer, showing DC clearly
+        ax.view_init(elev=10, azim=0)
+        plt.savefig(os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_side_DC.png"), bbox_inches='tight')
+        print(f"Saved DC side view for {metric}")
+
+        # plt.close()
+        plt.show()
+
+# -----------------------------------------------------------------------------
+# 5. EXECUTE
+# -----------------------------------------------------------------------------
+s1 = df[
+    (df['ICw_num'] == BASELINE['ICw_num']) &
+    (df['DCw_num'] == BASELINE['DCw_num']) &
+    (df['BTB_num'] == BASELINE['BTB_num']) &
+    (df['BHT_num'] == BASELINE['BHT_num'])
+].copy()
+
+plot_3d_rotated_views(s1, 'sweep_cache')
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSaved ISO view for BRAM
+Saved IC side view for BRAM
+Saved DC side view for BRAM
+#+end_example
+[[file:./.ob-jupyter/5c4f356c0fe7a193d6a0071d47b861e99cf7e116.png]]
+:end:
+
+* SoC resource usage
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+# Save the csv content provided above to this file first
+INPUT_CSV = "cva6_uncore_breakdown.csv" 
+OUTPUT_DIR = "soc_architecture_plots"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Enable LaTeX styling
+try:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+except:
+    print("Warning: LaTeX not found. Using standard fonts.")
+
+plt.rcParams['figure.dpi'] = 300
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+try:
+    df = pd.read_csv(INPUT_CSV)
+    
+    # Helper for sorting: Convert '4k' -> 4096
+    def parse_size(val):
+        if isinstance(val, str):
+            val = val.lower()
+            if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+            return int(val)
+        return val
+
+    df['IC_num'] = df['IC'].apply(parse_size)
+    df = df.sort_values('IC_num')
+    
+except FileNotFoundError:
+    print(f"Error: {INPUT_CSV} not found. Please save your data to this file.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOT 1: PIE CHART (SoC BREAKDOWN)
+# -----------------------------------------------------------------------------
+def plot_soc_pie_breakdown(df, metric='LUT'):
+    """
+    Shows the distribution of resources for a Baseline config (IC=4k, DC=4k).
+    Groups small peripherals into 'Other Uncore'.
+    """
+    # Select Baseline: 4k IC, 4k DC
+    baseline = df[
+        (df['IC'] == '4k') & (df['DC'] == '4k') & 
+        (df['ICw'] == '4w') & (df['BTB'] == 16)
+    ].iloc[0]
+
+    # Components to plot
+    labels = [
+        'CPU Core', 
+        'Northbridge', 
+        'Peripherals (PLIC)', 
+        'SPI Controller', 
+        'Glue Logic/Other'
+    ]
+    
+    # Map to CSV columns
+    values = [
+        baseline[f'CPU_Core_{metric}'],
+        baseline[f'Northbridge_{metric}'],
+        baseline[f'Peripherals_Subsystem_{metric}'],
+        baseline[f'SPI_Controller_{metric}'],
+    ]
+    
+    # Sum up smaller components for "Other"
+    other_sum = (baseline[f'UART_{metric}'] + 
+                 baseline[f'Memory_Interconnect_{metric}'] + 
+                 baseline[f'CLINT_{metric}'] + 
+                 baseline[f'BootROM_{metric}'] +
+                 baseline[f'Glue_Logic_{metric}'])
+    values.append(other_sum)
+
+    # Colors (Blue for Core, Greys/Reds for Uncore)
+    colors = ['#4e79a7', '#bab0ac', '#f28e2b', '#e15759', '#76b7b2']
+    
+    # Create Plot
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%',
+                                      startangle=140, colors=colors, pctdistance=0.85,
+                                      explode=(0.05, 0, 0, 0, 0)) # Explode Core slightly
+
+    # Styling
+    plt.setp(texts, size=10, weight="bold")
+    plt.setp(autotexts, size=9, color="white", weight="bold")
+    
+    # Draw Circle for Donut Chart style (optional, looks modern)
+    centre_circle = plt.Circle((0,0),0.70,fc='white')
+    fig.gca().add_artist(centre_circle)
+
+    ax.set_title(rf'\textbf{{SoC Resource Breakdown ({metric})}}' + '\n' + r'(Baseline: 4k I-Cache / 4k D-Cache)', fontsize=14)
+    
+    plt.tight_layout()
+    save_path = os.path.join(OUTPUT_DIR, f"soc_breakdown_pie_{metric}.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    print(f"Generated: {save_path}")
+    plt.close()
+
+# -----------------------------------------------------------------------------
+# 4. PLOT 2: SCALING TREND (FIXED UNCORE vs GROWING CORE)
+# -----------------------------------------------------------------------------
+def plot_core_vs_uncore_scaling(df):
+    """
+    Stacked Bar Chart showing how Uncore remains static while Core grows 
+    as we increase Cache Size.
+    """
+    # Filter: Cache Sweep (IC 2k -> 256k, DC fixed at 4k for clarity, or match diagonal)
+    # Let's use the Diagonal Sweep (IC=DC) if available, or just IC sweep
+    # Based on your data, let's use the subset where DC=4k and IC varies
+    subset = df[(df['DC'] == '4k') & (df['BTB'] == 16)].copy()
+    
+    if subset.empty: return
+
+    labels = subset['IC'].astype(str).tolist()
+    x = np.arange(len(labels))
+    width = 0.6
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Data
+    core_lut = subset['CPU_Core_LUT'].tolist()
+    
+    # Calculate Total Uncore (Everything except Core)
+    soc_total = subset['SoC_Total_LUT'].tolist()
+    uncore_lut = [t - c for t, c in zip(soc_total, core_lut)]
+
+    # Plot Uncore (Bottom Stack - The Foundation)
+    p1 = ax.bar(x, uncore_lut, width, label='Uncore (Peripherals + Glue)', color='#bab0ac', edgecolor='white')
+    
+    # Plot Core (Top Stack - The Variable)
+    p2 = ax.bar(x, core_lut, width, bottom=uncore_lut, label='CPU Core', color='#4e79a7', edgecolor='white')
+
+    # Labeling
+    ax.set_ylabel(r'\textbf{Total LUT Utilization}', fontsize=12)
+    ax.set_xlabel(r'\textbf{Instruction Cache Size}', fontsize=12)
+    ax.set_title(r'\textbf{Scaling Trends: Fixed Uncore vs. Growing CPU Core}', fontsize=14, pad=15)
+    
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.legend(loc='upper left', frameon=True)
+    ax.grid(axis='y', linestyle='--', alpha=0.4)
+
+    # Annotate the "Fixed Cost"
+    avg_uncore = np.mean(uncore_lut)
+    ax.annotate(f"Fixed Uncore Cost\n~{int(avg_uncore)} LUTs", 
+                xy=(0, avg_uncore/2), xytext=(-0.5, avg_uncore/2),
+                color='black', fontsize=9, fontweight='bold', ha='right')
+
+    plt.tight_layout()
+    save_path = os.path.join(OUTPUT_DIR, "soc_scaling_trend_LUT.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    print(f"Generated: {save_path}")
+    plt.close()
+
+# -----------------------------------------------------------------------------
+# 5. EXECUTE
+# -----------------------------------------------------------------------------
+plot_soc_pie_breakdown(df, 'LUT')
+plot_soc_pie_breakdown(df, 'FF')
+plot_core_vs_uncore_scaling(df)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerated: soc_architecture_plots/soc_breakdown_pie_LUT.png
+Generated: soc_architecture_plots/soc_breakdown_pie_FF.png
+Generated: soc_architecture_plots/soc_scaling_trend_LUT.png
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+INPUT_CSV = "cva6_uncore_breakdown.csv"  # Ensure this file is in the same directory
+OUTPUT_DIR = "soc_architecture_plots"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Enable LaTeX styling if available
+try:
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+except:
+    print("Warning: LaTeX not found. Using standard fonts.")
+
+plt.rcParams['figure.dpi'] = 300
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+if not os.path.exists(INPUT_CSV):
+    print(f"Error: {INPUT_CSV} not found.")
+    exit()
+
+df = pd.read_csv(INPUT_CSV)
+
+# Helper to normalize '4k' to '4k' (just in case of whitespace)
+df['IC'] = df['IC'].astype(str).str.strip()
+df['DC'] = df['DC'].astype(str).str.strip()
+
+# -----------------------------------------------------------------------------
+# 3. BASELINE FILTERING
+# -----------------------------------------------------------------------------
+# Define the Baseline Configuration (Modify these if your baseline differs)
+baseline_config = {
+    'IC': '4k', 
+    'ICw': '4w', 
+    'DC': '4k', 
+    'DCw': '4w', 
+    'BTB': 16
+}
+
+# Filter the dataframe for the single baseline row
+baseline_df = df[
+    (df['IC'] == baseline_config['IC']) &
+    (df['ICw'] == baseline_config['ICw']) &
+    (df['DC'] == baseline_config['DC']) &
+    (df['DCw'] == baseline_config['DCw']) &
+    (df['BTB'] == baseline_config['BTB'])
+]
+
+if baseline_df.empty:
+    print(f"Error: Baseline configuration not found in {INPUT_CSV}.")
+    print(f"Looking for: {baseline_config}")
+    exit()
+
+# Extract the single row of data
+row = baseline_df.iloc[0]
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING
+# -----------------------------------------------------------------------------
+metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+# Categories mapping (Matches columns in your CSV)
+categories = {
+    'CPU Core': 'CPU_Core_',
+    'Northbridge': 'Northbridge_',
+    'Peripherals': ['Peripherals_Subsystem_', 'SPI_Controller_', 'UART_', 'Memory_Interconnect_', 'CLINT_', 'BootROM_'],
+    'Glue Logic': 'Glue_Logic_'
+}
+
+# Colors: Blue (Core), Grey (NB), Orange (Peripherals), Red (Glue)
+colors = ['#4e79a7', '#bab0ac', '#f28e2b', '#e15759']
+
+# Create 2x2 Subplots
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+fig.suptitle(rf"\textbf{{SoC Resource Breakdown (Baseline: {baseline_config['IC']} IC / {baseline_config['DC']} DC)}}", fontsize=16, y=0.98)
+
+for i, metric in enumerate(metrics):
+    ax = axes[i // 2, i % 2]
+    
+    # 1. Calculate Values
+    val_core = row[f"{categories['CPU Core']}{metric}"]
+    val_nb   = row[f"{categories['Northbridge']}{metric}"]
+    val_glue = row[f"{categories['Glue Logic']}{metric}"]
+    
+    # Sum up all peripheral sub-components
+    val_peri = sum(row[f"{prefix}{metric}"] for prefix in categories['Peripherals'])
+    
+    # Prepare data for Pie
+    values = [val_core, val_nb, val_peri, val_glue]
+    labels = ['CPU Core', 'Northbridge', 'Peripherals', 'Glue Logic']
+    
+    # Filter out Zeros (to avoid messy labels for empty segments)
+    plot_vals = []
+    plot_labels = []
+    plot_colors = []
+    
+    for v, l, c in zip(values, labels, colors):
+        if v > 0:
+            plot_vals.append(v)
+            plot_labels.append(l)
+            plot_colors.append(c)
+            
+    # 2. Draw Pie Chart
+    if not plot_vals:
+        ax.text(0.5, 0.5, "N/A", ha='center')
+    else:
+        wedges, texts, autotexts = ax.pie(
+            plot_vals, 
+            labels=plot_labels,
+            autopct='%1.1f%%',
+            pctdistance=0.85,
+            startangle=140,
+            colors=plot_colors,
+            explode=[0.05 if l == 'CPU Core' else 0 for l in plot_labels] # Pop out the Core slightly
+        )
+        
+        # Style text
+        plt.setp(texts, size=9)
+        plt.setp(autotexts, size=8, color="white", weight="bold")
+        
+        # Donut Style (Optional)
+        centre_circle = plt.Circle((0,0), 0.70, fc='white')
+        ax.add_artist(centre_circle)
+
+    ax.set_title(rf"\textbf{{{metric} Utilization}}", fontsize=14)
+
+plt.tight_layout()
+save_path = os.path.join(OUTPUT_DIR, "soc_baseline_breakdown_4metrics.png")
+plt.savefig(save_path, bbox_inches='tight')
+print(f"Generated: {save_path}")
+plt.close()
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerated: soc_architecture_plots/soc_baseline_breakdown_4metrics.png
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+INPUT_CSV = "cva6_uncore_breakdown.csv"
+
+if not os.path.exists(INPUT_CSV):
+    print(f"Error: {INPUT_CSV} not found.")
+    exit()
+
+df = pd.read_csv(INPUT_CSV)
+
+# -----------------------------------------------------------------------------
+# 2. STATISTICAL ANALYSIS
+# -----------------------------------------------------------------------------
+# List of Peripherals to check (Uncore components)
+peripherals = [
+    "Northbridge", 
+    "Peripherals_Subsystem", # PLIC
+    "SPI_Controller", 
+    "UART", 
+    "Memory_Interconnect", 
+    "CLINT", 
+    "BootROM"
+]
+
+metrics = ["LUT", "FF", "BRAM"] # DSP is likely 0 for most, but we can check
+
+print(f"{'='*80}")
+print(f"STATISTICAL STABILITY CHECK: Are Peripherals Constant?")
+print(f"{'='*80}")
+print(f"Analyzed {len(df)} design configurations.\n")
+
+for metric in metrics:
+    print(f"--- Metric: {metric} ---")
+    print(f"{'Module':<25} | {'Mean':<8} | {'Std Dev':<8} | {'Min':<6} | {'Max':<6} | {'Status'}")
+    print("-" * 75)
+    
+    for module in peripherals:
+        col_name = f"{module}_{metric}"
+        
+        if col_name not in df.columns:
+            continue
+            
+        values = df[col_name]
+        
+        mean_val = values.mean()
+        std_val = values.std()
+        min_val = values.min()
+        max_val = values.max()
+        
+        # Determine stability status
+        if std_val == 0:
+            status = "PERFECTLY STATIC"
+        elif std_val < 1.0:
+            status = "Stable (Noise)"
+        elif (std_val / mean_val) < 0.01: # Less than 1% variation
+            status = "Stable (<1% Var)"
+        else:
+            status = "VARIABLE (!)"
+
+        print(f"{module:<25} | {mean_val:<8.1f} | {std_val:<8.2f} | {min_val:<6} | {max_val:<6} | {status}")
+    print("\n")
+
+# -----------------------------------------------------------------------------
+# 3. GLUE LOGIC CHECK
+# -----------------------------------------------------------------------------
+# Glue logic is expected to vary slightly because it buffers signals between
+# the changing CPU and the fixed Peripherals.
+print(f"{'='*80}")
+print(f"GLUE LOGIC VARIABILITY (Expected to change slightly)")
+print(f"{'='*80}")
+for metric in ["LUT", "FF"]:
+    col = f"Glue_Logic_{metric}"
+    if col in df.columns:
+        v = df[col]
+        print(f"{metric:<5} | Mean: {v.mean():.1f} | Std: {v.std():.2f} | Min: {v.min()} | Max: {v.max()}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example================================================================================
+STATISTICAL STABILITY CHECK: Are Peripherals Constant?
+================================================================================
+Analyzed 47 design configurations.
+
+--- Metric: LUT ---
+Module                    | Mean     | Std Dev  | Min    | Max    | Status
+---------------------------------------------------------------------------
+Northbridge               | 3641.6   | 2.76     | 3635   | 3648   | Stable (<1% Var)
+Peripherals_Subsystem     | 1869.4   | 3.08     | 1863   | 1876   | Stable (<1% Var)
+SPI_Controller            | 560.1    | 0.95     | 558    | 562    | Stable (Noise)
+UART                      | 345.9    | 0.31     | 345    | 346    | Stable (Noise)
+Memory_Interconnect       | 362.3    | 0.94     | 361    | 365    | Stable (Noise)
+CLINT                     | 183.0    | 0.00     | 183    | 183    | PERFECTLY STATIC
+BootROM                   | 65.0     | 0.00     | 65     | 65     | PERFECTLY STATIC
+
+
+--- Metric: FF ---
+Module                    | Mean     | Std Dev  | Min    | Max    | Status
+---------------------------------------------------------------------------
+Northbridge               | 3340.0   | 0.00     | 3340   | 3340   | PERFECTLY STATIC
+Peripherals_Subsystem     | 1516.0   | 0.00     | 1516   | 1516   | PERFECTLY STATIC
+SPI_Controller            | 683.0    | 0.00     | 683    | 683    | PERFECTLY STATIC
+UART                      | 305.0    | 0.00     | 305    | 305    | PERFECTLY STATIC
+Memory_Interconnect       | 432.0    | 0.00     | 432    | 432    | PERFECTLY STATIC
+CLINT                     | 151.0    | 0.00     | 151    | 151    | PERFECTLY STATIC
+BootROM                   | 10.0     | 0.00     | 10     | 10     | PERFECTLY STATIC
+
+
+--- Metric: BRAM ---
+Module                    | Mean     | Std Dev  | Min    | Max    | Status
+---------------------------------------------------------------------------
+Northbridge               | 2.0      | 0.00     | 2      | 2      | PERFECTLY STATIC
+Peripherals_Subsystem     | 0.0      | 0.00     | 0      | 0      | PERFECTLY STATIC
+SPI_Controller            | 0.0      | 0.00     | 0      | 0      | PERFECTLY STATIC
+UART                      | 0.0      | 0.00     | 0      | 0      | PERFECTLY STATIC
+Memory_Interconnect       | 0.0      | 0.00     | 0      | 0      | PERFECTLY STATIC
+CLINT                     | 0.0      | 0.00     | 0      | 0      | PERFECTLY STATIC
+BootROM                   | 2.0      | 0.00     | 2      | 2      | PERFECTLY STATIC
+
+
+================================================================================
+GLUE LOGIC VARIABILITY (Expected to change slightly)
+================================================================================
+LUT   | Mean: 651.1 | Std: 51.61 | Min: 394 | Max: 837
+FF    | Mean: 569.2 | Std: 1.82 | Min: 566 | Max: 574
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "cva6_uncore_breakdown.csv"
+OUTPUT_DIR = "baseline_detailed_piecharts_final"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Disable LaTeX to avoid system errors
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif') # Use serif font for a "paper-like" look
+
+plt.rcParams['figure.dpi'] = 300
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_and_filter(csv_path):
+    if not os.path.exists(csv_path):
+        print(f"Error: {csv_path} not found.")
+        return None
+    
+    df = pd.read_csv(csv_path)
+    
+    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
+        if col in df.columns:
+            df[f'{col}_num'] = df[col].apply(parse_size)
+            
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            mask &= (df[key] == val)
+            
+    filtered = df[mask]
+    if filtered.empty:
+        # Fallback: Just take the first row since we know we only wrote one row for the baseline!
+        # This prevents filtering issues due to string/int mismatch in the synthetic CSV generation.
+        return df.iloc[0]
+        
+    return filtered.iloc[0]
+
+# -----------------------------------------------------------------------------
+# 3. MERGE DATA
+# -----------------------------------------------------------------------------
+row_stages = load_and_filter(STAGES_CSV)
+row_uncore = load_and_filter(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Cannot proceed without data.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING
+# -----------------------------------------------------------------------------
+metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+colors_stages = ['#4e79a7', '#a0cbe8', '#59a14f', '#8cd17d', '#499894', '#86bcb6'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#ffbe7d', '#d37295', '#fabfd2', '#b07aa1', '#d4a6c8'] 
+color_glue = '#e15759'
+
+slices_map = [
+    ("Fetch", row_stages, "S1_Fetch_{m}", colors_stages[0]),
+    ("Decode", row_stages, "S2_Decode_{m}", colors_stages[1]),
+    ("Issue", row_stages, "S3_Issue_Net_{m}", colors_stages[2]),
+    ("Execute", row_stages, "S4_Execute_Net_{m}", colors_stages[3]),
+    ("Memory", row_stages, "S5_Memory_Total_{m}", colors_stages[4]),
+    ("Commit", row_stages, "S6_Commit_{m}", colors_stages[5]),
+    ("Northbridge", row_uncore, "Northbridge_{m}", colors_uncore[0]),
+    ("Peripherals", row_uncore, "Peripherals_Subsystem_{m}", colors_uncore[1]),
+    ("SPI", row_uncore, "SPI_Controller_{m}", colors_uncore[2]),
+    ("UART", row_uncore, "UART_{m}", colors_uncore[3]),
+    ("Mem Int.", row_uncore, "Memory_Interconnect_{m}", colors_uncore[4]),
+    ("CLINT", row_uncore, "CLINT_{m}", colors_uncore[5]),
+    ("BootROM", row_uncore, "BootROM_{m}", colors_uncore[6]),
+]
+
+for metric in metrics:
+    soc_total = row_stages[f'SoC_Total_{metric}']
+    if soc_total == 0: continue
+
+    labels = []
+    values = []
+    colors = []
+    explode = []
+    
+    running_sum = 0
+    
+    for name, source_row, col_fmt, color in slices_map:
+        col = col_fmt.format(m=metric)
+        if col in source_row:
+            val = float(source_row[col]) 
+            if val > 0:
+                pct = (val / soc_total) * 100
+                # Use standard string formatting, Matplotlib will use the serif font
+                label = f"{name}\n({int(val)}, {int(pct)}%)"
+                
+                labels.append(label)
+                values.append(val)
+                colors.append(color)
+                is_core = source_row is row_stages
+                explode.append(0.05 if is_core else 0)
+                running_sum += val
+                
+    remainder = soc_total - running_sum
+    if remainder > 0.5: # Float tolerance
+        pct = (remainder / soc_total) * 100
+        labels.append(f"Glue Logic\n({int(remainder)}, {int(pct)}%)")
+        values.append(remainder)
+        colors.append(color_glue)
+        explode.append(0)
+    
+    fig, ax = plt.subplots(figsize=(12, 10))
+    wedges, texts = ax.pie(
+        values, labels=labels, colors=colors, explode=explode,
+        startangle=140, textprops={'fontsize': 11, 'weight': 'bold'}, labeldistance=1.1,
+    )
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax.add_artist(centre_circle)
+    
+    # Title in center
+    ax.text(0, 0.1, f"{metric}", ha='center', va='center', fontsize=22, fontweight='bold')
+    ax.text(0, -0.1, f"Total: {int(soc_total)}", ha='center', va='center', fontsize=14)
+    
+    # Main Title
+    ax.set_title(f"SoC Resource Breakdown: {metric}", fontsize=18, pad=20, fontweight='bold')
+    
+    plt.tight_layout()
+    save_path = os.path.join(OUTPUT_DIR, f"soc_breakdown_final_{metric}.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+
+print(f"Success. All plots saved to {OUTPUT_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess. All plots saved to baseline_detailed_piecharts_final
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "cva6_uncore_breakdown.csv"
+OUTPUT_DIR = "baseline_bar_of_pie_charts"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# DISABLE LATEX to avoid errors
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif') 
+
+plt.rcParams['figure.dpi'] = 300
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_and_filter(csv_path):
+    if not os.path.exists(csv_path):
+        print(f"Error: {csv_path} not found.")
+        return None
+    
+    df = pd.read_csv(csv_path)
+    
+    # Create numeric helper columns for filtering
+    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
+        if col in df.columns:
+            df[f'{col}_num'] = df[col].apply(parse_size)
+    
+    # Filter for Baseline
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            mask &= (df[key] == val)
+            
+    filtered = df[mask]
+    if filtered.empty:
+        # Fallback to first row if specific match fails (e.g. slight CSV format diff)
+        return df.iloc[0]
+    return filtered.iloc[0]
+
+# -----------------------------------------------------------------------------
+# 3. LOAD DATA
+# -----------------------------------------------------------------------------
+row_stages = load_and_filter(STAGES_CSV)
+row_uncore = load_and_filter(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Missing Data CSVs. Please ensure previous scripts ran successfully.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING LOGIC (Bar of Pie)
+# -----------------------------------------------------------------------------
+metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+# Colors
+# Pie Colors (Uncore Components)
+colors_uncore = ['#bab0ac', '#f28e2b', '#ffbe7d', '#d37295', '#fabfd2', '#b07aa1', '#d4a6c8']
+color_glue = '#e15759'
+color_core_wedge = '#4e79a7' # The "Core" slice in the pie
+
+# Bar Colors (CPU Stages breakdown)
+# Blue -> Cyan -> Green -> Yellow gradient for pipeline flow
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+
+# Mappings
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+map_uncore = [
+    ("Northbridge", "Northbridge_{m}"),
+    ("Peripherals", "Peripherals_Subsystem_{m}"),
+    ("SPI", "SPI_Controller_{m}"),
+    ("UART", "UART_{m}"),
+    ("Mem Int.", "Memory_Interconnect_{m}"),
+    ("CLINT", "CLINT_{m}"),
+    ("BootROM", "BootROM_{m}"),
+]
+
+for metric in metrics:
+    soc_total = float(row_stages[f'SoC_Total_{metric}'])
+    if soc_total == 0: continue
+
+    # --- PREPARE DATA ---
+    
+    # 1. PIE DATA (Uncore + Glue + "CPU Core" aggregate)
+    pie_labels = []
+    pie_values = []
+    pie_colors = []
+    
+    # Uncore components
+    uncore_sum = 0
+    for i, (name, col_fmt) in enumerate(map_uncore):
+        col = col_fmt.format(m=metric)
+        if col in row_uncore:
+            val = float(row_uncore[col])
+            if val > 0:
+                pct = (val / soc_total) * 100
+                pie_labels.append(f"{name}\n({int(val)})")
+                pie_values.append(val)
+                pie_colors.append(colors_uncore[i % len(colors_uncore)])
+                uncore_sum += val
+
+    # Core Aggregate
+    # We define the Core slice last so it's easy to orient
+    core_total = 0
+    bar_values = []
+    bar_labels = []
+    bar_colors = []
+    
+    for i, (name, col_fmt) in enumerate(map_stages):
+        col = col_fmt.format(m=metric)
+        if col in row_stages:
+            val = float(row_stages[col])
+            if val > 0:
+                core_total += val
+                # Bar Data (Top to Bottom: Fetch -> Commit)
+                # For horizontal bar, bottom is index 0. We want Fetch on Top.
+                # So we will reverse this list later.
+                pct_core = 0 # Calculated later relative to core total
+                bar_values.append(val)
+                bar_labels.append(name)
+                bar_colors.append(colors_stages[i])
+
+    # Glue Logic
+    glue = soc_total - (uncore_sum + core_total)
+    if glue > 0.5:
+        pie_labels.append(f"Glue\n({int(glue)})")
+        pie_values.append(glue)
+        pie_colors.append(color_glue)
+
+    # Add Core Slice to Pie
+    pie_labels.append(f"CPU Core\n({int(core_total)})")
+    pie_values.append(core_total)
+    pie_colors.append(color_core_wedge)
+
+    # --- PLOT SETUP ---
+    fig = plt.figure(figsize=(14, 8))
+    ax1 = fig.add_subplot(121) # Pie
+    ax2 = fig.add_subplot(122) # Bar
+
+    fig.suptitle(f"SoC Breakdown: {metric} Utilization\n(Baseline: 4k IC / 4k DC)", fontsize=16, fontweight='bold')
+
+    # --- 1. DRAW PIE CHART ---
+    # Rotate so "CPU Core" (last item) is on the right side (theta ~ 0 or 360)
+    # We calculate startangle dynamically to center the last slice at 0 degrees (Right)
+    # Total=360 deg. Core fraction = core_total/total. 
+    # We want center of core slice at 0.
+    frac = core_total / soc_total
+    start_angle = - (frac * 360) / 2 
+    
+    wedges, texts, autotexts = ax1.pie(
+        pie_values, 
+        labels=pie_labels, 
+        autopct='%1.1f%%',
+        startangle=start_angle,
+        colors=pie_colors,
+        pctdistance=0.85,
+        labeldistance=1.1,
+        textprops={'fontsize': 10}
+    )
+    
+    # Styling Pie
+    ax1.set_title("Total SoC Breakdown", fontsize=12, fontweight='bold')
+    # Donut hole
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12, fontweight='bold')
+
+    # --- 2. DRAW BAR CHART (Zoom of CPU Core) ---
+    # We want a horizontal stacked bar 
+    # OR separate horizontal bars. The user example implies "Bar of Pie" style
+    # which usually stacks them to equal the wedge height.
+    # Let's do a normalized stacked bar (0 to 100% of Core) 
+    
+    # Reverse lists to put Fetch on Top
+    bar_values = bar_values[::-1]
+    bar_labels = bar_labels[::-1]
+    bar_colors = bar_colors[::-1]
+    
+    y_pos = np.arange(len(bar_values))
+    
+    # Draw Horizontal Bars
+    bars = ax2.barh(y_pos, bar_values, align='center', color=bar_colors, height=0.6)
+    
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(bar_labels, fontsize=11, fontweight='bold')
+    ax2.invert_yaxis()  # Read top-to-bottom
+    ax2.set_xlabel('Count', fontsize=11)
+    ax2.set_title("CPU Core Breakdown (Stages)", fontsize=12, fontweight='bold')
+    
+    # Add detailed labels to bars: "Count (Pct of Core)"
+    max_bar = max(bar_values) if bar_values else 1
+    
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        pct_of_core = (width / core_total) * 100 if core_total > 0 else 0
+        label_text = f"{int(width)}\n({pct_of_core:.1f}%)"
+        
+        # Determine text color (white if bar is dark, black if light)
+        # Simple heuristic: alternating colors are mid-tone, so white usually works well, 
+        # but let's put it outside if bar is too small.
+        if width < (max_bar * 0.15):
+            x_pos = width + (max_bar * 0.02)
+            align = 'left'
+            color = 'black'
+        else:
+            x_pos = width / 2
+            align = 'center'
+            color = 'white'
+            
+        ax2.text(x_pos, bar.get_y() + bar.get_height()/2, label_text,
+                 ha=align, va='center', color=color, fontsize=10, fontweight='bold')
+
+    # Remove top/right spines for cleanliness
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # --- 3. DRAW CONNECTION LINES ---
+    # Find the "CPU Core" wedge (it's the last one)
+    wedge = wedges[-1]
+    
+    # Get wedge geometry
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    center, r = wedge.center, wedge.r
+    
+    # Calculate points on the wedge circumference
+    # We connect top/bottom of the wedge to the top/bottom of the bar chart axis
+    
+    # Connection 1: Top of wedge -> Top of Axis 2
+    # Use ConnectionPatch to draw lines between subplots
+    
+    # Points on wedge (in data coordinates of ax1)
+    x1 = r * np.cos(np.deg2rad(theta1))
+    y1 = r * np.sin(np.deg2rad(theta1))
+    x2 = r * np.cos(np.deg2rad(theta2))
+    y2 = r * np.sin(np.deg2rad(theta2))
+    
+    # We need to determine which theta is "top" relative to the bar chart on the right.
+    # Since we rotated the pie to put the slice at ~0 degrees (right side),
+    # theta2 is the "upper" angle (counter-clockwise) and theta1 is the "lower" angle.
+    
+    con1 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 1), coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2, color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+                           
+    con2 = ConnectionPatch(xyA=(x1, y1), xyB=(0, 0), coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2, color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    # Adjust layout
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.3) # Space between pie and bar
+    
+    save_path = os.path.join(OUTPUT_DIR, f"soc_bar_of_pie_{metric}.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    print(f"Generated: {save_path}")
+    plt.close()
+
+print(f"\nSuccess. Plots saved to {OUTPUT_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerated: baseline_bar_of_pie_charts/soc_bar_of_pie_LUT.png
+Generated: baseline_bar_of_pie_charts/soc_bar_of_pie_FF.png
+Generated: baseline_bar_of_pie_charts/soc_bar_of_pie_BRAM.png
+Generated: baseline_bar_of_pie_charts/soc_bar_of_pie_DSP.png
+
+Success. Plots saved to baseline_bar_of_pie_charts
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "cva6_uncore_breakdown.csv"
+OUTPUT_DIR = "baseline_detailed_piecharts_final"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Disable LaTeX to avoid system errors
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif') # Use serif font for a "paper-like" look
+
+plt.rcParams['figure.dpi'] = 300
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_and_filter(csv_path):
+    if not os.path.exists(csv_path):
+        print(f"Error: {csv_path} not found.")
+        return None
+    
+    df = pd.read_csv(csv_path)
+    
+    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
+        if col in df.columns:
+            df[f'{col}_num'] = df[col].apply(parse_size)
+            
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            mask &= (df[key] == val)
+            
+    filtered = df[mask]
+    if filtered.empty:
+        # Fallback to first row if specific match fails
+        return df.iloc[0]
+        
+    return filtered.iloc[0]
+
+# -----------------------------------------------------------------------------
+# 3. MERGE DATA
+# -----------------------------------------------------------------------------
+row_stages = load_and_filter(STAGES_CSV)
+row_uncore = load_and_filter(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Cannot proceed without data.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 4. PLOTTING
+# -----------------------------------------------------------------------------
+metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+colors_stages = ['#4e79a7', '#a0cbe8', '#59a14f', '#8cd17d', '#499894', '#86bcb6'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#ffbe7d', '#d37295', '#fabfd2', '#b07aa1', '#d4a6c8'] 
+color_glue = '#e15759'
+
+slices_map = [
+    ("Fetch", row_stages, "S1_Fetch_{m}", colors_stages[0]),
+    ("Decode", row_stages, "S2_Decode_{m}", colors_stages[1]),
+    ("Issue", row_stages, "S3_Issue_Net_{m}", colors_stages[2]),
+    ("Execute", row_stages, "S4_Execute_Net_{m}", colors_stages[3]),
+    ("Memory", row_stages, "S5_Memory_Total_{m}", colors_stages[4]),
+    ("Commit", row_stages, "S6_Commit_{m}", colors_stages[5]),
+    ("Northbridge", row_uncore, "Northbridge_{m}", colors_uncore[0]),
+    ("Peripherals", row_uncore, "Peripherals_Subsystem_{m}", colors_uncore[1]),
+    ("SPI", row_uncore, "SPI_Controller_{m}", colors_uncore[2]),
+    ("UART", row_uncore, "UART_{m}", colors_uncore[3]),
+    ("Mem Int.", row_uncore, "Memory_Interconnect_{m}", colors_uncore[4]),
+    ("CLINT", row_uncore, "CLINT_{m}", colors_uncore[5]),
+    ("BootROM", row_uncore, "BootROM_{m}", colors_uncore[6]),
+]
+
+for metric in metrics:
+    soc_total = row_stages[f'SoC_Total_{metric}']
+    if soc_total == 0: continue
+
+    labels = []
+    values = []
+    colors = []
+    explode = []
+    
+    running_sum = 0
+    
+    for name, source_row, col_fmt, color in slices_map:
+        col = col_fmt.format(m=metric)
+        if col in source_row:
+            val = float(source_row[col]) 
+            if val > 0:
+                pct = (val / soc_total) * 100
+                # Use standard string formatting, Matplotlib will use the serif font
+                label = f"{name}\n({int(val)}, {int(pct)}%)"
+                
+                labels.append(label)
+                values.append(val)
+                colors.append(color)
+                is_core = source_row is row_stages
+                explode.append(0.05 if is_core else 0)
+                running_sum += val
+                
+    remainder = soc_total - running_sum
+    if remainder > 0.5: # Float tolerance
+        pct = (remainder / soc_total) * 100
+        labels.append(f"Glue Logic\n({int(remainder)}, {int(pct)}%)")
+        values.append(remainder)
+        colors.append(color_glue)
+        explode.append(0)
+    
+    fig, ax = plt.subplots(figsize=(12, 10))
+    wedges, texts = ax.pie(
+        values, labels=labels, colors=colors, explode=explode,
+        startangle=140, textprops={'fontsize': 11, 'weight': 'bold'}, labeldistance=1.1,
+    )
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax.add_artist(centre_circle)
+    
+    # Title in center
+    ax.text(0, 0.1, f"{metric}", ha='center', va='center', fontsize=22, fontweight='bold')
+    ax.text(0, -0.1, f"Total: {int(soc_total)}", ha='center', va='center', fontsize=14)
+    
+    # Main Title
+    ax.set_title(f"SoC Resource Breakdown: {metric}", fontsize=18, pad=20, fontweight='bold')
+    
+    plt.tight_layout()
+    save_path = os.path.join(OUTPUT_DIR, f"soc_breakdown_final_{metric}.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+
+print(f"Success. All plots saved to {OUTPUT_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleSuccess. All plots saved to baseline_detailed_piecharts_final
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "cva6_uncore_breakdown.csv"
+OUTPUT_DIR = "soc_bar_of_pie_vertical"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Disable LaTeX to avoid errors, use standard Serif font
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif')
+
+plt.rcParams['figure.dpi'] = 300
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_row(csv_path):
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
+    
+    # Filter
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            # Parse column if needed, or assume pre-parsed integers in CSV generation
+            # The CSV generation script wrote strings like '4k', so we parse
+            col_vals = df[key].apply(parse_size)
+            mask &= (col_vals == val)
+        elif key[:-4] in df.columns: # handle 'IC' vs 'IC_num' mismatch if any
+             col_vals = df[key[:-4]].apply(parse_size)
+             mask &= (col_vals == val)
+             
+    filtered = df[mask]
+    return filtered.iloc[0] if not filtered.empty else df.iloc[0]
+
+row_stages = load_row(STAGES_CSV)
+row_uncore = load_row(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Data files not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING LOGIC
+# -----------------------------------------------------------------------------
+metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+# Colors
+# Core Stages (Cool Palette: Blue -> Green -> Yellow)
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+# Uncore Components (Warm/Neutral Palette)
+colors_uncore = ['#bab0ac', '#f28e2b', '#ffbe7d', '#b07aa1'] 
+color_other = '#d4a6c8' # For the "Other" slice
+color_core_wedge = '#4e79a7' # The slice in PIE representing the Core
+
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+for metric in metrics:
+    soc_total = float(row_stages[f'SoC_Total_{metric}'])
+    if soc_total == 0: continue
+
+    # --- 1. AGGREGATE DATA ---
+    
+    # A. Uncore Main Components
+    val_nb = float(row_uncore.get(f"Northbridge_{metric}", 0))
+    val_periph = float(row_uncore.get(f"Peripherals_Subsystem_{metric}", 0))
+    val_spi = float(row_uncore.get(f"SPI_Controller_{metric}", 0))
+    
+    # B. "Other" Uncore (Small stuff + Glue)
+    # Sum: UART + MemInt + CLINT + BootROM + Glue Logic
+    val_other = (
+        float(row_uncore.get(f"UART_{metric}", 0)) +
+        float(row_uncore.get(f"Memory_Interconnect_{metric}", 0)) +
+        float(row_uncore.get(f"CLINT_{metric}", 0)) +
+        float(row_uncore.get(f"BootROM_{metric}", 0)) +
+        # Glue Logic (Calculated as remainder from SoC total to ensure 100% sum)
+        (soc_total - float(row_uncore.get(f"Uncore_Total_{metric}", 0)) - float(row_stages.get(f"Sum_Stages_{metric}", 0)))
+    )
+    # Fix negative glue logic noise (if any)
+    val_other = max(0, val_other)
+
+    # C. CPU Core Breakdown
+    core_vals = []
+    core_labels = []
+    core_total = 0
+    for name, col_fmt in map_stages:
+        v = float(row_stages.get(col_fmt.format(m=metric), 0))
+        core_vals.append(v)
+        core_labels.append(name)
+        core_total += v
+
+    # --- 2. PIE CHART DATA ---
+    # Slices: [Northbridge, Peripherals, SPI, Other, CPU Core]
+    # We put CPU Core LAST so it's easy to orient at the bottom
+    pie_values = [val_nb, val_periph, val_spi, val_other, core_total]
+    pie_labels_raw = ["Northbridge", "Peripherals", "SPI Ctrl", "Other", "CPU Core"]
+    pie_colors = colors_uncore[:3] + [color_other, color_core_wedge]
+    
+    # Filter zeros
+    pie_data = []
+    for v, l, c in zip(pie_values, pie_labels_raw, pie_colors):
+        if v > 0.5: # Filter empty
+            pie_data.append((v, l, c))
+            
+    p_vals = [x[0] for x in pie_data]
+    p_labels = [f"{x[1]}\n({int(x[0])})" for x in pie_data]
+    p_colors = [x[2] for x in pie_data]
+
+    # --- 3. PLOT SETUP ---
+    fig = plt.figure(figsize=(8, 10)) # Tall aspect ratio for vertical stacking
+    
+    # Grid: Top 60% for Pie, Bottom 40% for Bar
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.5, 1], hspace=0.1)
+    ax1 = fig.add_subplot(gs[0])
+    ax2 = fig.add_subplot(gs[1])
+
+    # --- 4. DRAW PIE (Top) ---
+    # Rotate so "CPU Core" (last slice) is at the BOTTOM (270 degrees)
+    # Angle calculation:
+    # We want the center of the Core slice to point to -90 (270) deg.
+    frac_core = core_total / sum(p_vals)
+    # Start angle = 270 - (half of core slice width)
+    angle_start = 270 + (frac_core * 360) / 2
+    
+    wedges, texts, autotexts = ax1.pie(
+        p_vals, labels=p_labels, colors=p_colors, autopct='%1.1f%%',
+        startangle=angle_start, pctdistance=0.85, labeldistance=1.1,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+    
+    # Style Pie
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.set_title(f"SoC Breakdown: {metric}", fontsize=14, fontweight='bold', y=1.02)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12)
+
+    # --- 5. DRAW BAR (Bottom) ---
+    # Horizontal Stacked Bar
+    left_cursor = 0
+    bar_centers = [] # Store x-coordinates for connection lines
+    
+    # We normalize bar to 0-1 or 0-Total? Let's use 0-100% width of the Axes for cleanliness
+    # But sticking to counts is more accurate.
+    
+    # To make it "paper friendly", we want the bar to be wide.
+    
+    for val, color, label in zip(core_vals, colors_stages, core_labels):
+        if val > 0:
+            # Draw segment
+            rect = ax2.barh(0, val, left=left_cursor, height=0.5, color=color, edgecolor='white')
+            
+            # Label center
+            center_x = left_cursor + (val / 2)
+            pct_core = (val / core_total) * 100
+            
+            # Add Label: "Name\n(Count, %)"
+            # Logic: If bar is too narrow, skip text or put below
+            text_color = 'white' if color not in ['#f28e2b', '#bab0ac'] else 'black'
+            
+            # Label
+            lbl_text = f"{label}\n({int(val)}, {int(pct_core)}%)"
+            
+            # Smart Labeling for small segments
+            if pct_core > 8:
+                ax2.text(center_x, 0, lbl_text, ha='center', va='center', 
+                         color=text_color, fontsize=9, fontweight='bold')
+            elif pct_core > 2: # Small segments get just the value
+                ax2.text(center_x, 0, f"{int(val)}", ha='center', va='center', 
+                         color=text_color, fontsize=8)
+            
+            left_cursor += val
+
+    # Bar Styling
+    ax2.set_xlim(0, core_total)
+    ax2.set_ylim(-0.5, 0.5)
+    ax2.axis('off') # Hide axis box
+    ax2.set_title("CPU Core Detailed Breakdown", fontsize=12, fontweight='bold', pad=10)
+
+    # --- 6. DRAW CONNECTIONS ---
+    # Connect bottom of Pie Wedge to corners of Bar
+    
+    # Find Core Wedge
+    # In our list `p_vals`, CPU Core was last.
+    wedge = wedges[-1]
+    
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    center, r = wedge.center, wedge.r
+    
+    # Calculate connection points on wedge rim
+    # theta1 is the "right" side (start), theta2 is "left" side (end) because we go counter-clockwise
+    # But since we rotated to 270, theta1 is roughly 270-width/2, theta2 is 270+width/2.
+    
+    x1 = r * np.cos(np.deg2rad(theta1))
+    y1 = r * np.sin(np.deg2rad(theta1))
+    x2 = r * np.cos(np.deg2rad(theta2))
+    y2 = r * np.sin(np.deg2rad(theta2))
+    
+    # Connect Wedge-Right (theta1) to Bar-Right (Width)
+    # Connect Wedge-Left (theta2) to Bar-Left (0)
+    # Note: angles increase CCW.
+    # If Core slice is at bottom (270 deg):
+    # theta1 (start) is the RIGHT side of the slice.
+    # theta2 (end) is the LEFT side of the slice.
+    
+    # Bar coordinates: (0, 0.5) is top-left, (total, 0.5) is top-right
+    
+    con1 = ConnectionPatch(xyA=(x1, y1), xyB=(core_total, 0.26), 
+                           coordsA="data", coordsB="data",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1)
+                           
+    con2 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 0.26), 
+                           coordsA="data", coordsB="data",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    plt.tight_layout()
+    save_path = os.path.join(OUTPUT_DIR, f"soc_breakdown_bar_pie_v_{metric}.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    print(f"Generated: {save_path}")
+    plt.close()
+
+print(f"\nSuccess. Vertical Bar-of-Pie charts saved to {OUTPUT_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example/tmp/ipykernel_192723/3230470164.py:251: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+  plt.tight_layout()
+Generated: soc_bar_of_pie_vertical/soc_breakdown_bar_pie_v_LUT.png
+Generated: soc_bar_of_pie_vertical/soc_breakdown_bar_pie_v_FF.png
+Generated: soc_bar_of_pie_vertical/soc_breakdown_bar_pie_v_BRAM.png
+Generated: soc_bar_of_pie_vertical/soc_breakdown_bar_pie_v_DSP.png
+
+Success. Vertical Bar-of-Pie charts saved to soc_bar_of_pie_vertical
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "cva6_uncore_breakdown.csv"
+OUTPUT_DIR = "soc_bar_of_pie_horizontal_final"
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
+# Disable LaTeX
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif')
+
+plt.rcParams['figure.dpi'] = 300
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_row(csv_path):
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
+    
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            col_vals = df[key].apply(parse_size)
+            mask &= (col_vals == val)
+        elif key[:-4] in df.columns: 
+             col_vals = df[key[:-4]].apply(parse_size)
+             mask &= (col_vals == val)
+             
+    filtered = df[mask]
+    return filtered.iloc[0] if not filtered.empty else df.iloc[0]
+
+row_stages = load_row(STAGES_CSV)
+row_uncore = load_row(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Data files not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING LOGIC
+# -----------------------------------------------------------------------------
+metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+# Colors
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#d4a6c8'] # Grey (NB), Orange (Peri), Purple (Other)
+color_core_wedge = '#4e79a7'
+
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+for metric in metrics:
+    soc_total = float(row_stages[f'SoC_Total_{metric}'])
+    if soc_total == 0: continue
+
+    # --- 1. AGGREGATE DATA ---
+    
+    # A. Major Uncore Components
+    val_nb = float(row_uncore.get(f"Northbridge_{metric}", 0))
+    val_periph = float(row_uncore.get(f"Peripherals_Subsystem_{metric}", 0))
+    
+    # B. "Other" Uncore (Now includes SPI)
+    # Sum: SPI + UART + MemInt + CLINT + BootROM + Glue Logic
+    val_other = (
+        float(row_uncore.get(f"SPI_Controller_{metric}", 0)) +   # <--- MOVED HERE
+        float(row_uncore.get(f"UART_{metric}", 0)) +
+        float(row_uncore.get(f"Memory_Interconnect_{metric}", 0)) +
+        float(row_uncore.get(f"CLINT_{metric}", 0)) +
+        float(row_uncore.get(f"BootROM_{metric}", 0)) +
+        # Glue Logic
+        (soc_total - float(row_uncore.get(f"Uncore_Total_{metric}", 0)) - float(row_stages.get(f"Sum_Stages_{metric}", 0)))
+    )
+    val_other = max(0, val_other)
+
+    # C. CPU Core Breakdown
+    core_vals = []
+    core_labels = []
+    core_total = 0
+    for name, col_fmt in map_stages:
+        v = float(row_stages.get(col_fmt.format(m=metric), 0))
+        # Add to list (Reverse order for Bar chart: Fetch at Top)
+        core_vals.insert(0, v)
+        core_labels.insert(0, name)
+        core_total += v
+
+    curr_colors_stages = colors_stages[::-1]
+
+    # --- 2. PIE CHART DATA ---
+    # Slices: [Northbridge, Peripherals, Other, CPU Core]
+    pie_values = [val_nb, val_periph, val_other, core_total]
+    pie_labels_raw = ["Northbridge", "Peripherals", "Other", "CPU Core"]
+    pie_colors = colors_uncore + [color_core_wedge]
+    
+    # Filter zeros
+    pie_data = []
+    for v, l, c in zip(pie_values, pie_labels_raw, pie_colors):
+        if v > 0.5: 
+            pie_data.append((v, l, c))
+            
+    p_vals = [x[0] for x in pie_data]
+    p_labels = [f"{x[1]}\n({int(x[0])})" for x in pie_data]
+    p_colors = [x[2] for x in pie_data]
+
+    # --- 3. PLOT SETUP ---
+    fig = plt.figure(figsize=(14, 7))
+    ax1 = fig.add_subplot(121) # Pie Left
+    ax2 = fig.add_subplot(122) # Bar Right
+
+    fig.suptitle(f"SoC Breakdown: {metric}", fontsize=16, fontweight='bold')
+
+    # --- 4. DRAW PIE (Left) ---
+    frac_core = core_total / sum(p_vals)
+    angle_start = -(frac_core * 360) / 2
+    
+    wedges, texts, autotexts = ax1.pie(
+        p_vals, labels=p_labels, colors=p_colors, autopct='%1.1f%%',
+        startangle=angle_start, pctdistance=0.85, labeldistance=1.1,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+    
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12)
+
+    # --- 5. DRAW BAR (Right) ---
+    y_pos = np.arange(len(core_vals))
+    
+    bars = ax2.barh(y_pos, core_vals, align='center', color=curr_colors_stages, height=0.6)
+    
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(core_labels, fontsize=11, fontweight='bold')
+    ax2.set_xlabel('Count', fontsize=11)
+    ax2.set_title("CPU Core Detailed Breakdown", fontsize=12, fontweight='bold')
+    
+    max_bar = max(core_vals) if core_vals else 1
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        pct_of_core = (width / core_total) * 100 if core_total > 0 else 0
+        
+        label_text = f"{int(width)}\n({pct_of_core:.1f}%)"
+        if width < (max_bar * 0.15):
+            x_pos = width + (max_bar * 0.02)
+            align = 'left'
+            color = 'black'
+        else:
+            x_pos = width / 2
+            align = 'center'
+            color = 'white'
+            
+        ax2.text(x_pos, bar.get_y() + bar.get_height()/2, label_text,
+                 ha=align, va='center', color=color, fontsize=9, fontweight='bold')
+
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # --- 6. DRAW CONNECTIONS ---
+    wedge = wedges[-1] # CPU Core is last
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    center, r = wedge.center, wedge.r
+    
+    x1 = r * np.cos(np.deg2rad(theta1))
+    y1 = r * np.sin(np.deg2rad(theta1))
+    x2 = r * np.cos(np.deg2rad(theta2))
+    y2 = r * np.sin(np.deg2rad(theta2))
+    
+    con1 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 1), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+                           
+    con2 = ConnectionPatch(xyA=(x1, y1), xyB=(0, 0), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.15)
+    
+    save_path = os.path.join(OUTPUT_DIR, f"soc_breakdown_bar_pie_h_final_{metric}.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    print(f"Generated: {save_path}")
+    plt.close()
+
+print(f"\nSuccess. Final Horizontal plots saved to {OUTPUT_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleGenerated: soc_bar_of_pie_horizontal_final/soc_breakdown_bar_pie_h_final_LUT.png
+Generated: soc_bar_of_pie_horizontal_final/soc_breakdown_bar_pie_h_final_FF.png
+Generated: soc_bar_of_pie_horizontal_final/soc_breakdown_bar_pie_h_final_BRAM.png
+Generated: soc_bar_of_pie_horizontal_final/soc_breakdown_bar_pie_h_final_DSP.png
+
+Success. Final Horizontal plots saved to soc_bar_of_pie_horizontal_final
 #+end_example
 :end:

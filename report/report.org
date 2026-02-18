@@ -1,0 +1,961 @@
+:properties:
+#+options: toc:nil author:nil date:nil
+#+language: en
+#+exclude_tags: journal code noexport
+#+latex_class: sigplan
+#+latex_compiler: pdflatex
+# #+latex_header: \input{title}
+# #+latex:\thispagestyle{empty}
+# #+latex:\phantomsection
+# #+latex:\tableofcontents
+# #+latex:\listoffigures
+# #+latex:\newpage
+
+:end:
+#+latex: \input{title}
+#+begin_abstract
+  The CVA6 is a low-power, open source CPU written in SystemVerilog. In the team, we use it to run a small hypervisor, Fork-Nox. The goal of this project is to identify, quantify and if possible implement microarchitectural characteristics that would decrease the overhead of Fork-nox compared to native execution. One lead is to study the influence of data / instruction cache sizes, branch predictor, frequency and TLB size. Another lead is to modify the granularity of virtual-to-hypervisor interception mechanisms, which requires deeper modification of the code base.
+#+end_abstract
+*      
+** Usage Summary
+The first part of this project consisted in evaluating the resource usage due to different parameters of the CVA6 architecture. For evaluation purposes a baseline configuration is given with the following parameters.
+
+#+caption: Baseline Bitstream Configuration
+#+label: tab:baseline_parameters
+#+attr_latex: :environment tabular :width \textwidth :align ll
+|---------------------------------+---------------|
+| *Parameter*                       |          *Size* |
+|---------------------------------+---------------|
+| Data Cache                      | $4096[bytes]$ |
+| Data Cache Associativity        |             4 |
+| Data Cache Line Width           |           128 |
+| Instruction Cache               | $4096[bytes]$ |
+| Instruction Cache Associativity |             4 |
+| Instruction Cache Line Width    |           128 |
+| BTB Entries                     |            16 |
+| BHT Entries                     |            16 |
+|---------------------------------+---------------|
+
+
+
+The CVA6 architecture was then implemented in a Pynq-Z2 FPGA. The resources of the FPGA can be mainly separated into 4 groups which are:
+
+ - Flip Flops (*FF*)
+ - Look up Tables (*LUT*)
+ - Digital Signal Processor (*DSP*)
+ - Block RAM (*BRAM*)
+   
+To start let's see the resource usage of the baseline bitstream.
+
+#+attr_org: :width 800
+#+name: fig:base_lut
+#+caption: Baseline LUT Usage
+#+attr_latex: :width 8.5cm :options angle=0
+#+results: baseline_lut
+[[file:./.ob-jupyter/6d418cdc26afcb3286bf55b14a87eb79d9db3585.png]]
+
+#+attr_org: :width 800
+#+name: fig:base_bram
+#+caption: Baseline BRAM Usage
+#+attr_latex: :width 8.5cm :options angle=0
+#+results: baseline_bram
+[[file:./.ob-jupyter/e4d6697b7be537fc3301cd3a6344119c279273ad.png]]
+
+#+attr_org: :width 800
+#+name: fig:base_dsp
+#+caption: Baseline DSP Usage
+#+attr_latex: :width 8.5cm :options angle=0
+#+results: baseline_dsp
+[[file:./.ob-jupyter/73db4fd4e22795f06758f1a0af374f689f820794.png]]
+
+#+attr_org: :width 800
+#+name: fig:base_ff
+#+caption: Baseline FF Usage
+#+attr_latex: :width 8.5cm :options angle=0
+#+results: baseline_ff
+[[file:./.ob-jupyter/ffe8f34629f68d4b5268b20ceb31afb9b53800d5.png]]
+
+
+For visualization purposes the following fields have been included in the /other/ category:
+ - SPI Controller: The interface used for the SD Card or Flash memory.
+ - UART: The serial interface used for the console/terminal.
+ - CLINT (Core Local Interruptor): The timer module responsible for generating software and timer interrupts.
+ - BootROM: The small Read-Only Memory containing the very first instructions the CPU executes upon reset.
+ - Memory Interconnect: The AXI adapters and shims that handle width or clock conversion between the CPU and the main memory bus.
+ - Glue Logic: The calculated remainder (SoC Total − Everything Else). This represents the top-level wires, clock buffers, and reset synchronizers that connect all these modules together.
+
+Also the calculation of the 6 stages involved the following modules from the utilization reports obtained from Vivado.
+
+#+caption: Utilization Report Modules used for Usage Calculation
+#+label: tab:usage_params
+#+attr_latex: :environment tabular :width \textwidth :align ll
+|---------+-------------------------------------------------|
+| *Stage*   | *Modules*                                         |
+|---------+-------------------------------------------------|
+| Fetch   | \texttt{i\_frontend} + \texttt{i\_cva6\_icache} |
+| Decode  | \texttt{id\_stage\_i}                           |
+| Issue   | \texttt{issue\_stage\_i}                        |
+| Execute | \texttt{ex\_stage\_i}                           |
+| Memory  | \texttt{lsu\_i + i\_wt\_dcache}                 |
+| Commit  | \texttt{i\_scoreboard}                          |
+|---------+-------------------------------------------------|
+
+
+* code :noexport:
+#+name: baseline_lut
+#+begin_src jupyter-python :results raw drawer
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "../results/cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "../results/cva6_uncore_breakdown.csv"
+
+# Disable LaTeX to avoid errors, use standard Serif font
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif')
+
+plt.rcParams['figure.dpi'] = 150 # Lower DPI for screen display
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_row(csv_path):
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
+    
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            col_vals = df[key].apply(parse_size)
+            mask &= (col_vals == val)
+        elif key[:-4] in df.columns: 
+             col_vals = df[key[:-4]].apply(parse_size)
+             mask &= (col_vals == val)
+             
+    filtered = df[mask]
+    return filtered.iloc[0] if not filtered.empty else df.iloc[0]
+
+row_stages = load_row(STAGES_CSV)
+row_uncore = load_row(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Data files not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING LOGIC (LUT ONLY)
+# -----------------------------------------------------------------------------
+metric = 'LUT' # <--- TEST ONLY LUT
+
+# Colors
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#d4a6c8'] # Grey (NB), Orange (Peri), Purple (Other)
+color_core_wedge = '#4e79a7'
+
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+soc_total = float(row_stages[f'SoC_Total_{metric}'])
+
+if soc_total > 0:
+    # --- 1. AGGREGATE DATA ---
+    val_nb = float(row_uncore.get(f"Northbridge_{metric}", 0))
+    val_periph = float(row_uncore.get(f"Peripherals_Subsystem_{metric}", 0))
+    
+    # "Other" Uncore (Includes SPI)
+    val_other = (
+        float(row_uncore.get(f"SPI_Controller_{metric}", 0)) +
+        float(row_uncore.get(f"UART_{metric}", 0)) +
+        float(row_uncore.get(f"Memory_Interconnect_{metric}", 0)) +
+        float(row_uncore.get(f"CLINT_{metric}", 0)) +
+        float(row_uncore.get(f"BootROM_{metric}", 0)) +
+        (soc_total - float(row_uncore.get(f"Uncore_Total_{metric}", 0)) - float(row_stages.get(f"Sum_Stages_{metric}", 0)))
+    )
+    val_other = max(0, val_other)
+
+    # CPU Core Breakdown
+    core_vals = []
+    core_labels = []
+    core_total = 0
+    for name, col_fmt in map_stages:
+        v = float(row_stages.get(col_fmt.format(m=metric), 0))
+        # Add to list (Reverse order for Bar chart: Fetch at Top)
+        core_vals.insert(0, v)
+        core_labels.insert(0, name)
+        core_total += v
+
+    curr_colors_stages = colors_stages[::-1]
+
+    # --- 2. PIE CHART DATA ---
+    pie_values = [val_nb, val_periph, val_other, core_total]
+    pie_labels_raw = ["Northbridge", "Peripherals", "Other", "CPU Core"]
+    pie_colors = colors_uncore + [color_core_wedge]
+    
+    # Filter zeros
+    pie_data = []
+    for v, l, c in zip(pie_values, pie_labels_raw, pie_colors):
+        if v > 0.5: 
+            pie_data.append((v, l, c))
+            
+    p_vals = [x[0] for x in pie_data]
+    p_labels = [f"{x[1]}\n({int(x[0])})" for x in pie_data]
+    p_colors = [x[2] for x in pie_data]
+
+    # --- 3. PLOT SETUP ---
+    fig = plt.figure(figsize=(14, 7))
+    ax1 = fig.add_subplot(121) # Pie Left
+    ax2 = fig.add_subplot(122) # Bar Right
+
+    fig.suptitle(f"SoC Breakdown: {metric}", fontsize=16, fontweight='bold')
+
+    # --- 4. DRAW PIE (Left) ---
+    frac_core = core_total / sum(p_vals)
+    angle_start = -(frac_core * 360) / 2
+    
+    wedges, texts, autotexts = ax1.pie(
+        p_vals, labels=p_labels, colors=p_colors, autopct='%1.1f%%',
+        startangle=angle_start, pctdistance=0.85, labeldistance=1.1,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+    
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12)
+
+    # --- 5. DRAW BAR (Right) ---
+    y_pos = np.arange(len(core_vals))
+    
+    bars = ax2.barh(y_pos, core_vals, align='center', color=curr_colors_stages, height=0.6)
+    
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(core_labels, fontsize=11, fontweight='bold')
+    ax2.set_xlabel('Count', fontsize=11)
+    ax2.set_title("CPU Core Detailed Breakdown", fontsize=12, fontweight='bold')
+    
+    max_bar = max(core_vals) if core_vals else 1
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        pct_of_core = (width / core_total) * 100 if core_total > 0 else 0
+        
+        label_text = f"{int(width)}\n({pct_of_core:.1f}%)"
+        if width < (max_bar * 0.15):
+            x_pos = width + (max_bar * 0.02)
+            align = 'left'
+            color = 'black'
+        else:
+            x_pos = width / 2
+            align = 'center'
+            color = 'white'
+            
+        ax2.text(x_pos, bar.get_y() + bar.get_height()/2, label_text,
+                 ha=align, va='center', color=color, fontsize=9, fontweight='bold')
+
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # --- 6. DRAW CONNECTIONS ---
+    wedge = wedges[-1] # CPU Core is last
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    center, r = wedge.center, wedge.r
+    
+    x1 = r * np.cos(np.deg2rad(theta1))
+    y1 = r * np.sin(np.deg2rad(theta1))
+    x2 = r * np.cos(np.deg2rad(theta2))
+    y2 = r * np.sin(np.deg2rad(theta2))
+    
+    con1 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 1), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+                           
+    con2 = ConnectionPatch(xyA=(x1, y1), xyB=(0, 0), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.15);
+    # plt.show();
+#+end_src
+
+#+name: baseline_bram
+#+begin_src jupyter-python :results raw drawer
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "../results/cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "../results/cva6_uncore_breakdown.csv"
+
+# Disable LaTeX
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif')
+
+plt.rcParams['figure.dpi'] = 150
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_row(csv_path):
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
+    
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            col_vals = df[key].apply(parse_size)
+            mask &= (col_vals == val)
+        elif key[:-4] in df.columns: 
+             col_vals = df[key[:-4]].apply(parse_size)
+             mask &= (col_vals == val)
+             
+    filtered = df[mask]
+    return filtered.iloc[0] if not filtered.empty else df.iloc[0]
+
+row_stages = load_row(STAGES_CSV)
+row_uncore = load_row(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Data files not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING LOGIC (BRAM ONLY)
+# -----------------------------------------------------------------------------
+metric = 'BRAM' # <--- BRAM
+
+# Colors
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#d4a6c8'] # Grey (NB), Orange (Peri), Purple (Other)
+color_core_wedge = '#4e79a7'
+
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+soc_total = float(row_stages[f'SoC_Total_{metric}'])
+
+if soc_total > 0:
+    # --- 1. AGGREGATE DATA ---
+    val_nb = float(row_uncore.get(f"Northbridge_{metric}", 0))
+    val_periph = float(row_uncore.get(f"Peripherals_Subsystem_{metric}", 0))
+    
+    # "Other" Uncore (Includes SPI)
+    # BRAM Note: Usually only BootROM (2) + Northbridge (2). 
+    # SPI/UART/CLINT usually have 0 BRAM.
+    val_other = (
+        float(row_uncore.get(f"SPI_Controller_{metric}", 0)) +
+        float(row_uncore.get(f"UART_{metric}", 0)) +
+        float(row_uncore.get(f"Memory_Interconnect_{metric}", 0)) +
+        float(row_uncore.get(f"CLINT_{metric}", 0)) +
+        float(row_uncore.get(f"BootROM_{metric}", 0)) +
+        (soc_total - float(row_uncore.get(f"Uncore_Total_{metric}", 0)) - float(row_stages.get(f"Sum_Stages_{metric}", 0)))
+    )
+    val_other = max(0, val_other)
+
+    # CPU Core Breakdown
+    core_vals = []
+    core_labels = []
+    core_colors = []
+    core_total = 0
+    
+    # We iterate backwards (Commit -> Fetch) so we can insert at 0 to have Fetch at Top
+    for i, (name, col_fmt) in enumerate(map_stages):
+        v = float(row_stages.get(col_fmt.format(m=metric), 0))
+        
+        # Optimization: For BRAM, stages like Decode/Issue often have 0.
+        # We KEEP them in the list with 0 width to maintain color consistency
+        # OR we filter them out to make the chart cleaner.
+        # Let's filter out strict zeros to make the bar chart cleaner.
+        if v > 0:
+            core_vals.insert(0, v)
+            core_labels.insert(0, name)
+            core_colors.insert(0, colors_stages[i])
+            core_total += v
+
+    # --- 2. PIE CHART DATA ---
+    pie_values = [val_nb, val_periph, val_other, core_total]
+    pie_labels_raw = ["Northbridge", "Peripherals", "Other", "CPU Core"]
+    pie_colors = colors_uncore + [color_core_wedge]
+    
+    pie_data = []
+    for v, l, c in zip(pie_values, pie_labels_raw, pie_colors):
+        if v > 0.5: 
+            pie_data.append((v, l, c))
+            
+    p_vals = [x[0] for x in pie_data]
+    p_labels = [f"{x[1]}\n({int(x[0])})" for x in pie_data]
+    p_colors = [x[2] for x in pie_data]
+
+    # --- 3. PLOT SETUP ---
+    fig = plt.figure(figsize=(14, 7))
+    ax1 = fig.add_subplot(121) # Pie Left
+    ax2 = fig.add_subplot(122) # Bar Right
+
+    fig.suptitle(f"SoC Breakdown: {metric}", fontsize=16, fontweight='bold')
+
+    # --- 4. DRAW PIE (Left) ---
+    frac_core = core_total / sum(p_vals)
+    angle_start = -(frac_core * 360) / 2
+    
+    wedges, texts, autotexts = ax1.pie(
+        p_vals, labels=p_labels, colors=p_colors, autopct='%1.1f%%',
+        startangle=angle_start, pctdistance=0.85, labeldistance=1.1,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+    
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12)
+
+    # --- 5. DRAW BAR (Right) ---
+    y_pos = np.arange(len(core_vals))
+    
+    bars = ax2.barh(y_pos, core_vals, align='center', color=core_colors, height=0.6)
+    
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(core_labels, fontsize=11, fontweight='bold')
+    ax2.set_xlabel('Count', fontsize=11)
+    ax2.set_title("CPU Core Detailed Breakdown", fontsize=12, fontweight='bold')
+    
+    # Force integer X-axis for BRAM since counts are small (2, 4, 12)
+    from matplotlib.ticker import MaxNLocator
+    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+    
+    max_bar = max(core_vals) if core_vals else 1
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        pct_of_core = (width / core_total) * 100 if core_total > 0 else 0
+        
+        label_text = f"{int(width)}\n({pct_of_core:.1f}%)"
+        if width < (max_bar * 0.15):
+            x_pos = width + (max_bar * 0.02)
+            align = 'left'
+            color = 'black'
+        else:
+            x_pos = width / 2
+            align = 'center'
+            color = 'white'
+            
+        ax2.text(x_pos, bar.get_y() + bar.get_height()/2, label_text,
+                 ha=align, va='center', color=color, fontsize=9, fontweight='bold')
+
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # --- 6. DRAW CONNECTIONS ---
+    wedge = wedges[-1] # CPU Core is last
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    center, r = wedge.center, wedge.r
+    
+    x1 = r * np.cos(np.deg2rad(theta1))
+    y1 = r * np.sin(np.deg2rad(theta1))
+    x2 = r * np.cos(np.deg2rad(theta2))
+    y2 = r * np.sin(np.deg2rad(theta2))
+    
+    con1 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 1), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+                           
+    con2 = ConnectionPatch(xyA=(x1, y1), xyB=(0, 0), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.15)
+    
+    # print("Displaying BRAM Plot...")
+    plt.show()
+#+end_src
+
+#+name: baseline_dsp
+#+begin_src jupyter-python :results raw drawer
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "../results/cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "../results/cva6_uncore_breakdown.csv"
+
+# Disable LaTeX
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif')
+
+plt.rcParams['figure.dpi'] = 150
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_row(csv_path):
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
+    
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            col_vals = df[key].apply(parse_size)
+            mask &= (col_vals == val)
+        elif key[:-4] in df.columns: 
+             col_vals = df[key[:-4]].apply(parse_size)
+             mask &= (col_vals == val)
+             
+    filtered = df[mask]
+    return filtered.iloc[0] if not filtered.empty else df.iloc[0]
+
+row_stages = load_row(STAGES_CSV)
+row_uncore = load_row(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Data files not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING LOGIC (DSP ONLY)
+# -----------------------------------------------------------------------------
+metric = 'DSP' # <--- DSP
+
+# Colors
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#d4a6c8'] # Grey (NB), Orange (Peri), Purple (Other)
+color_core_wedge = '#4e79a7'
+
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+soc_total = float(row_stages[f'SoC_Total_{metric}'])
+
+if soc_total > 0:
+    # --- 1. AGGREGATE DATA ---
+    val_nb = float(row_uncore.get(f"Northbridge_{metric}", 0))
+    val_periph = float(row_uncore.get(f"Peripherals_Subsystem_{metric}", 0))
+    
+    # "Other" Uncore (Includes SPI)
+    val_other = (
+        float(row_uncore.get(f"SPI_Controller_{metric}", 0)) +
+        float(row_uncore.get(f"UART_{metric}", 0)) +
+        float(row_uncore.get(f"Memory_Interconnect_{metric}", 0)) +
+        float(row_uncore.get(f"CLINT_{metric}", 0)) +
+        float(row_uncore.get(f"BootROM_{metric}", 0)) +
+        (soc_total - float(row_uncore.get(f"Uncore_Total_{metric}", 0)) - float(row_stages.get(f"Sum_Stages_{metric}", 0)))
+    )
+    val_other = max(0, val_other)
+
+    # CPU Core Breakdown
+    core_vals = []
+    core_labels = []
+    core_colors = []
+    core_total = 0
+    
+    # We iterate backwards to maintain bar order (Fetch on top)
+    # Note: colors_stages logic must match the iteration index
+    for i, (name, col_fmt) in enumerate(map_stages):
+        v = float(row_stages.get(col_fmt.format(m=metric), 0))
+        
+        # Filter strictly > 0 for cleaner bar chart
+        if v > 0:
+            core_vals.insert(0, v)
+            core_labels.insert(0, name)
+            core_colors.insert(0, colors_stages[i])
+            core_total += v
+
+    # --- 2. PIE CHART DATA ---
+    pie_values = [val_nb, val_periph, val_other, core_total]
+    pie_labels_raw = ["Northbridge", "Peripherals", "Other", "CPU Core"]
+    pie_colors = colors_uncore + [color_core_wedge]
+    
+    pie_data = []
+    for v, l, c in zip(pie_values, pie_labels_raw, pie_colors):
+        if v > 0.5: 
+            pie_data.append((v, l, c))
+            
+    p_vals = [x[0] for x in pie_data]
+    p_labels = [f"{x[1]}\n({int(x[0])})" for x in pie_data]
+    p_colors = [x[2] for x in pie_data]
+
+    # --- 3. PLOT SETUP ---
+    fig = plt.figure(figsize=(14, 7))
+    ax1 = fig.add_subplot(121) # Pie Left
+    ax2 = fig.add_subplot(122) # Bar Right
+
+    fig.suptitle(f"SoC Breakdown: {metric}", fontsize=16, fontweight='bold')
+
+    # --- 4. DRAW PIE (Left) ---
+    frac_core = core_total / sum(p_vals)
+    angle_start = -(frac_core * 360) / 2
+    
+    wedges, texts, autotexts = ax1.pie(
+        p_vals, labels=p_labels, colors=p_colors, autopct='%1.1f%%',
+        startangle=angle_start, pctdistance=0.85, labeldistance=1.1,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+    
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12)
+
+    # --- 5. DRAW BAR (Right) ---
+    y_pos = np.arange(len(core_vals))
+    
+    bars = ax2.barh(y_pos, core_vals, align='center', color=core_colors, height=0.6)
+    
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(core_labels, fontsize=11, fontweight='bold')
+    ax2.set_xlabel('Count', fontsize=11)
+    ax2.set_title("CPU Core Detailed Breakdown", fontsize=12, fontweight='bold')
+    
+    # Force Integer X-axis
+    from matplotlib.ticker import MaxNLocator
+    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+    
+    max_bar = max(core_vals) if core_vals else 1
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        pct_of_core = (width / core_total) * 100 if core_total > 0 else 0
+        
+        label_text = f"{int(width)}\n({pct_of_core:.1f}%)"
+        if width < (max_bar * 0.15):
+            x_pos = width + (max_bar * 0.02)
+            align = 'left'
+            color = 'black'
+        else:
+            x_pos = width / 2
+            align = 'center'
+            color = 'white'
+            
+        ax2.text(x_pos, bar.get_y() + bar.get_height()/2, label_text,
+                 ha=align, va='center', color=color, fontsize=9, fontweight='bold')
+
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # --- 6. DRAW CONNECTIONS ---
+    wedge = wedges[-1] # CPU Core is last
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    
+    x1 = wedge.r * np.cos(np.deg2rad(theta1))
+    y1 = wedge.r * np.sin(np.deg2rad(theta1))
+    x2 = wedge.r * np.cos(np.deg2rad(theta2))
+    y2 = wedge.r * np.sin(np.deg2rad(theta2))
+    
+    con1 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 1), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+                           
+    con2 = ConnectionPatch(xyA=(x1, y1), xyB=(0, 0), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.15)
+    
+    # print("Displaying DSP Plot...")
+    plt.show()
+#+end_src
+
+#+name: baseline_ff
+#+begin_src jupyter-python :results raw drawer
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch
+import numpy as np
+import os
+
+# -----------------------------------------------------------------------------
+# 1. CONFIGURATION
+# -----------------------------------------------------------------------------
+STAGES_CSV = "../results/cva6_experiments_stages_summary_final.csv"
+UNCORE_CSV = "../results/cva6_uncore_breakdown.csv"
+
+# Disable LaTeX
+plt.rc('text', usetex=False)
+plt.rc('font', family='serif')
+
+plt.rcParams['figure.dpi'] = 150
+
+# Baseline Config
+BASELINE = {
+    'IC_num': 4096, 'ICw_num': 4,
+    'DC_num': 4096, 'DCw_num': 4,
+    'BTB_num': 16,  'BHT_num': 16,  'RAS_num': 2
+}
+
+# -----------------------------------------------------------------------------
+# 2. DATA LOADING
+# -----------------------------------------------------------------------------
+def parse_size(val):
+    if isinstance(val, str):
+        val = val.lower()
+        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
+        if 'w' in val: return int(val.replace('w', ''))
+        return int(val)
+    return val
+
+def load_row(csv_path):
+    if not os.path.exists(csv_path): return None
+    df = pd.read_csv(csv_path)
+    
+    mask = pd.Series([True] * len(df))
+    for key, val in BASELINE.items():
+        if key in df.columns:
+            col_vals = df[key].apply(parse_size)
+            mask &= (col_vals == val)
+        elif key[:-4] in df.columns: 
+             col_vals = df[key[:-4]].apply(parse_size)
+             mask &= (col_vals == val)
+             
+    filtered = df[mask]
+    return filtered.iloc[0] if not filtered.empty else df.iloc[0]
+
+row_stages = load_row(STAGES_CSV)
+row_uncore = load_row(UNCORE_CSV)
+
+if row_stages is None or row_uncore is None:
+    print("Error: Data files not found.")
+    exit()
+
+# -----------------------------------------------------------------------------
+# 3. PLOTTING LOGIC (FF ONLY)
+# -----------------------------------------------------------------------------
+metric = 'FF' # <--- FF
+
+# Colors
+colors_stages = ['#2c5985', '#4e79a7', '#5f9ed1', '#59a14f', '#8cd17d', '#f28e2b'] 
+colors_uncore = ['#bab0ac', '#f28e2b', '#d4a6c8'] # Grey (NB), Orange (Peri), Purple (Other)
+color_core_wedge = '#4e79a7'
+
+map_stages = [
+    ("Fetch", "S1_Fetch_{m}"),
+    ("Decode", "S2_Decode_{m}"),
+    ("Issue", "S3_Issue_Net_{m}"),
+    ("Execute", "S4_Execute_Net_{m}"),
+    ("Memory", "S5_Memory_Total_{m}"),
+    ("Commit", "S6_Commit_{m}"),
+]
+
+soc_total = float(row_stages[f'SoC_Total_{metric}'])
+
+if soc_total > 0:
+    # --- 1. AGGREGATE DATA ---
+    val_nb = float(row_uncore.get(f"Northbridge_{metric}", 0))
+    val_periph = float(row_uncore.get(f"Peripherals_Subsystem_{metric}", 0))
+    
+    # "Other" Uncore (Includes SPI)
+    val_other = (
+        float(row_uncore.get(f"SPI_Controller_{metric}", 0)) +
+        float(row_uncore.get(f"UART_{metric}", 0)) +
+        float(row_uncore.get(f"Memory_Interconnect_{metric}", 0)) +
+        float(row_uncore.get(f"CLINT_{metric}", 0)) +
+        float(row_uncore.get(f"BootROM_{metric}", 0)) +
+        (soc_total - float(row_uncore.get(f"Uncore_Total_{metric}", 0)) - float(row_stages.get(f"Sum_Stages_{metric}", 0)))
+    )
+    val_other = max(0, val_other)
+
+    # CPU Core Breakdown
+    core_vals = []
+    core_labels = []
+    core_colors = []
+    core_total = 0
+    
+    # Iterate backwards (Commit -> Fetch) for correct vertical stacking order (Fetch at Top)
+    for i, (name, col_fmt) in enumerate(map_stages):
+        v = float(row_stages.get(col_fmt.format(m=metric), 0))
+        
+        # Keep all stages even if small for consistency, unless 0
+        core_vals.insert(0, v)
+        core_labels.insert(0, name)
+        core_colors.insert(0, colors_stages[i])
+        core_total += v
+
+    # --- 2. PIE CHART DATA ---
+    pie_values = [val_nb, val_periph, val_other, core_total]
+    pie_labels_raw = ["Northbridge", "Peripherals", "Other", "CPU Core"]
+    pie_colors = colors_uncore + [color_core_wedge]
+    
+    pie_data = []
+    for v, l, c in zip(pie_values, pie_labels_raw, pie_colors):
+        if v > 0.5: 
+            pie_data.append((v, l, c))
+            
+    p_vals = [x[0] for x in pie_data]
+    p_labels = [f"{x[1]}\n({int(x[0])})" for x in pie_data]
+    p_colors = [x[2] for x in pie_data]
+
+    # --- 3. PLOT SETUP ---
+    fig = plt.figure(figsize=(14, 7))
+    ax1 = fig.add_subplot(121) # Pie Left
+    ax2 = fig.add_subplot(122) # Bar Right
+
+    fig.suptitle(f"SoC Breakdown: {metric}", fontsize=16, fontweight='bold')
+
+    # --- 4. DRAW PIE (Left) ---
+    frac_core = core_total / sum(p_vals)
+    angle_start = -(frac_core * 360) / 2
+    
+    wedges, texts, autotexts = ax1.pie(
+        p_vals, labels=p_labels, colors=p_colors, autopct='%1.1f%%',
+        startangle=angle_start, pctdistance=0.85, labeldistance=1.1,
+        textprops={'fontsize': 10, 'weight': 'bold'}
+    )
+    
+    centre_circle = plt.Circle((0,0), 0.60, fc='white')
+    ax1.add_artist(centre_circle)
+    ax1.text(0, 0, f"Total\n{int(soc_total)}", ha='center', va='center', fontsize=12)
+
+    # --- 5. DRAW BAR (Right) ---
+    y_pos = np.arange(len(core_vals))
+    
+    bars = ax2.barh(y_pos, core_vals, align='center', color=core_colors, height=0.6)
+    
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(core_labels, fontsize=11, fontweight='bold')
+    ax2.set_xlabel('Count', fontsize=11)
+    ax2.set_title("CPU Core Detailed Breakdown", fontsize=12, fontweight='bold')
+    
+    max_bar = max(core_vals) if core_vals else 1
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        pct_of_core = (width / core_total) * 100 if core_total > 0 else 0
+        
+        label_text = f"{int(width)}\n({pct_of_core:.1f}%)"
+        if width < (max_bar * 0.15):
+            x_pos = width + (max_bar * 0.02)
+            align = 'left'
+            color = 'black'
+        else:
+            x_pos = width / 2
+            align = 'center'
+            color = 'white'
+            
+        ax2.text(x_pos, bar.get_y() + bar.get_height()/2, label_text,
+                 ha=align, va='center', color=color, fontsize=9, fontweight='bold')
+
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+
+    # --- 6. DRAW CONNECTIONS ---
+    wedge = wedges[-1] # CPU Core is last
+    theta1, theta2 = wedge.theta1, wedge.theta2
+    
+    x1 = wedge.r * np.cos(np.deg2rad(theta1))
+    y1 = wedge.r * np.sin(np.deg2rad(theta1))
+    x2 = wedge.r * np.cos(np.deg2rad(theta2))
+    y2 = wedge.r * np.sin(np.deg2rad(theta2))
+    
+    con1 = ConnectionPatch(xyA=(x2, y2), xyB=(0, 1), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+                           
+    con2 = ConnectionPatch(xyA=(x1, y1), xyB=(0, 0), 
+                           coordsA="data", coordsB="axes fraction",
+                           axesA=ax1, axesB=ax2,
+                           color="black", linestyle="--", linewidth=1,
+                           arrowstyle="-|>", mutation_scale=15)
+    
+    fig.add_artist(con1)
+    fig.add_artist(con2)
+
+    plt.tight_layout()
+    plt.subplots_adjust(wspace=0.15)
+    
+    # print("Displaying FF Plot...")
+    plt.show()
+#+end_src

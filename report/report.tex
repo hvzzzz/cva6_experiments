@@ -1,0 +1,134 @@
+% Created 2026-02-18 Wed 22:21
+% Intended LaTeX compiler: pdflatex
+
+\documentclass[preprint]{sigplanconf}
+\usepackage{amsmath}
+                 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+\usepackage[dvipsnames,svgnames]{xcolor}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{multicol}
+\usepackage{amssymb}
+\usepackage[colorlinks=true, linkcolor=DarkBlue, citecolor=BrickRed, urlcolor=DarkGreen]{hyperref}
+\usepackage{minted}
+\date{}
+\title{}
+\hypersetup{
+ pdfauthor={Hanan Ronaldo Quispe Condori},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 29.2 (Org mode 9.7.39)}, 
+ pdflang={English}}
+\begin{document}
+
+\input{title}
+\begin{abstract}
+The CVA6 is a low-power, open source CPU written in SystemVerilog. In the team, we use it to run a small hypervisor, Fork-Nox. The goal of this project is to identify, quantify and if possible implement microarchitectural characteristics that would decrease the overhead of Fork-nox compared to native execution. One lead is to study the influence of data / instruction cache sizes, branch predictor, frequency and TLB size. Another lead is to modify the granularity of virtual-to-hypervisor interception mechanisms, which requires deeper modification of the code base.
+\end{abstract}
+\chapter{}
+\label{sec:org2ba1223}
+\section{Usage Summary}
+\label{sec:org27ed2c4}
+The first part of this project consisted in evaluating the resource usage due to different parameters of the CVA6 architecture. For evaluation purposes a baseline configuration is given with the following parameters.
+
+\begin{table}[htbp]
+\caption{\label{tab:baseline_parameters}Baseline Bitstream Configuration}
+\centering
+\begin{tabular}{ll}
+\hline
+\textbf{Parameter} & \textbf{Size}\\
+\hline
+Data Cache & \(4096[bytes]\)\\
+Data Cache Associativity & 4\\
+Data Cache Line Width & 128\\
+Instruction Cache & \(4096[bytes]\)\\
+Instruction Cache Associativity & 4\\
+Instruction Cache Line Width & 128\\
+BTB Entries & 16\\
+BHT Entries & 16\\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+The CVA6 architecture was then implemented in a Pynq-Z2 FPGA. The resources of the FPGA can be mainly separated into 4 groups which are:
+
+\begin{itemize}
+\item Flip Flops (\textbf{FF})
+\item Look up Tables (\textbf{LUT})
+\item Digital Signal Processor (\textbf{DSP})
+\item Block RAM (\textbf{BRAM})
+\end{itemize}
+
+To start let's see the resource usage of the baseline bitstream.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/6d418cdc26afcb3286bf55b14a87eb79d9db3585.png}
+\caption{\label{fig:base_lut}Baseline LUT Usage}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/e4d6697b7be537fc3301cd3a6344119c279273ad.png}
+\caption{\label{fig:base_bram}Baseline BRAM Usage}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/73db4fd4e22795f06758f1a0af374f689f820794.png}
+\caption{\label{fig:base_dsp}Baseline DSP Usage}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/ffe8f34629f68d4b5268b20ceb31afb9b53800d5.png}
+\caption{\label{fig:base_ff}Baseline FF Usage}
+\end{figure}
+
+
+For visualization purposes the following fields have been included in the \emph{other} category:
+\begin{itemize}
+\item SPI Controller: The interface used for the SD Card or Flash memory.
+\item UART: The serial interface used for the console/terminal.
+\item CLINT (Core Local Interruptor): The timer module responsible for generating software and timer interrupts.
+\item BootROM: The small Read-Only Memory containing the very first instructions the CPU executes upon reset.
+\item Memory Interconnect: The AXI adapters and shims that handle width or clock conversion between the CPU and the main memory bus.
+\item Glue Logic: The calculated remainder (SoC Total − Everything Else). This represents the top-level wires, clock buffers, and reset synchronizers that connect all these modules together.
+\end{itemize}
+
+Also the calculation of the 6 stages involved the following modules from the utilization reports obtained from Vivado.
+
+\begin{table}[htbp]
+\caption{\label{tab:usage_params}Utilization Report Modules used for Usage Calculation}
+\centering
+\begin{tabular}{ll}
+\hline
+\textbf{Stage} & \textbf{Modules}\\
+\hline
+Fetch & \texttt{i\_frontend} + \texttt{i\_cva6\_icache}\\
+Decode & \texttt{id\_stage\_i}\\
+Issue & \texttt{issue\_stage\_i}\\
+Execute & \texttt{ex\_stage\_i}\\
+Memory & \texttt{lsu\_i + i\_wt\_dcache}\\
+Commit & \texttt{i\_scoreboard}\\
+\hline
+\end{tabular}
+\end{table}
+\end{document}

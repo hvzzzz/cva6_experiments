@@ -18,8 +18,8 @@ SSH_USER = "xilinx"
 REMOTE_SWEEP_DIR = "sweep"
 
 KERNEL_START_SIGNALS = ["Linux version", "SBI specification", "[    0.000000]"]
-PROBE_CODE = "ARIANE_CHECK"
-CSV_FILENAME = "sweep_results.csv"
+PROBE_CODE = "ARIANE_PING"
+CSV_FILENAME = "sweep_results_final_3.csv"
 # =================================================
 
 
@@ -279,7 +279,7 @@ def run_benchmark_cycle(ser, ssh, bitstream_file):
     probe_start = time.time()
     shell_confirmed = False
 
-    while (time.time() - probe_start) < 300:
+    while (time.time() - probe_start) < 600:
         ser.reset_input_buffer()
         slow_write(ser, f"\r")
         time.sleep(1)
