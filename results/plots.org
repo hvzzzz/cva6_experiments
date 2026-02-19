@@ -2016,6 +2016,7 @@ Generating Instructions plots for 20 benchmarks...
 Success! Instruction plots saved to: /home/han4n/cva6_experiments/results/individual_benchmark_instructions
 #+end_example
 :end:
+
 ** counter cycles
 #+begin_src jupyter-python
 import pandas as pd
