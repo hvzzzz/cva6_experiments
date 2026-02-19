@@ -919,6 +919,7 @@ Generated: utilization_plots/sweep_bht_DSP.png
 #+end_example
 :end:
 * Benchmarks Automatic
+
 #+begin_src jupyter-python :results output drawer :exports results
 import pandas as pd
 import seaborn as sns
@@ -1343,558 +1344,680 @@ print(f"Done! Plots saved to: {PLOTS_DIR}")
 Done! Plots saved to: /home/han4n/cva6_experiments/results/speedup_plot_cycles_auto
 #+end_example
 :end:
+* Benchmarks Total
+
+#+begin_src jupyter-python :results output drawer :exports results
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+import numpy as np
+
+# --- 1. Global Setup ---
+RESULTS_DIR = "/home/han4n/cva6_experiments/results" 
+PLOTS_DIR = os.path.join(RESULTS_DIR, "individual_benchmark_ipc")
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+# LaTeX & Style Settings
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- 2. Helper Functions ---
+def prettify_config(conf):
+    """Translates internal config names to descriptive publication labels."""
+    if conf == "Ref": return "Baseline"
+
+    m = re.search(r'IC/DC (\d+)k', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}KB L1 Cache"
+
+    m = re.search(r'^(\d+)w$', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Way Assoc"
+
+    m = re.search(r'BTB(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Entry BTB"
+
+    m = re.search(r'BHT(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Entry BHT"
+
+    return conf
+
+def get_sort_value(config_str):
+    m = re.search(r'(\d+)', str(config_str))
+    if m: return int(m.group(1))
+    return 0
+
+def format_y_label(unit_str):
+    unit_str = str(unit_str).strip()
+    if unit_str == 'lps': return r"Throughput [Loops/s]"
+    elif unit_str == 'Mop/s': return r"Throughput [Mop/s]"
+    elif unit_str == 'KBps': return r"Data Rate [KB/s]"
+    elif unit_str == 'MWIPS': return r"Processing Speed [MWIPS]"
+    else: return fr"Score [{unit_str}]"
+
+# --- 3. Data Loading & Merging ---
+sources = [
+    {"name": "Cache Size",      "file": "sweep_cache_total.csv", "base_label": "IC/DC 4k", "color": "dodgerblue"},
+    {"name": "Associativity",  "file": "sweep_assoc_total.csv", "base_label": "4w",        "color": "forestgreen"},
+    {"name": "BTB Size",       "file": "sweep_btb_total.csv",   "base_label": "BTB16",     "color": "darkorange"},
+    {"name": "BHT Size",       "file": "sweep_bht_total.csv",   "base_label": "BHT16",     "color": "purple"},
+]
+
+palette = {src["name"]: src["color"] for src in sources}
+palette["Baseline"] = "gray"
+
+df_master = pd.DataFrame()
+
+print("Loading data...")
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        
+        is_baseline = temp_df['config'] == src['base_label']
+        temp_df.loc[is_baseline, 'sweep_type'] = 'Baseline'
+        temp_df.loc[~is_baseline, 'sweep_type'] = src['name']
+        temp_df.loc[is_baseline, 'config'] = 'Ref'
+        
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+    else:
+        print(f"Warning: File not found {file_path}")
+
+# Drop rows with zero scores or IPC
+df_master = df_master[(df_master['score'] > 0) & (df_master['ipc'] > 0)]
+
+benchmarks = df_master['name'].unique()
+
+print(f"Generating publication-ready images for {len(benchmarks)} benchmarks...")
+
+# --- 4. Main Generation Loop ---
+for bench in benchmarks:
+    subset = df_master[df_master['name'] == bench].copy()
+    if subset.empty: continue
+
+    # A. Sorting Logic
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+
+    # B. Apply Descriptive Labels
+    subset['pretty_config'] = subset['config'].apply(prettify_config)
+
+    # C. Aggregate Data (Added observed=True to fix the first error)
+    agg_data = subset.groupby(['pretty_config', 'sweep_type'], observed=True, as_index=False).agg(
+        score_mean=('score', 'mean'),
+        score_min=('score', 'min'),
+        score_max=('score', 'max'),
+        ipc_mean=('ipc', 'mean'),
+        ipc_min=('ipc', 'min'),
+        ipc_max=('ipc', 'max'),
+        units=('units', 'first')
+    )
+    
+    # Re-apply sort after aggregation
+    agg_data['sort_val'] = agg_data.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['pretty_config']),
+        axis=1
+    )
+    agg_data = agg_data.sort_values(by=['sweep_type', 'sort_val'])
+
+    # D. Plotting
+    fig, ax1 = plt.subplots(figsize=(14, 10))
+    sns.set_theme(style="whitegrid")
+
+    # 1. Bar Chart (Score)
+    sns.barplot(
+        data=agg_data, x="pretty_config", y="score_mean", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85, 
+        errorbar=None
+    )
+    
+    # Custom Error Bars for Score (Fixed precision issue)
+    for i, row in enumerate(agg_data.itertuples()):
+        x_pos = i 
+        y_mean = row.score_mean
+        # Force non-negative differences using max(0, ...)
+        err_low = max(0, row.score_mean - row.score_min)
+        err_high = max(0, row.score_max - row.score_mean)
+        
+        ax1.errorbar(x_pos, y_mean, yerr=[[err_low], [err_high]],
+                     fmt='none', ecolor='black', capsize=5, elinewidth=1.5)
+
+    # Y-Axis Label
+    raw_unit = agg_data['units'].iloc[0]
+    ax1.set_ylabel(format_y_label(raw_unit), fontsize=12)
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45, labelsize=10)
+
+    # 2. Line Chart (IPC)
+    ax2 = ax1.twinx()
+    
+    sns.pointplot(
+        data=agg_data, x="pretty_config", y="ipc_mean", color="red",
+        markers="o", scale=0.7, ax=ax2, linestyles="-", errorbar=None
+    )
+    
+    # Custom Error Bars for IPC (Fixed precision issue)
+    for i, row in enumerate(agg_data.itertuples()):
+        x_pos = i
+        y_mean = row.ipc_mean
+        # Force non-negative differences
+        err_low = max(0, row.ipc_mean - row.ipc_min)
+        err_high = max(0, row.ipc_max - row.ipc_mean)
+
+        ax2.errorbar(x_pos, y_mean, yerr=[[err_low], [err_high]],
+                     fmt='none', ecolor='red', capsize=5, elinewidth=1.5)
+
+    ax2.set_ylabel(r"Efficiency [IPC]", color="red", fontsize=12)
+    ax2.tick_params(axis='y', labelcolor="red")
+
+    # Baseline Reference Line
+    base_rows = agg_data[agg_data['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score_mean'].values[0]
+        baseline_text = (
+            "Baseline Config:\n"
+            r"$\bullet$ 4KB L1 Cache" "\n"
+            r"$\bullet$ 4-Way Assoc" "\n"
+            r"$\bullet$ 16-Entry BTB" "\n"
+            r"$\bullet$ 16-Entry BHT"
+        )
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label=baseline_text)
+
+    # Title & Legend
+    plt.title(f"Microarchitectural Sensitivity Analysis: {bench}", fontsize=16, pad=15)
+
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    base_h, base_l = None, None
+
+    for h, l in zip(handles, labels):
+        if "Baseline Config" in l:
+            base_h, base_l = h, l
+        elif l not in seen and l != 'Error Bar':
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+
+    if base_h:
+        unique_handles.append(base_h)
+        unique_labels.append(base_l)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.12, 1), loc='upper left'
+    )
+
+    plt.figtext(
+        0.5, 0.02,
+        "Hardware Configuration. Error bars indicate Min/Max of multiple runs.",
+        ha="center", fontsize=10, style='italic'
+    )
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.2)
+
+    save_path = os.path.join(PLOTS_DIR, f"benchmark_{bench}_minmax.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+
+print(f"Success! All images saved to: {PLOTS_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleLoading data...
+Generating publication-ready images for 20 benchmarks...
+Success! All images saved to: /home/han4n/cva6_experiments/results/individual_benchmark_ipc
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- 1. Global Setup ---
+RESULTS_DIR = "/home/han4n/cva6_experiments/results" 
+PLOTS_DIR = os.path.join(RESULTS_DIR, "individual_benchmark_cycles")
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+# LaTeX & Style Settings
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- 2. Helper Functions ---
+def prettify_config(conf):
+    if conf == "Ref": return "Baseline"
+    m = re.search(r'IC/DC (\d+)k', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}KB L1 Cache"
+    m = re.search(r'^(\d+)w$', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Way Assoc"
+    m = re.search(r'BTB(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Entry BTB"
+    m = re.search(r'BHT(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Entry BHT"
+    return conf
+
+def get_sort_value(config_str):
+    m = re.search(r'(\d+)', str(config_str))
+    if m: return int(m.group(1))
+    return 0
+
+def format_y_label(unit_str):
+    unit_str = str(unit_str).strip()
+    if unit_str == 'lps': return r"Throughput [Loops/s]"
+    elif unit_str == 'Mop/s': return r"Throughput [Mop/s]"
+    elif unit_str == 'KBps': return r"Data Rate [KB/s]"
+    elif unit_str == 'MWIPS': return r"Processing Speed [MWIPS]"
+    else: return fr"Score [{unit_str}]"
+
+# --- 3. Data Loading ---
+sources = [
+    {"name": "Cache Size",      "file": "sweep_cache_total.csv", "base_label": "IC/DC 4k", "color": "dodgerblue"},
+    {"name": "Associativity",  "file": "sweep_assoc_total.csv", "base_label": "4w",        "color": "forestgreen"},
+    {"name": "BTB Size",       "file": "sweep_btb_total.csv",   "base_label": "BTB16",     "color": "darkorange"},
+    {"name": "BHT Size",       "file": "sweep_bht_total.csv",   "base_label": "BHT16",     "color": "purple"},
+]
+
+palette = {src["name"]: src["color"] for src in sources}
+palette["Baseline"] = "gray"
+
+df_master = pd.DataFrame()
+
+print("Loading data...")
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        is_baseline = temp_df['config'] == src['base_label']
+        temp_df.loc[is_baseline, 'sweep_type'] = 'Baseline'
+        temp_df.loc[~is_baseline, 'sweep_type'] = src['name']
+        temp_df.loc[is_baseline, 'config'] = 'Ref'
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+# Filter zeros and ensure 'cycles' column exists
+df_master = df_master[df_master['score'] > 0]
+if 'cycles' not in df_master.columns:
+    print("Warning: 'cycles' column missing. Creating dummy column for testing.")
+    df_master['cycles'] = 0
+
+benchmarks = df_master['name'].unique()
+print(f"Generating Cycles plots for {len(benchmarks)} benchmarks...")
+
+# --- 4. Main Generation Loop ---
+for bench in benchmarks:
+    subset = df_master[df_master['name'] == bench].copy()
+    if subset.empty: continue
+
+    # A. Sorting Logic
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+    subset['pretty_config'] = subset['config'].apply(prettify_config)
+
+    # B. Aggregation (Score + Cycles)
+    # Note: observed=True prevents the ValueError for categorical data
+    agg_data = subset.groupby(['pretty_config', 'sweep_type'], observed=True, as_index=False).agg(
+        score_mean=('score', 'mean'),
+        score_min=('score', 'min'),
+        score_max=('score', 'max'),
+        cyc_mean=('cycles', 'mean'),
+        cyc_min=('cycles', 'min'),
+        cyc_max=('cycles', 'max'),
+        units=('units', 'first')
+    )
+    
+    # Re-sort after aggregation
+    agg_data['sort_val'] = agg_data.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['pretty_config']),
+        axis=1
+    )
+    agg_data = agg_data.sort_values(by=['sweep_type', 'sort_val'])
+
+    # C. Plotting
+    fig, ax1 = plt.subplots(figsize=(11, 7))
+    sns.set_theme(style="whitegrid")
+
+    # --- 1. Bar Chart (Score) ---
+    sns.barplot(
+        data=agg_data, x="pretty_config", y="score_mean", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85, 
+        errorbar=None
+    )
+    
+    # Custom Error Bars for Score (using max(0, val) to prevent floating point crashes)
+    for i, row in enumerate(agg_data.itertuples()):
+        mean = row.score_mean
+        err_low = max(0, mean - row.score_min)
+        err_high = max(0, row.score_max - mean)
+        
+        ax1.errorbar(i, mean, yerr=[[err_low], [err_high]],
+                     fmt='none', ecolor='black', capsize=5, elinewidth=1.5)
+
+    # Left Y-Axis Label
+    raw_unit = agg_data['units'].iloc[0]
+    ax1.set_ylabel(format_y_label(raw_unit), fontsize=12)
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45, labelsize=10)
+
+    # --- 2. Line Chart (Cycles) ---
+    ax2 = ax1.twinx()
+    
+    cycle_color = "tab:pink"
+    
+    sns.pointplot(
+        data=agg_data, x="pretty_config", y="cyc_mean", color=cycle_color,
+        markers="^", scale=0.7, ax=ax2, linestyles="-", errorbar=None
+    )
+    
+    # Custom Error Bars for Cycles
+    for i, row in enumerate(agg_data.itertuples()):
+        mean = row.cyc_mean
+        err_low = max(0, mean - row.cyc_min)
+        err_high = max(0, row.cyc_max - mean)
+
+        ax2.errorbar(i, mean, yerr=[[err_low], [err_high]],
+                     fmt='none', ecolor=cycle_color, capsize=5, elinewidth=1.5)
+
+    # Right Y-Axis Label
+    ax2.set_ylabel(r"Total Cycles", color=cycle_color, fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor=cycle_color)
+
+    # Baseline Reference (Score only)
+    base_rows = agg_data[agg_data['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score_mean'].values[0]
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label="Baseline Score")
+
+    # Title
+    plt.title(f"Performance Analysis (Score vs Cycles): {bench}", fontsize=16, pad=15)
+
+    # Legend
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    
+    for h, l in zip(handles, labels):
+        if l not in seen and l != 'Error Bar':
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.12, 1), loc='upper left'
+    )
+
+    plt.figtext(
+        0.5, 0.02,
+        "Bars: Benchmark Score (Left) | Green Line: Total Cycles (Right)",
+        ha="center", fontsize=10, style='italic'
+    )
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.2)
+
+    save_path = os.path.join(PLOTS_DIR, f"benchmark_{bench}_cycles.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+
+print(f"Success! Cycle plots saved to: {PLOTS_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleLoading data...
+Generating Cycles plots for 20 benchmarks...
+Success! Cycle plots saved to: /home/han4n/cva6_experiments/results/individual_benchmark_cycles
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import re
+import warnings
+
+# --- 1. Global Setup ---
+RESULTS_DIR = "/home/han4n/cva6_experiments/results" 
+PLOTS_DIR = os.path.join(RESULTS_DIR, "individual_benchmark_instructions")
+os.makedirs(PLOTS_DIR, exist_ok=True)
+
+# LaTeX & Style Settings
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rcParams['figure.dpi'] = 300
+warnings.filterwarnings("ignore")
+
+# --- 2. Helper Functions ---
+def prettify_config(conf):
+    if conf == "Ref": return "Baseline"
+    m = re.search(r'IC/DC (\d+)k', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}KB L1 Cache"
+    m = re.search(r'^(\d+)w$', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Way Assoc"
+    m = re.search(r'BTB(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Entry BTB"
+    m = re.search(r'BHT(\d+)', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Entry BHT"
+    return conf
+
+def get_sort_value(config_str):
+    m = re.search(r'(\d+)', str(config_str))
+    if m: return int(m.group(1))
+    return 0
+
+def format_y_label(unit_str):
+    unit_str = str(unit_str).strip()
+    if unit_str == 'lps': return r"Throughput [Loops/s]"
+    elif unit_str == 'Mop/s': return r"Throughput [Mop/s]"
+    elif unit_str == 'KBps': return r"Data Rate [KB/s]"
+    elif unit_str == 'MWIPS': return r"Processing Speed [MWIPS]"
+    else: return fr"Score [{unit_str}]"
+
+# --- 3. Data Loading ---
+sources = [
+    {"name": "Cache Size",      "file": "sweep_cache_total.csv", "base_label": "IC/DC 4k", "color": "dodgerblue"},
+    {"name": "Associativity",  "file": "sweep_assoc_total.csv", "base_label": "4w",        "color": "forestgreen"},
+    {"name": "BTB Size",       "file": "sweep_btb_total.csv",   "base_label": "BTB16",     "color": "darkorange"},
+    {"name": "BHT Size",       "file": "sweep_bht_total.csv",   "base_label": "BHT16",     "color": "purple"},
+]
+
+palette = {src["name"]: src["color"] for src in sources}
+palette["Baseline"] = "gray"
+
+df_master = pd.DataFrame()
+
+print("Loading data...")
+for src in sources:
+    file_path = os.path.join(RESULTS_DIR, src["file"])
+    if os.path.exists(file_path):
+        temp_df = pd.read_csv(file_path)
+        is_baseline = temp_df['config'] == src['base_label']
+        temp_df.loc[is_baseline, 'sweep_type'] = 'Baseline'
+        temp_df.loc[~is_baseline, 'sweep_type'] = src['name']
+        temp_df.loc[is_baseline, 'config'] = 'Ref'
+        df_master = pd.concat([df_master, temp_df], ignore_index=True)
+
+# Filter zeros and ensure 'instructions' column exists
+df_master = df_master[df_master['score'] > 0]
+if 'instructions' not in df_master.columns:
+    print("Warning: 'instructions' column missing. Creating dummy column for testing.")
+    df_master['instructions'] = 0
+
+benchmarks = df_master['name'].unique()
+print(f"Generating Instructions plots for {len(benchmarks)} benchmarks...")
+
+# --- 4. Main Generation Loop ---
+for bench in benchmarks:
+    subset = df_master[df_master['name'] == bench].copy()
+    if subset.empty: continue
+
+    # A. Sorting Logic
+    subset['sweep_type'] = pd.Categorical(
+        subset['sweep_type'],
+        categories=["Baseline", "Cache Size", "Associativity", "BTB Size", "BHT Size"],
+        ordered=True
+    )
+    
+    subset['sort_val'] = subset.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        axis=1
+    )
+    subset = subset.sort_values(by=['sweep_type', 'sort_val'])
+    subset['pretty_config'] = subset['config'].apply(prettify_config)
+
+    # B. Aggregation (Score + Instructions)
+    # Note: observed=True prevents the ValueError for categorical data
+    agg_data = subset.groupby(['pretty_config', 'sweep_type'], observed=True, as_index=False).agg(
+        score_mean=('score', 'mean'),
+        score_min=('score', 'min'),
+        score_max=('score', 'max'),
+        inst_mean=('instructions', 'mean'),
+        inst_min=('instructions', 'min'),
+        inst_max=('instructions', 'max'),
+        units=('units', 'first')
+    )
+    
+    # Re-sort after aggregation
+    agg_data['sort_val'] = agg_data.apply(
+        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['pretty_config']),
+        axis=1
+    )
+    agg_data = agg_data.sort_values(by=['sweep_type', 'sort_val'])
+
+    # C. Plotting
+    fig, ax1 = plt.subplots(figsize=(11, 7))
+    sns.set_theme(style="whitegrid")
+
+    # --- 1. Bar Chart (Score) ---
+    sns.barplot(
+        data=agg_data, x="pretty_config", y="score_mean", hue="sweep_type",
+        palette=palette, dodge=False, ax=ax1, alpha=0.85, 
+        errorbar=None
+    )
+    
+    # Custom Error Bars for Score
+    for i, row in enumerate(agg_data.itertuples()):
+        mean = row.score_mean
+        err_low = max(0, mean - row.score_min)
+        err_high = max(0, row.score_max - mean)
+        
+        ax1.errorbar(i, mean, yerr=[[err_low], [err_high]],
+                     fmt='none', ecolor='black', capsize=5, elinewidth=1.5)
+
+    # Left Y-Axis Label
+    raw_unit = agg_data['units'].iloc[0]
+    ax1.set_ylabel(format_y_label(raw_unit), fontsize=12)
+    ax1.set_xlabel("")
+    ax1.tick_params(axis='x', rotation=45, labelsize=10)
+
+    # --- 2. Line Chart (Instructions) ---
+    ax2 = ax1.twinx()
+    
+    # Using BLUE for Instructions
+    inst_color = "tab:blue"
+    
+    sns.pointplot(
+        data=agg_data, x="pretty_config", y="inst_mean", color=inst_color,
+        markers="s", scale=0.7, ax=ax2, linestyles="-", errorbar=None
+    )
+    
+    # Custom Error Bars for Instructions
+    for i, row in enumerate(agg_data.itertuples()):
+        mean = row.inst_mean
+        err_low = max(0, mean - row.inst_min)
+        err_high = max(0, row.inst_max - mean)
+
+        ax2.errorbar(i, mean, yerr=[[err_low], [err_high]],
+                     fmt='none', ecolor=inst_color, capsize=5, elinewidth=1.5)
+
+    # Right Y-Axis Label
+    ax2.set_ylabel(r"Total Instructions", color=inst_color, fontsize=12, fontweight='bold')
+    ax2.tick_params(axis='y', labelcolor=inst_color)
+
+    # Baseline Reference (Score only)
+    base_rows = agg_data[agg_data['sweep_type'] == "Baseline"]
+    if not base_rows.empty:
+        base_val = base_rows['score_mean'].values[0]
+        ax1.axhline(base_val, color='black', linestyle='--', linewidth=1.5, alpha=0.6, label="Baseline Score")
+
+    # Title
+    plt.title(f"Performance Analysis (Score vs Instructions): {bench}", fontsize=16, pad=15)
+
+    # Legend
+    handles, labels = ax1.get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    seen = set()
+    
+    for h, l in zip(handles, labels):
+        if l not in seen and l != 'Error Bar':
+            seen.add(l)
+            unique_labels.append(l)
+            unique_handles.append(h)
+
+    ax1.legend(
+        unique_handles, unique_labels,
+        title="Parameters", bbox_to_anchor=(1.12, 1), loc='upper left'
+    )
+
+    plt.figtext(
+        0.5, 0.02,
+        "Bars: Benchmark Score (Left) | Blue Line: Total Instructions (Right)",
+        ha="center", fontsize=10, style='italic'
+    )
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.2)
+
+    save_path = os.path.join(PLOTS_DIR, f"benchmark_{bench}_instructions.png")
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close()
+
+print(f"Success! Instruction plots saved to: {PLOTS_DIR}")
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_exampleLoading data...
+Generating Instructions plots for 20 benchmarks...
+Success! Instruction plots saved to: /home/han4n/cva6_experiments/results/individual_benchmark_instructions
+#+end_example
+:end:
+
 * Utilization Automatic
-
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import numpy as np
-import os
-
-# -----------------------------------------------------------------------------
-# 1. CONFIGURATION
-# -----------------------------------------------------------------------------
-INPUT_CSV = "cva6_experiments_stages_summary.csv"
-OUTPUT_DIR = "utilization_plots_auto_final"
-
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-
-# Enable LaTeX styling
-try:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-except:
-    print("Warning: LaTeX not found. Using standard fonts.")
-
-plt.rcParams['figure.dpi'] = 300
-
-# Baseline for filtering
-BASELINE = {
-    'IC_num': 4096,  'ICw_num': 4,
-    'DC_num': 4096,  'DCw_num': 4,
-    'BTB_num': 16,   'BHT_num': 16,   'RAS_num': 2
-}
-
-# -----------------------------------------------------------------------------
-# 2. HELPER FUNCTIONS
-# -----------------------------------------------------------------------------
-def parse_size(val):
-    if isinstance(val, str):
-        val = val.lower()
-        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
-        if 'w' in val: return int(val.replace('w', ''))
-        return int(val)
-    return val
-
-def get_text_color(hex_color):
-    """Returns 'black' or 'white' based on background brightness."""
-    rgb = mcolors.hex2color(hex_color)
-    brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
-    return 'black' if brightness > 0.55 else 'white'
-
-# -----------------------------------------------------------------------------
-# 3. DATA LOADING
-# -----------------------------------------------------------------------------
-try:
-    df = pd.read_csv(INPUT_CSV)
-    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
-        if col in df.columns:
-            df[f'{col}_num'] = df[col].apply(parse_size)
-except FileNotFoundError:
-    print(f"Error: {INPUT_CSV} not found.")
-    exit()
-
-# -----------------------------------------------------------------------------
-# 4. PLOTTING FUNCTION
-# -----------------------------------------------------------------------------
-def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
-    if df_filtered.empty:
-        return
-
-    df_plot = df_filtered.sort_values(f'{x_col}_num')
-    labels = df_plot[x_col].astype(str).tolist()
-    x = np.arange(len(labels))
-    width = 0.65
-
-    metrics = ['LUT', 'FF', 'BRAM', 'DSP']
-
-    stages = [
-        ('S1_Fetch', 'Fetch', '#4e79a7'),        # Blue
-        ('S2_Decode', 'Decode', '#f28e2b'),      # Orange
-        ('S3_Issue_Net', 'Issue', '#e15759'),    # Red
-        ('S4_Execute_Net', 'Execute', '#76b7b2'),# Cyan/Teal
-        ('S5_Memory_Total', 'Memory', '#59a14f'),# Green
-        ('S6_Commit', 'Commit', '#edc948')       # Yellow
-    ]
-
-    for metric in metrics:
-        fig, ax = plt.subplots(figsize=(10, 6))
-
-        bottoms = np.zeros(len(df_plot))
-        stage_cols = [f"{s[0]}_{metric}" for s in stages]
-        totals = df_plot[stage_cols].sum(axis=1).tolist()
-
-        for s_code, s_name, s_color in stages:
-            col_name = f"{s_code}_{metric}"
-            values = df_plot[col_name].fillna(0).tolist()
-
-            bars = ax.bar(x, values, width, bottom=bottoms, label=s_name,
-                          color=s_color, edgecolor='white', linewidth=0.5)
-
-            text_color = get_text_color(s_color)
-
-            # --- ROBUST LABELING ---
-            for i, rect in enumerate(bars):
-                height = rect.get_height()
-                total = totals[i]
-                pct = (height / total * 100) if total > 0 else 0
-
-                # Format Count
-                val_str = f"{int(height)}" if height < 1000 else f"{height/1000:.1f}k"
-                if metric == 'DSP': val_str = f"{int(height)}"
-
-                label_text = ""
-                font_size = 7
-
-                # Case 1: Large Segment (> 5%) -> Show "Count (Pct%)"
-                if pct > 5:
-                    label_text = rf"\textbf{{{val_str}}} ({int(pct)}\%)"
-                    font_size = 8
-
-                # Case 2: Small Segment (1% - 5%) -> Show "Count" only
-                elif pct > 1.0:
-                    label_text = rf"\textbf{{{val_str}}}"
-                    font_size = 6
-
-                if label_text:
-                    ax.annotate(label_text,
-                                xy=(rect.get_x() + rect.get_width() / 2, bottoms[i] + height / 2),
-                                xytext=(0, 0),
-                                textcoords="offset points",
-                                ha='center', va='center',
-                                color=text_color, fontsize=font_size)
-
-            bottoms += values
-
-        # Styling
-        ax.set_ylabel(rf'\textbf{{{metric} Utilization (Count)}}', fontsize=12)
-        ax.set_xlabel(rf'\textbf{{{x_label}}}', fontsize=12)
-        ax.set_title(rf'\textbf{{{title_prefix}: {metric} Distribution}}', fontsize=14, pad=15)
-
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=0, fontsize=11)
-        ax.grid(axis='y', linestyle='--', alpha=0.4)
-
-        if max(totals) > 0:
-            ax.set_ylim(0, max(totals) * 1.1)
-
-        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left',
-                  borderaxespad=0., frameon=True, fontsize=10, title="Pipeline Stage")
-
-        plt.tight_layout()
-
-        save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}.png")
-        plt.savefig(save_path, bbox_inches='tight')
-        print(f"Generated: {save_path}")
-        plt.close()
-
-# -----------------------------------------------------------------------------
-# 5. EXECUTE SWEEPS
-# -----------------------------------------------------------------------------
-s1 = df[
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-plot_split_metric(s1, 'IC', 'Cache Capacity (Bytes)', 'Cache Size Sweep', 'sweep_cache')
-
-s2 = df[
-    (df['IC_num'] == BASELINE['IC_num']) &
-    (df['DC_num'] == BASELINE['DC_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-plot_split_metric(s2, 'ICw', 'Associativity (Ways)', 'Associativity Sweep', 'sweep_assoc')
-
-s3 = df[
-    (df['IC_num'] == BASELINE['IC_num']) &
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DC_num'] == BASELINE['DC_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-plot_split_metric(s3, 'BTB', 'BTB Entries', 'BTB Size Sweep', 'sweep_btb')
-
-s4 = df[
-    (df['IC_num'] == BASELINE['IC_num']) &
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DC_num'] == BASELINE['DC_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num'])
-].copy()
-plot_split_metric(s4, 'BHT', 'BHT Entries', 'BHT Size Sweep', 'sweep_bht')
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_exampleGenerated: utilization_plots_auto_final/sweep_cache_LUT.png
-Generated: utilization_plots_auto_final/sweep_cache_FF.png
-Generated: utilization_plots_auto_final/sweep_cache_BRAM.png
-Generated: utilization_plots_auto_final/sweep_cache_DSP.png
-Generated: utilization_plots_auto_final/sweep_assoc_LUT.png
-Generated: utilization_plots_auto_final/sweep_assoc_FF.png
-Generated: utilization_plots_auto_final/sweep_assoc_BRAM.png
-Generated: utilization_plots_auto_final/sweep_assoc_DSP.png
-Generated: utilization_plots_auto_final/sweep_btb_LUT.png
-Generated: utilization_plots_auto_final/sweep_btb_FF.png
-Generated: utilization_plots_auto_final/sweep_btb_BRAM.png
-Generated: utilization_plots_auto_final/sweep_btb_DSP.png
-Generated: utilization_plots_auto_final/sweep_bht_LUT.png
-Generated: utilization_plots_auto_final/sweep_bht_FF.png
-Generated: utilization_plots_auto_final/sweep_bht_BRAM.png
-Generated: utilization_plots_auto_final/sweep_bht_DSP.png
-#+end_example
-:end:
-
-
-#+begin_src jupyter-python :results output drawer :exports results
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.colors as mcolors
-import numpy as np
-import os
-from mpl_toolkits.mplot3d import Axes3D
-
-# -----------------------------------------------------------------------------
-# 1. CONFIGURATION
-# -----------------------------------------------------------------------------
-INPUT_CSV = "cva6_experiments_stages_summary_final.csv"
-OUTPUT_DIR = "utilization_plots_auto_final"
-
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-
-# Enable LaTeX styling
-try:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-except:
-    print("Warning: LaTeX not found. Using standard fonts.")
-
-plt.rcParams['figure.dpi'] = 300
-
-# Baseline for filtering
-BASELINE = {
-    'IC_num': 4096,  'ICw_num': 4,
-    'DC_num': 4096,  'DCw_num': 4,
-    'BTB_num': 16,   'BHT_num': 16,   'RAS_num': 2
-}
-
-# -----------------------------------------------------------------------------
-# 2. HELPER FUNCTIONS
-# -----------------------------------------------------------------------------
-def parse_size(val):
-    if isinstance(val, str):
-        val = val.lower()
-        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
-        if 'w' in val: return int(val.replace('w', ''))
-        return int(val)
-    return val
-
-def get_text_color(hex_color):
-    rgb = mcolors.hex2color(hex_color)
-    brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
-    return 'black' if brightness > 0.55 else 'white'
-
-def format_size_label(num_bytes):
-    if num_bytes >= 1024:
-        return f"{int(num_bytes/1024)}k"
-    return str(num_bytes)
-
-# -----------------------------------------------------------------------------
-# 3. DATA LOADING
-# -----------------------------------------------------------------------------
-try:
-    df = pd.read_csv(INPUT_CSV)
-    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
-        if col in df.columns:
-            df[f'{col}_num'] = df[col].apply(parse_size)
-except FileNotFoundError:
-    print(f"Error: {INPUT_CSV} not found.")
-    exit()
-
-# -----------------------------------------------------------------------------
-# 4. PLOTTING FUNCTIONS
-# -----------------------------------------------------------------------------
-
-def plot_3d_stacked_cache_sweep(df_filtered, filename_prefix):
-    """
-    Generates a 3D Stacked Bar plot.
-    X: Instruction Cache
-    Y: Data Cache
-    Z: Metric Count (Stacked by Stage)
-    """
-    if df_filtered.empty:
-        return
-
-    metrics = ['LUT', 'FF', 'BRAM', 'DSP']
-
-    # Define Stages and Colors (Same as 2D plots)
-    stages = [
-        ('S1_Fetch', 'Fetch', '#4e79a7'),        # Blue
-        ('S2_Decode', 'Decode', '#f28e2b'),      # Orange
-        ('S3_Issue_Net', 'Issue', '#e15759'),    # Red
-        ('S4_Execute_Net', 'Execute', '#76b7b2'),# Cyan/Teal
-        ('S5_Memory_Total', 'Memory', '#59a14f'),# Green
-        ('S6_Commit', 'Commit', '#edc948')       # Yellow
-    ]
-
-    # Get unique sorted sizes for axes
-    ic_sizes = sorted(df_filtered['IC_num'].unique())
-    dc_sizes = sorted(df_filtered['DC_num'].unique())
-
-    # Map sizes to integer indices (0, 1, 2...)
-    ic_map = {val: i for i, val in enumerate(ic_sizes)}
-    dc_map = {val: i for i, val in enumerate(dc_sizes)}
-
-    ic_labels = [format_size_label(x) for x in ic_sizes]
-    dc_labels = [format_size_label(x) for x in dc_sizes]
-
-    for metric in metrics:
-        fig = plt.figure(figsize=(12, 10))
-        ax = fig.add_subplot(111, projection='3d')
-
-        # To calculate the Z-limit for scaling, we need the max total height
-        stage_cols = [f"{s[0]}_{metric}" for s in stages]
-        max_height = df_filtered[stage_cols].sum(axis=1).max()
-
-        # Iterate through every configuration (row)
-        for _, row in df_filtered.iterrows():
-            ic_val = row['IC_num']
-            dc_val = row['DC_num']
-            
-            x_idx = ic_map[ic_val]
-            y_idx = dc_map[dc_val]
-            
-            # Start stacking from Z=0 for this bar
-            current_z = 0
-            
-            # Stack the stages
-            for stage_code, stage_name, stage_color in stages:
-                col_name = f"{stage_code}_{metric}"
-                height = row[col_name]
-                
-                if pd.notna(height) and height > 0:
-                    # Draw bar segment
-                    # x, y, z, dx, dy, dz
-                    ax.bar3d(x_idx - 0.2,  # X pos (centered slightly)
-                             y_idx - 0.2,  # Y pos
-                             current_z,    # Z start
-                             0.4,          # Width
-                             0.4,          # Depth
-                             height,       # Height
-                             color=stage_color, 
-                             shade=True)
-                    
-                    current_z += height
-
-        # --- AXIS LABELS & STYLING ---
-        ax.set_xticks(range(len(ic_sizes)))
-        ax.set_xticklabels(ic_labels, rotation=-15, ha='left')
-        
-        ax.set_yticks(range(len(dc_sizes)))
-        ax.set_yticklabels(dc_labels, rotation=15, ha='right')
-
-        ax.set_xlabel(r'\textbf{Instruction Cache}', labelpad=15, fontsize=12)
-        ax.set_ylabel(r'\textbf{Data Cache}', labelpad=15, fontsize=12)
-        ax.set_zlabel(rf'\textbf{{{metric} Utilization (Count)}}', labelpad=10, fontsize=12)
-        
-        ax.set_title(rf'\textbf{{Cache Sweep: {metric} Distribution}}', fontsize=16, pad=20)
-        
-        if max_height > 0:
-            ax.set_zlim(0, max_height * 1.1)
-
-        # --- LEGEND ---
-        # Create proxy artists for the legend (since bar3d doesn't support labels directly)
-        legend_handles = [mpatches.Patch(color=color, label=name) for _, name, color in stages]
-        
-        # Place legend outside to prevent cluttering the 3D view
-        ax.legend(handles=legend_handles[::-1], # Reverse to match visual stack order if desired
-                  bbox_to_anchor=(1.05, 1), loc='upper left', 
-                  title="Pipeline Stage", fontsize=10, frameon=True)
-
-        # Adjust viewing angle
-        ax.view_init(elev=30, azim=-60)
-        
-        # plt.tight_layout()
-        save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_3d.png")
-        plt.savefig(save_path, bbox_inches='tight')
-        print(f"Generated: {save_path}")
-        plt.close()
-
-def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
-    """
-    Standard 2D Stacked Bar Plot (Unchanged for other sweeps)
-    """
-    if df_filtered.empty:
-        return
-
-    df_plot = df_filtered.sort_values(f'{x_col}_num')
-    labels = df_plot[x_col].astype(str).tolist()
-    x = np.arange(len(labels))
-    width = 0.65
-
-    metrics = ['LUT', 'FF', 'BRAM', 'DSP']
-
-    stages = [
-        ('S1_Fetch', 'Fetch', '#4e79a7'),
-        ('S2_Decode', 'Decode', '#f28e2b'),
-        ('S3_Issue_Net', 'Issue', '#e15759'),
-        ('S4_Execute_Net', 'Execute', '#76b7b2'),
-        ('S5_Memory_Total', 'Memory', '#59a14f'),
-        ('S6_Commit', 'Commit', '#edc948')
-    ]
-
-    for metric in metrics:
-        fig, ax = plt.subplots(figsize=(10, 6))
-
-        bottoms = np.zeros(len(df_plot))
-        stage_cols = [f"{s[0]}_{metric}" for s in stages]
-        totals = df_plot[stage_cols].sum(axis=1).tolist()
-
-        for s_code, s_name, s_color in stages:
-            col_name = f"{s_code}_{metric}"
-            values = df_plot[col_name].fillna(0).tolist()
-
-            bars = ax.bar(x, values, width, bottom=bottoms, label=s_name,
-                          color=s_color, edgecolor='white', linewidth=0.5)
-
-            text_color = get_text_color(s_color)
-
-            for i, rect in enumerate(bars):
-                height = rect.get_height()
-                total = totals[i]
-                pct = (height / total * 100) if total > 0 else 0
-
-                val_str = f"{int(height)}" if height < 1000 else f"{height/1000:.1f}k"
-                if metric == 'DSP': val_str = f"{int(height)}"
-
-                label_text = ""
-                font_size = 7
-                # if pct > 20:
-                #     # label_text = rf"\textbf{{{val_str}}} \\ ({int(pct)}\%)"
-                #     label_text = rf"\shortstack[c]{{\textbf{{{val_str}}} \\ ({int(pct)}\%)}}"
-                #     font_size = 8
-                # elif pct > 1.0:
-                # # elif pct > 0.5:
-                #     label_text = rf"\textbf{{{val_str}}}"
-                #     font_size = 6
-                if pct > 5 and height > 10: 
-                    label_text = rf"\shortstack[c]{{\textbf{{{val_str}}} \\ ({int(pct)}\%)}}"
-                    font_size = 8
-                elif pct > 1.0:
-                    label_text = rf"\textbf{{{val_str}}}"
-                    font_size = 6
-
-                if label_text:
-                    ax.annotate(label_text,
-                                xy=(rect.get_x() + rect.get_width() / 2, bottoms[i] + height / 2),
-                                xytext=(0, 0), textcoords="offset points",
-                                ha='center', va='center',
-                                color=text_color, fontsize=font_size)
-
-            bottoms += values
-
-        ax.set_ylabel(rf'\textbf{{{metric} Utilization (Count)}}', fontsize=12)
-        ax.set_xlabel(rf'\textbf{{{x_label}}}', fontsize=12)
-        ax.set_title(rf'\textbf{{{title_prefix}: {metric} Distribution}}', fontsize=14, pad=15)
-        
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=0, fontsize=11)
-        ax.grid(axis='y', linestyle='--', alpha=0.4)
-
-        if max(totals) > 0:
-            ax.set_ylim(0, max(totals) * 1.1)
-
-        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left',
-                  borderaxespad=0., frameon=True, fontsize=10, title="Pipeline Stage")
-
-        plt.tight_layout()
-        save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}.png")
-        plt.savefig(save_path, bbox_inches='tight')
-        print(f"Generated: {save_path}")
-        plt.close()
-
-# -----------------------------------------------------------------------------
-# 5. EXECUTE SWEEPS
-# -----------------------------------------------------------------------------
-
-# --- SWEEP 1: Cache Sizes (3D STACKED PLOT) ---
-# We keep rows where Associativity, BTB, and BHT are baseline
-s1 = df[
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-
-# Call the NEW 3D plotting function for S1
-plot_3d_stacked_cache_sweep(s1, 'sweep_cache')
-
-# --- SWEEP 2: Associativity (Standard 2D) ---
-s2 = df[
-    (df['IC_num'] == BASELINE['IC_num']) &
-    (df['DC_num'] == BASELINE['DC_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-plot_split_metric(s2, 'ICw', 'Associativity (Ways)', 'Associativity Sweep', 'sweep_assoc')
-
-# --- SWEEP 3: BTB Size (Standard 2D) ---
-s3 = df[
-    (df['IC_num'] == BASELINE['IC_num']) &
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DC_num'] == BASELINE['DC_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-plot_split_metric(s3, 'BTB', 'BTB Entries', 'BTB Size Sweep', 'sweep_btb')
-
-# --- SWEEP 4: BHT Size (Standard 2D) ---
-s4 = df[
-    (df['IC_num'] == BASELINE['IC_num']) &
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DC_num'] == BASELINE['DC_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num'])
-].copy()
-plot_split_metric(s4, 'BHT', 'BHT Entries', 'BHT Size Sweep', 'sweep_bht')
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_exampleGenerated: utilization_plots_auto_final/sweep_cache_LUT_3d.png
-Generated: utilization_plots_auto_final/sweep_cache_FF_3d.png
-Generated: utilization_plots_auto_final/sweep_cache_BRAM_3d.png
-Generated: utilization_plots_auto_final/sweep_cache_DSP_3d.png
-Generated: utilization_plots_auto_final/sweep_assoc_LUT.png
-Generated: utilization_plots_auto_final/sweep_assoc_FF.png
-Generated: utilization_plots_auto_final/sweep_assoc_BRAM.png
-Generated: utilization_plots_auto_final/sweep_assoc_DSP.png
-Generated: utilization_plots_auto_final/sweep_btb_LUT.png
-Generated: utilization_plots_auto_final/sweep_btb_FF.png
-Generated: utilization_plots_auto_final/sweep_btb_BRAM.png
-Generated: utilization_plots_auto_final/sweep_btb_DSP.png
-Generated: utilization_plots_auto_final/sweep_bht_LUT.png
-Generated: utilization_plots_auto_final/sweep_bht_FF.png
-Generated: utilization_plots_auto_final/sweep_bht_BRAM.png
-Generated: utilization_plots_auto_final/sweep_bht_DSP.png
-#+end_example
-:end:
 
 #+begin_src jupyter-python
 import pandas as pd
@@ -2009,26 +2132,23 @@ import matplotlib.patches as mpatches
 import matplotlib.colors as mcolors
 import numpy as np
 import os
+from mpl_toolkits.mplot3d import Axes3D
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURATION
 # -----------------------------------------------------------------------------
 INPUT_CSV = "cva6_experiments_stages_summary_final.csv"
-OUTPUT_DIR = "utilization_plots_cache_2d"
+OUTPUT_DIR = "utilization_plots_auto_final"
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
-# Enable LaTeX styling
-try:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-except:
-    print("Warning: LaTeX not found. Using standard fonts.")
-
+# Disable LaTeX to ensure stability
+USE_LATEX = False
+plt.rc('text', usetex=False)
 plt.rcParams['figure.dpi'] = 300
 
-# Baseline for filtering (Used to fix the "other" variable when sweeping)
+# Baseline for filtering
 BASELINE = {
     'IC_num': 4096,  'ICw_num': 4,
     'DC_num': 4096,  'DCw_num': 4,
@@ -2051,12 +2171,20 @@ def get_text_color(hex_color):
     brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
     return 'black' if brightness > 0.55 else 'white'
 
+def format_size_label(num_bytes):
+    if num_bytes >= 1024:
+        return f"{int(num_bytes/1024)}k"
+    return str(num_bytes)
+
+def bold_text(text):
+    # Simple wrapper, no LaTeX needed for basic bolding in standard mpl if we use fontweight='bold'
+    return str(text)
+
 # -----------------------------------------------------------------------------
 # 3. DATA LOADING
 # -----------------------------------------------------------------------------
 try:
     df = pd.read_csv(INPUT_CSV)
-    # Parse size columns to numeric for sorting/filtering
     for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
         if col in df.columns:
             df[f'{col}_num'] = df[col].apply(parse_size)
@@ -2065,28 +2193,146 @@ except FileNotFoundError:
     exit()
 
 # -----------------------------------------------------------------------------
-# 4. PLOTTING FUNCTION (2D Stacked)
+# 4. PLOTTING FUNCTIONS
 # -----------------------------------------------------------------------------
-def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
+
+def plot_3d_stacked_cache_sweep(df_filtered, filename_prefix):
     """
-    Generates 2D Stacked Bar plots for specific metrics.
+    Generates a 3D Stacked Bar plot.
+    Marks the Baseline configuration with thicker lines and clear text.
     """
     if df_filtered.empty:
-        print(f"Warning: No data found for {title_prefix}")
         return
 
-    # Sort by the numeric value of the x-axis column
+    metrics = ['LUT', 'FF', 'BRAM', 'DSP']
+
+    stages = [
+        ('S1_Fetch', 'Fetch', '#4e79a7'),        # Blue
+        ('S2_Decode', 'Decode', '#f28e2b'),      # Orange
+        ('S3_Issue_Net', 'Issue', '#e15759'),    # Red
+        ('S4_Execute_Net', 'Execute', '#76b7b2'),# Cyan/Teal
+        ('S5_Memory_Total', 'Memory', '#59a14f'),# Green
+        ('S6_Commit', 'Commit', '#edc948')       # Yellow
+    ]
+
+    # Get unique sorted sizes for axes
+    ic_sizes = sorted(df_filtered['IC_num'].unique())
+    dc_sizes = sorted(df_filtered['DC_num'].unique())
+
+    # Map sizes to integer indices
+    ic_map = {val: i for i, val in enumerate(ic_sizes)}
+    dc_map = {val: i for i, val in enumerate(dc_sizes)}
+
+    ic_labels = [format_size_label(x) for x in ic_sizes]
+    dc_labels = [format_size_label(x) for x in dc_sizes]
+
+    for metric in metrics:
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
+
+        stage_cols = [f"{s[0]}_{metric}" for s in stages]
+        max_height = df_filtered[stage_cols].sum(axis=1).max()
+
+        for _, row in df_filtered.iterrows():
+            ic_val = row['IC_num']
+            dc_val = row['DC_num']
+            
+            x_idx = ic_map[ic_val]
+            y_idx = dc_map[dc_val]
+            
+            # CHECK IF BASELINE
+            is_baseline = (ic_val == BASELINE['IC_num'] and dc_val == BASELINE['DC_num'])
+            
+            # Set style based on baseline status
+            if is_baseline:
+                edge_color = 'black'
+                line_width = 1.5  # Thicker line for baseline
+            else:
+                edge_color = 'white'
+                line_width = 0.3  # Thinner line for others
+            
+            current_z = 0
+            
+            for stage_code, stage_name, stage_color in stages:
+                col_name = f"{stage_code}_{metric}"
+                height = row[col_name]
+                
+                if pd.notna(height) and height > 0:
+                    ax.bar3d(x_idx - 0.2, y_idx - 0.2, current_z, 
+                             0.4, 0.4, height, 
+                             color=stage_color, shade=True,
+                             edgecolor=edge_color, linewidth=line_width)
+                    current_z += height
+            
+            # --- MARK BASELINE TEXT ---
+            if is_baseline:
+                # Add "Baseline" text above the bar
+                # zdir='z' ensures text flows correctly in 3D space
+                ax.text(x_idx, y_idx, current_z + (max_height * 0.15), 
+                        "Baseline", 
+                        color='black', fontsize=12, ha='center', va='bottom', fontweight='bold',
+                        bbox=dict(facecolor='white', alpha=0.5, edgecolor='none', pad=1))
+
+        # --- AXIS LABELS & STYLING ---
+        ax.set_xticks(range(len(ic_sizes)))
+        ax.set_xticklabels(ic_labels, rotation=-15, ha='left')
+        
+        ax.set_yticks(range(len(dc_sizes)))
+        ax.set_yticklabels(dc_labels, rotation=15, ha='right')
+
+        # Bold tick labels for baseline
+        if BASELINE['IC_num'] in ic_map:
+            try: ax.get_xticklabels()[ic_map[BASELINE['IC_num']]].set_fontweight('bold')
+            except: pass
+        if BASELINE['DC_num'] in dc_map:
+            try: ax.get_yticklabels()[dc_map[BASELINE['DC_num']]].set_fontweight('bold')
+            except: pass
+
+        ax.set_xlabel('Instruction Cache', labelpad=15, fontsize=12, fontweight='bold')
+        ax.set_ylabel('Data Cache', labelpad=15, fontsize=12, fontweight='bold')
+        ax.set_zlabel(f'{metric} Utilization (Count)', labelpad=10, fontsize=12, fontweight='bold')
+        
+        ax.set_title(f'Cache Sweep: {metric} Distribution', fontsize=16, pad=20, fontweight='bold')
+        
+        # INCREASE Z-LIMIT to make sure text is "entire" (not cut off)
+        if max_height > 0:
+            ax.set_zlim(0, max_height * 1.25)
+
+        legend_handles = [mpatches.Patch(color=color, label=name) for _, name, color in stages]
+        ax.legend(handles=legend_handles[::-1], 
+                  bbox_to_anchor=(1.05, 1), loc='upper left', 
+                  title="Pipeline Stage", fontsize=10, frameon=True)
+
+        ax.view_init(elev=30, azim=-60)
+        
+        save_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_3d.png")
+        plt.savefig(save_path, bbox_inches='tight')
+        print(f"Generated: {save_path}")
+        plt.close()
+
+def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix):
+    """
+    Standard 2D Stacked Bar Plot.
+    """
+    if df_filtered.empty:
+        return
+
     df_plot = df_filtered.sort_values(f'{x_col}_num')
-    labels = df_plot[x_col].astype(str).tolist()
+    baseline_val = BASELINE.get(f'{x_col}_num')
+    baseline_idx = None
+    
+    labels = []
+    for i, (idx, row) in enumerate(df_plot.iterrows()):
+        val = row[x_col]
+        num_val = row[f'{x_col}_num']
+        labels.append(str(val))
+        if num_val == baseline_val:
+            baseline_idx = i
+
     x = np.arange(len(labels))
     width = 0.65
 
-    # ---------------------------------------------------------
-    # CONFIG: Metrics to plot
-    # Uncomment others if you want LUT/FF/DSP as well
-    # ---------------------------------------------------------
-    metrics = ['BRAM'] 
-    # metrics = ['LUT', 'FF', 'BRAM', 'DSP'] 
+    metrics = ['LUT', 'FF', 'BRAM', 'DSP']
 
     stages = [
         ('S1_Fetch', 'Fetch', '#4e79a7'),
@@ -2104,21 +2350,15 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
         stage_cols = [f"{s[0]}_{metric}" for s in stages]
         totals = df_plot[stage_cols].sum(axis=1).tolist()
 
-        # Stack the bars
         for s_code, s_name, s_color in stages:
             col_name = f"{s_code}_{metric}"
-            # Handle missing columns gracefully
-            if col_name not in df_plot.columns:
-                values = [0] * len(df_plot)
-            else:
-                values = df_plot[col_name].fillna(0).tolist()
+            values = df_plot[col_name].fillna(0).tolist()
 
             bars = ax.bar(x, values, width, bottom=bottoms, label=s_name,
                           color=s_color, edgecolor='white', linewidth=0.5)
 
             text_color = get_text_color(s_color)
 
-            # Add labels inside bars
             for i, rect in enumerate(bars):
                 height = rect.get_height()
                 total = totals[i]
@@ -2129,13 +2369,11 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
 
                 label_text = ""
                 font_size = 7
-                
-                # Dynamic labeling logic to avoid clutter
-                if pct > 5 and height > 1: 
-                    label_text = rf"\shortstack[c]{{\textbf{{{val_str}}} \\ ({int(pct)}\%)}}"
+                if pct > 5 and height > 10: 
+                    label_text = f"{val_str}\n({int(pct)}%)"
                     font_size = 8
                 elif pct > 1.0:
-                    label_text = rf"\textbf{{{val_str}}}"
+                    label_text = f"{val_str}"
                     font_size = 6
 
                 if label_text:
@@ -2147,17 +2385,29 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
 
             bottoms += values
 
-        # Formatting
-        ax.set_ylabel(rf'\textbf{{{metric} Utilization (Count)}}', fontsize=12)
-        ax.set_xlabel(rf'\textbf{{{x_label}}}', fontsize=12)
-        ax.set_title(rf'\textbf{{{title_prefix}: {metric} Distribution}}', fontsize=14, pad=15)
+        # --- MARK BASELINE ---
+        if baseline_idx is not None:
+            total_height = totals[baseline_idx]
+            ax.annotate("Baseline", 
+                        xy=(x[baseline_idx], total_height), 
+                        xytext=(0, 25), textcoords="offset points",
+                        ha='center', va='bottom', fontsize=10, fontweight='bold',
+                        arrowprops=dict(arrowstyle='->', connectionstyle="arc3", color='black'))
+
+        ax.set_ylabel(f'{metric} Utilization (Count)', fontsize=12, fontweight='bold')
+        ax.set_xlabel(x_label, fontsize=12, fontweight='bold')
+        ax.set_title(f'{title_prefix}: {metric} Distribution', fontsize=14, pad=15, fontweight='bold')
         
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=0, fontsize=11)
+        
+        if baseline_idx is not None:
+            ax.get_xticklabels()[baseline_idx].set_fontweight('bold')
+
         ax.grid(axis='y', linestyle='--', alpha=0.4)
 
-        if len(totals) > 0 and max(totals) > 0:
-            ax.set_ylim(0, max(totals) * 1.1)
+        if max(totals) > 0:
+            ax.set_ylim(0, max(totals) * 1.15) 
 
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left',
                   borderaxespad=0., frameon=True, fontsize=10, title="Pipeline Stage")
@@ -2172,199 +2422,7 @@ def plot_split_metric(df_filtered, x_col, x_label, title_prefix, filename_prefix
 # 5. EXECUTE SWEEPS
 # -----------------------------------------------------------------------------
 
-# Filter for the "Cache Sweep" context 
-# (where Associativity, BTB, and BHT are fixed at baseline)
-cache_sweep_base = df[
-    (df['ICw_num'] == BASELINE['ICw_num']) &
-    (df['DCw_num'] == BASELINE['DCw_num']) &
-    (df['BTB_num'] == BASELINE['BTB_num']) &
-    (df['BHT_num'] == BASELINE['BHT_num'])
-].copy()
-
-# --- PLOT 1: Instruction Cache (IC) vs Count ---
-# To see the effect of IC, we must fix DC to the baseline value
-df_ic_sweep = cache_sweep_base[
-    cache_sweep_base['DC_num'] == BASELINE['DC_num']
-].copy()
-
-plot_split_metric(
-    df_ic_sweep, 
-    x_col='IC', 
-    x_label='Instruction Cache Size', 
-    title_prefix='IC Size Sweep', 
-    filename_prefix='sweep_IC_only'
-)
-
-# --- PLOT 2: Data Cache (DC) vs Count ---
-# To see the effect of DC, we must fix IC to the baseline value
-df_dc_sweep = cache_sweep_base[
-    cache_sweep_base['IC_num'] == BASELINE['IC_num']
-].copy()
-
-plot_split_metric(
-    df_dc_sweep, 
-    x_col='DC', 
-    x_label='Data Cache Size', 
-    title_prefix='DC Size Sweep', 
-    filename_prefix='sweep_DC_only'
-)
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_exampleGenerated: utilization_plots_cache_2d/sweep_IC_only_BRAM.png
-Generated: utilization_plots_cache_2d/sweep_DC_only_BRAM.png
-#+end_example
-:end:
-
-#+begin_src jupyter-python
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.colors as mcolors
-import numpy as np
-import os
-from mpl_toolkits.mplot3d import Axes3D
-
-# -----------------------------------------------------------------------------
-# 1. CONFIGURATION
-# -----------------------------------------------------------------------------
-INPUT_CSV = "cva6_experiments_stages_summary_final.csv"
-OUTPUT_DIR = "utilization_plots_3d_rotated"
-
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-
-# Enable LaTeX styling
-try:
-    plt.rc('text', usetex=True)
-    plt.rc('font', family='serif')
-except:
-    pass
-
-plt.rcParams['figure.dpi'] = 300
-
-BASELINE = {
-    'ICw_num': 4,
-    'DCw_num': 4,
-    'BTB_num': 16,   'BHT_num': 16,   'RAS_num': 2
-}
-
-# -----------------------------------------------------------------------------
-# 2. HELPER FUNCTIONS
-# -----------------------------------------------------------------------------
-def parse_size(val):
-    if isinstance(val, str):
-        val = val.lower()
-        if 'k' in val: return int(float(val.replace('k', '')) * 1024)
-        if 'w' in val: return int(val.replace('w', ''))
-        return int(val)
-    return val
-
-def format_size_label(num_bytes):
-    if num_bytes >= 1024:
-        return f"{int(num_bytes/1024)}k"
-    return str(num_bytes)
-
-# -----------------------------------------------------------------------------
-# 3. DATA LOADING
-# -----------------------------------------------------------------------------
-try:
-    df = pd.read_csv(INPUT_CSV)
-    for col in ['IC', 'ICw', 'DC', 'DCw', 'BTB', 'BHT', 'RAS']:
-        if col in df.columns:
-            df[f'{col}_num'] = df[col].apply(parse_size)
-except FileNotFoundError:
-    print(f"Error: {INPUT_CSV} not found.")
-    exit()
-
-# -----------------------------------------------------------------------------
-# 4. PLOTTING FUNCTION (Rotated Views)
-# -----------------------------------------------------------------------------
-def plot_3d_rotated_views(df_filtered, filename_prefix):
-    if df_filtered.empty: return
-
-    # We only care about BRAM as per previous context, but easy to add others
-    metrics = ['BRAM'] 
-
-    stages = [
-        ('S1_Fetch', 'Fetch', '#4e79a7'),        # Blue
-        ('S2_Decode', 'Decode', '#f28e2b'),      # Orange
-        ('S3_Issue_Net', 'Issue', '#e15759'),    # Red
-        ('S4_Execute_Net', 'Execute', '#76b7b2'),# Cyan
-        ('S5_Memory_Total', 'Memory', '#59a14f'),# Green
-        ('S6_Commit', 'Commit', '#edc948')       # Yellow
-    ]
-
-    # Data Prep
-    ic_sizes = sorted(df_filtered['IC_num'].unique())
-    dc_sizes = sorted(df_filtered['DC_num'].unique())
-    ic_map = {val: i for i, val in enumerate(ic_sizes)}
-    dc_map = {val: i for i, val in enumerate(dc_sizes)}
-    ic_labels = [format_size_label(x) for x in ic_sizes]
-    dc_labels = [format_size_label(x) for x in dc_sizes]
-
-    for metric in metrics:
-        fig = plt.figure(figsize=(14, 10)) # Large canvas
-        ax = fig.add_subplot(111, projection='3d')
-
-        # --- DRAW BARS ---
-        for _, row in df_filtered.iterrows():
-            ic_val = row['IC_num']
-            dc_val = row['DC_num']
-            x_idx = ic_map[ic_val]
-            y_idx = dc_map[dc_val]
-            current_z = 0
-            
-            for stage_code, stage_name, stage_color in stages:
-                col_name = f"{stage_code}_{metric}"
-                height = row[col_name]
-                if pd.notna(height) and height > 0:
-                    ax.bar3d(x_idx - 0.25, y_idx - 0.25, current_z, 
-                             0.5, 0.5, height, # Slightly wider bars
-                             color=stage_color, shade=True)
-                    current_z += height
-
-        # --- LABELS ---
-        ax.set_xticks(range(len(ic_sizes)))
-        ax.set_xticklabels(ic_labels, fontsize=10, rotation=-15, ha='left')
-        ax.set_yticks(range(len(dc_sizes)))
-        ax.set_yticklabels(dc_labels, fontsize=10, rotation=15, ha='right')
-        
-        ax.set_xlabel(r'\textbf{Instruction Cache}', labelpad=15, fontsize=12)
-        ax.set_ylabel(r'\textbf{Data Cache}', labelpad=15, fontsize=12)
-        ax.set_zlabel(rf'\textbf{{{metric} Count}}', labelpad=10, fontsize=12)
-        ax.set_title(rf'\textbf{{{metric} Distribution}}', fontsize=18)
-
-        # Legend
-        legend_handles = [mpatches.Patch(color=color, label=name) for _, name, color in stages]
-        ax.legend(handles=legend_handles[::-1], bbox_to_anchor=(1.05, 1), loc='upper left', title="Stage")
-
-        # --- SAVE 3 DIFFERENT VIEWS ---
-
-        # 1. Standard Isometric View
-        ax.view_init(elev=30, azim=-60)
-        plt.savefig(os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_iso.png"), bbox_inches='tight')
-        print(f"Saved ISO view for {metric}")
-
-        # 2. Instruction Cache View (Looking at the X-Z plane)
-        # azim=-90 aligns the Y-axis (Data Cache) away from viewer, showing IC clearly
-        ax.view_init(elev=10, azim=-90)
-        plt.savefig(os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_side_IC.png"), bbox_inches='tight')
-        print(f"Saved IC side view for {metric}")
-
-        # 3. Data Cache View (Looking at the Y-Z plane)
-        # azim=0 aligns the X-axis (Instruction Cache) away from viewer, showing DC clearly
-        ax.view_init(elev=10, azim=0)
-        plt.savefig(os.path.join(OUTPUT_DIR, f"{filename_prefix}_{metric}_side_DC.png"), bbox_inches='tight')
-        print(f"Saved DC side view for {metric}")
-
-        # plt.close()
-        plt.show()
-
-# -----------------------------------------------------------------------------
-# 5. EXECUTE
-# -----------------------------------------------------------------------------
+# --- SWEEP 1: Cache Sizes (3D STACKED PLOT) ---
 s1 = df[
     (df['ICw_num'] == BASELINE['ICw_num']) &
     (df['DCw_num'] == BASELINE['DCw_num']) &
@@ -2372,16 +2430,57 @@ s1 = df[
     (df['BHT_num'] == BASELINE['BHT_num'])
 ].copy()
 
-plot_3d_rotated_views(s1, 'sweep_cache')
+plot_3d_stacked_cache_sweep(s1, 'sweep_cache')
+
+# --- SWEEP 2: Associativity (Standard 2D) ---
+s2 = df[
+    (df['IC_num'] == BASELINE['IC_num']) &
+    (df['DC_num'] == BASELINE['DC_num']) &
+    (df['BTB_num'] == BASELINE['BTB_num']) &
+    (df['BHT_num'] == BASELINE['BHT_num'])
+].copy()
+plot_split_metric(s2, 'ICw', 'Associativity (Ways)', 'Associativity Sweep', 'sweep_assoc')
+
+# --- SWEEP 3: BTB Size (Standard 2D) ---
+s3 = df[
+    (df['IC_num'] == BASELINE['IC_num']) &
+    (df['ICw_num'] == BASELINE['ICw_num']) &
+    (df['DC_num'] == BASELINE['DC_num']) &
+    (df['DCw_num'] == BASELINE['DCw_num']) &
+    (df['BHT_num'] == BASELINE['BHT_num'])
+].copy()
+plot_split_metric(s3, 'BTB', 'BTB Entries', 'BTB Size Sweep', 'sweep_btb')
+
+# --- SWEEP 4: BHT Size (Standard 2D) ---
+s4 = df[
+    (df['IC_num'] == BASELINE['IC_num']) &
+    (df['ICw_num'] == BASELINE['ICw_num']) &
+    (df['DC_num'] == BASELINE['DC_num']) &
+    (df['DCw_num'] == BASELINE['DCw_num']) &
+    (df['BTB_num'] == BASELINE['BTB_num'])
+].copy()
+plot_split_metric(s4, 'BHT', 'BHT Entries', 'BHT Size Sweep', 'sweep_bht')
 #+end_src
 
 #+RESULTS:
 :results:
-#+begin_exampleSaved ISO view for BRAM
-Saved IC side view for BRAM
-Saved DC side view for BRAM
+#+begin_exampleGenerated: utilization_plots_auto_final/sweep_cache_LUT_3d.png
+Generated: utilization_plots_auto_final/sweep_cache_FF_3d.png
+Generated: utilization_plots_auto_final/sweep_cache_BRAM_3d.png
+Generated: utilization_plots_auto_final/sweep_cache_DSP_3d.png
+Generated: utilization_plots_auto_final/sweep_assoc_LUT.png
+Generated: utilization_plots_auto_final/sweep_assoc_FF.png
+Generated: utilization_plots_auto_final/sweep_assoc_BRAM.png
+Generated: utilization_plots_auto_final/sweep_assoc_DSP.png
+Generated: utilization_plots_auto_final/sweep_btb_LUT.png
+Generated: utilization_plots_auto_final/sweep_btb_FF.png
+Generated: utilization_plots_auto_final/sweep_btb_BRAM.png
+Generated: utilization_plots_auto_final/sweep_btb_DSP.png
+Generated: utilization_plots_auto_final/sweep_bht_LUT.png
+Generated: utilization_plots_auto_final/sweep_bht_FF.png
+Generated: utilization_plots_auto_final/sweep_bht_BRAM.png
+Generated: utilization_plots_auto_final/sweep_bht_DSP.png
 #+end_example
-[[file:./.ob-jupyter/5c4f356c0fe7a193d6a0071d47b861e99cf7e116.png]]
 :end:
 
 * SoC resource usage
@@ -2559,14 +2658,6 @@ plot_soc_pie_breakdown(df, 'LUT')
 plot_soc_pie_breakdown(df, 'FF')
 plot_core_vs_uncore_scaling(df)
 #+end_src
-
-#+RESULTS:
-:results:
-#+begin_exampleGenerated: soc_architecture_plots/soc_breakdown_pie_LUT.png
-Generated: soc_architecture_plots/soc_breakdown_pie_FF.png
-Generated: soc_architecture_plots/soc_scaling_trend_LUT.png
-#+end_example
-:end:
 
 #+begin_src jupyter-python
 import pandas as pd

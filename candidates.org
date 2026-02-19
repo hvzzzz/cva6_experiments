@@ -755,7 +755,8 @@ import re
 import os
 
 # ================= CONFIGURATION =================
-INPUT_CSV = "./results/sweep_results.csv"
+# INPUT_CSV = "./results/sweep_results.csv"
+INPUT_CSV = "./results/sweep_bench_total.csv"
 
 BASELINE = {
     'IC_SIZE': '4k',
@@ -833,6 +834,8 @@ def main():
             # Identify Baseline
             if (p['IC_SIZE'] == BASELINE['IC_SIZE'] and 
                 p['IC_ASSOC'] == BASELINE['IC_ASSOC'] and 
+                p['DC_SIZE'] == BASELINE['DC_SIZE'] and 
+                p['DC_ASSOC'] == BASELINE['DC_ASSOC'] and 
                 p['BTB'] == BASELINE['BTB'] and 
                 p['BHT'] == BASELINE['BHT']):
                 sweeps['BASELINE'].append(f"{bitstream} (REF)")
@@ -888,50 +891,185 @@ if __name__ == "__main__":
 
 #+RESULTS:
 :results:
-#+begin_exampleReading ./results/sweep_results.csv...
+#+begin_exampleReading ./results/sweep_bench_total.csv...
 
 ============================================================
   VALID EXPERIMENTS (Ready for Processing)
 ============================================================
 
->>> BASELINE (1 items)
+>>> BASELINE (5 items)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
 
->>> CACHE_SIZE (3 items)
+>>> CACHE_SIZE (30 items)
   - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
   - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
   - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
 
->>> ASSOCIATIVITY (4 items)
+>>> ASSOCIATIVITY (20 items)
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
   - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
   - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
   - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
   - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
 
->>> BTB_SIZE (12 items)
+>>> BTB_SIZE (60 items)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 64]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB64_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 64]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB128_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB128_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB128_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB128_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB128_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB256_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB256_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB256_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB256_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 256]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB256_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 256]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB512_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB512_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB512_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB512_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB512_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB1024_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB1024_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB1024_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB1024_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 1024]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB1024_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 1024]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB2048_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB2048_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB2048_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB2048_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB2048_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB4096_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB4096_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB4096_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB4096_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 4096]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB4096_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 4096]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8192_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8192_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8192_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8192_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB8192_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16384_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16384_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16384_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16384_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 16384]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16384_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 16384]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32768_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32768]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32768_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32768]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32768_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32768]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32768_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32768]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB32768_BHT16_RAS2_ITLB4_DTLB4.bit.bin [BTB: 32768]
 
->>> BHT_SIZE (10 items)
+>>> BHT_SIZE (50 items)
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin [BHT: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin [BHT: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin [BHT: 32]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin [BHT: 32]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT32_RAS2_ITLB4_DTLB4.bit.bin [BHT: 32]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin [BHT: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin [BHT: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin [BHT: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin [BHT: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT64_RAS2_ITLB4_DTLB4.bit.bin [BHT: 64]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin [BHT: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin [BHT: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin [BHT: 128]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin [BHT: 128]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT128_RAS2_ITLB4_DTLB4.bit.bin [BHT: 128]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT256_RAS2_ITLB4_DTLB4.bit.bin [BHT: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT256_RAS2_ITLB4_DTLB4.bit.bin [BHT: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT256_RAS2_ITLB4_DTLB4.bit.bin [BHT: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT256_RAS2_ITLB4_DTLB4.bit.bin [BHT: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT256_RAS2_ITLB4_DTLB4.bit.bin [BHT: 256]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT512_RAS2_ITLB4_DTLB4.bit.bin [BHT: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT512_RAS2_ITLB4_DTLB4.bit.bin [BHT: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT512_RAS2_ITLB4_DTLB4.bit.bin [BHT: 512]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT512_RAS2_ITLB4_DTLB4.bit.bin [BHT: 512]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT512_RAS2_ITLB4_DTLB4.bit.bin [BHT: 512]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT1024_RAS2_ITLB4_DTLB4.bit.bin [BHT: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT1024_RAS2_ITLB4_DTLB4.bit.bin [BHT: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT1024_RAS2_ITLB4_DTLB4.bit.bin [BHT: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT1024_RAS2_ITLB4_DTLB4.bit.bin [BHT: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT1024_RAS2_ITLB4_DTLB4.bit.bin [BHT: 1024]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT2048_RAS2_ITLB4_DTLB4.bit.bin [BHT: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT2048_RAS2_ITLB4_DTLB4.bit.bin [BHT: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT2048_RAS2_ITLB4_DTLB4.bit.bin [BHT: 2048]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT2048_RAS2_ITLB4_DTLB4.bit.bin [BHT: 2048]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT2048_RAS2_ITLB4_DTLB4.bit.bin [BHT: 2048]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT4096_RAS2_ITLB4_DTLB4.bit.bin [BHT: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT4096_RAS2_ITLB4_DTLB4.bit.bin [BHT: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT4096_RAS2_ITLB4_DTLB4.bit.bin [BHT: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT4096_RAS2_ITLB4_DTLB4.bit.bin [BHT: 4096]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT4096_RAS2_ITLB4_DTLB4.bit.bin [BHT: 4096]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT8192_RAS2_ITLB4_DTLB4.bit.bin [BHT: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT8192_RAS2_ITLB4_DTLB4.bit.bin [BHT: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT8192_RAS2_ITLB4_DTLB4.bit.bin [BHT: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT8192_RAS2_ITLB4_DTLB4.bit.bin [BHT: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT8192_RAS2_ITLB4_DTLB4.bit.bin [BHT: 8192]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16384_RAS2_ITLB4_DTLB4.bit.bin [BHT: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16384_RAS2_ITLB4_DTLB4.bit.bin [BHT: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16384_RAS2_ITLB4_DTLB4.bit.bin [BHT: 16384]
+  - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16384_RAS2_ITLB4_DTLB4.bit.bin [BHT: 16384]
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16384_RAS2_ITLB4_DTLB4.bit.bin [BHT: 16384]
 
 ============================================================
@@ -943,65 +1081,91 @@ if __name__ == "__main__":
       Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
   [X] ariane_IC64k_4w_128L_DC64k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
       Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC128k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC256k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC32k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC4k_4w_128L_DC128k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC4k_4w_128L_DC256k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC4k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC4k_4w_128L_DC64k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC64k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC128k_4w_128L_DC128k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC128k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC256k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC32k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC32k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC4k_4w_128L_DC128k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC4k_4w_128L_DC256k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC4k_4w_128L_DC32k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC4k_4w_128L_DC64k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
+  [X] ariane_IC64k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=SHELL_FAIL, Unix=SHELL_FAIL
+  [X] ariane_IC64k_4w_128L_DC64k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin
+      Status: NPB=BOOT_TIMEOUT, Unix=BOOT_TIMEOUT
 #+end_example
 :end:
 
-#+begin_src jupyter-python :results output drawer :exports results
+#+begin_src jupyter-python
 import csv
 import re
 import os
 
 # ================= CONFIGURATION =================
-# Input File
-INPUT_CSV = "./results/sweep_results.csv"
+INPUT_CSV = "./results/sweep_bench_total.csv"
 
 # Output Files
 OUTPUT_FILES = {
-    'CACHE': "./results/sweep_cache.csv",
-    'ASSOC': "./results/sweep_assoc.csv",
-    'BTB':   "./results/sweep_btb.csv",
-    'BHT':   "./results/sweep_bht.csv"
+    'CACHE': "./results/sweep_cache_total.csv",
+    'ASSOC': "./results/sweep_assoc_total.csv",
+    'BTB':   "./results/sweep_btb_total.csv",
+    'BHT':   "./results/sweep_bht_total.csv"
 }
 
-# Directories containing the raw .txt files
-# Make sure you have copied these folders from the board to your PC!
 NPB_DIR = "/home/han4n/cva6_experiments/runs/NPB_auto"
 UNIX_DIR = "/home/han4n/cva6_experiments/runs/UnixBench_auto"
 
-# Baseline Configuration (The Reference)
-# This config is added to ALL sweep files for comparison
+# Baseline Configuration
 BASELINE = {
     'IC_SIZE': '4k', 'IC_ASSOC': '4',
     'DC_SIZE': '4k', 'DC_ASSOC': '4',
     'BTB': '16',     'BHT': '16'
 }
 
-# Regex to parse the bitstream filename
 FILENAME_PATTERN = re.compile(
     r"ariane_IC(\d+k)_(\d+)w_.*?_DC(\d+k)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_"
 )
 
 # --- CONTENT PARSING REGEX ---
-# NPB
 NPB_NAME_REGEX   = re.compile(r"NPB_([A-Z]+)_S")
 NPB_SCORE_REGEX  = re.compile(r"Mop/s total\s*=\s*([\d\.]+)")
-
-# UnixBench
 UNIX_NAME_REGEX  = re.compile(r"([A-Za-z_]+)")
 UNIX_COUNT_REGEX = re.compile(r"COUNT\|([\d\.]+)\|\d+\|([A-Za-z]+)")
-
-# PAPI Metrics (Instructions, Cycles, IPC)
 INST_REGEX = re.compile(r"\[PAPI\] Instructions:\s+(\d+)")
 CYC_REGEX  = re.compile(r"\[PAPI\] Cycles:\s+(\d+)")
 IPC_REGEX  = re.compile(r"\[PAPI\] IPC:\s+([\d\.]+)")
 
-# Error codes to skip
 ERROR_CODES = ["BOOT_TIMEOUT", "HANG_TIMEOUT", "FLASH_FAIL", "ERROR", "SKIPPED"]
 
 # =================================================
 
 def parse_bitstream_name(filename):
-    """Extracts parameters from the bitstream filename."""
     match = FILENAME_PATTERN.search(filename)
     if match:
         return {
@@ -1012,58 +1176,34 @@ def parse_bitstream_name(filename):
     return None
 
 def parse_content_block(block_text, suite_type):
-    """Parses a single benchmark block (between BEGIN_TEST and END_TEST)."""
     data = {'score': '0', 'units': '-', 'inst': '0', 'cyc': '0', 'ipc': '0'}
-    
-    # 1. Parse Score & Units
     if suite_type == 'NPB':
         m = NPB_SCORE_REGEX.search(block_text)
         if m:
-            data['score'] = m.group(1)
-            data['units'] = "Mop/s"
-            
+            data['score'], data['units'] = m.group(1), "Mop/s"
     elif suite_type == 'UnixBench':
-        # Finds first occurrence of COUNT (handles Context Switching duplicates)
         m = UNIX_COUNT_REGEX.search(block_text)
         if m:
-            data['score'] = m.group(1)
-            data['units'] = m.group(2)
+            data['score'], data['units'] = m.group(1), m.group(2)
 
-    # 2. Parse PAPI Metrics
-    m_inst = INST_REGEX.search(block_text)
-    m_cyc = CYC_REGEX.search(block_text)
-    m_ipc = IPC_REGEX.search(block_text)
-
+    m_inst, m_cyc, m_ipc = INST_REGEX.search(block_text), CYC_REGEX.search(block_text), IPC_REGEX.search(block_text)
     if m_inst: data['inst'] = m_inst.group(1)
     if m_cyc:  data['cyc']  = m_cyc.group(1)
     if m_ipc:  data['ipc']  = m_ipc.group(1)
-    
     return data
 
 def process_file_content(filepath, suite_type):
-    """Reads a file, splits it by test blocks, and returns a dict of results."""
     results = {}
-    
-    if not os.path.exists(filepath):
-        # Only print once per run to avoid spam
-        # print(f"[WARN] File missing: {filepath}")
-        return results
-
+    if not os.path.exists(filepath): return results
     try:
         with open(filepath, 'r', errors='replace') as f:
             content = f.read()
-    except Exception as e:
-        print(f"[WARN] Read error {filepath}: {e}")
-        return results
+    except: return results
 
-    # Split content by the test delimiter
     blocks = content.split('>>>BEGIN_TEST|')
-    
     for block in blocks[1:]:
         lines = block.split('\n', 1)
-        header = lines[0].strip()
-        body = lines[1] if len(lines) > 1 else ""
-
+        header, body = lines[0].strip(), lines[1] if len(lines) > 1 else ""
         bench_name = None
         if suite_type == 'NPB':
             m = NPB_NAME_REGEX.match(header)
@@ -1071,97 +1211,75 @@ def process_file_content(filepath, suite_type):
         elif suite_type == 'UnixBench':
             m = UNIX_NAME_REGEX.match(header)
             if m: bench_name = m.group(1)
-
         if bench_name:
             results[bench_name] = parse_content_block(body, suite_type)
-
     return results
 
 def get_config_label(p, sweep_type):
-    """Generates the label (first column) based on the sweep type."""
-    if sweep_type == 'CACHE': return f"IC/DC {p['IC_SIZE']}"
-    if sweep_type == 'ASSOC': return f"{p['IC_ASSOC']}w"
+    if sweep_type == 'CACHE': return f"IC{p['IC_SIZE']}_DC{p['DC_SIZE']}"
+    if sweep_type == 'ASSOC': return f"IC{p['IC_ASSOC']}w_DC{p['DC_ASSOC']}w"
     if sweep_type == 'BTB':   return f"BTB{p['BTB']}"
     if sweep_type == 'BHT':   return f"BHT{p['BHT']}"
     return "Unknown"
 
 def generate_rows(p, sweep_type, npb_data, unix_data):
-    """Creates the list of CSV rows for a specific config."""
+    """Creates rows with decoupled IC and DC size columns."""
     rows = []
-    config_label = get_config_label(p, sweep_type)
+    label = get_config_label(p, sweep_type)
 
-    # NPB Benchmarks
+    def format_row(suite, bname, d):
+        # Added ic_size and dc_size as separate columns (index 1 and 2)
+        return [label, p['IC_SIZE'], p['DC_SIZE'], suite, bname, d['score'], d['units'], d['inst'], d['cyc'], d['ipc']]
+
     for bname in ['EP', 'IS', 'CG', 'MG', 'FT', 'BT', 'SP', 'LU']:
         if bname in npb_data:
-            d = npb_data[bname]
-            rows.append([config_label, "NPB", bname, d['score'], d['units'], d['inst'], d['cyc'], d['ipc']])
+            rows.append(format_row("NPB", bname, npb_data[bname]))
 
-    # UnixBench Benchmarks
     unix_order = ['Arithmetic_Overhead', 'Arithmetic_Register', 'Arithmetic_Short', 'Arithmetic_Int', 
                   'Dhrystone', 'Arithmetic_Double', 'Whetstone', 'Syscall_Mix', 'Syscall_GetPID', 
                   'Syscall_Exec', 'Pipe_Throughput', 'Context_Switching']
     for bname in unix_order:
         if bname in unix_data:
-            d = unix_data[bname]
-            rows.append([config_label, "UnixBench", bname, d['score'], d['units'], d['inst'], d['cyc'], d['ipc']])
-            
+            rows.append(format_row("UnixBench", bname, unix_data[bname]))
     return rows
 
-def is_error(filename):
-    """Checks if the filename field contains an error code."""
-    return any(code in filename for code in ERROR_CODES)
-
 def main():
-    print("Starting Processing...")
-    
-    # Buffers to hold data for each file
     csv_buffers = { 'CACHE': [], 'ASSOC': [], 'BTB': [], 'BHT': [] }
     
     with open(INPUT_CSV, 'r') as f:
         reader = csv.reader(f)
-        header = next(reader, None)
+        next(reader, None)
 
         for row in reader:
             if not row or len(row) < 3: continue
             bitstream, npb_file, unix_file = row[0], row[1], row[2]
-
-            # Skip failed experiments
-            if is_error(npb_file) or is_error(unix_file):
-                continue
+            if any(code in npb_file or code in unix_file for code in ERROR_CODES): continue
 
             p = parse_bitstream_name(bitstream)
             if not p: continue
 
-            # Parse the actual result files
             npb_data = process_file_content(os.path.join(NPB_DIR, npb_file), 'NPB')
             unix_data = process_file_content(os.path.join(UNIX_DIR, unix_file), 'UnixBench')
 
-            # Identify Baseline
-            is_baseline = (p['IC_SIZE'] == BASELINE['IC_SIZE'] and 
-                           p['IC_ASSOC'] == BASELINE['IC_ASSOC'] and 
-                           p['BTB'] == BASELINE['BTB'] and 
-                           p['BHT'] == BASELINE['BHT'])
+            is_baseline = (p['IC_SIZE'] == BASELINE['IC_SIZE'] and p['IC_ASSOC'] == BASELINE['IC_ASSOC'] and 
+                           p['DC_SIZE'] == BASELINE['DC_SIZE'] and p['DC_ASSOC'] == BASELINE['DC_ASSOC'] and 
+                           p['BTB'] == BASELINE['BTB'] and p['BHT'] == BASELINE['BHT'])
 
-            # --- DISTRIBUTE DATA TO BUFFERS ---
-            
-            # 1. Cache Sweep (Include if Baseline OR Cache Size changed)
-            if is_baseline or (p['IC_SIZE'] != BASELINE['IC_SIZE']):
+            # --- LOGIC: Send to CACHE buffer if IC or DC size differs from baseline ---
+            if is_baseline or (p['IC_SIZE'] != BASELINE['IC_SIZE']) or (p['DC_SIZE'] != BASELINE['DC_SIZE']):
                 csv_buffers['CACHE'].extend(generate_rows(p, 'CACHE', npb_data, unix_data))
 
-            # 2. Associativity Sweep (Include if Baseline OR Assoc changed)
-            if is_baseline or (p['IC_ASSOC'] != BASELINE['IC_ASSOC']):
+            if is_baseline or (p['IC_ASSOC'] != BASELINE['IC_ASSOC']) or (p['DC_ASSOC'] != BASELINE['DC_ASSOC']):
                 csv_buffers['ASSOC'].extend(generate_rows(p, 'ASSOC', npb_data, unix_data))
 
-            # 3. BTB Sweep (Include if Baseline OR BTB changed)
             if is_baseline or (p['BTB'] != BASELINE['BTB']):
                 csv_buffers['BTB'].extend(generate_rows(p, 'BTB', npb_data, unix_data))
 
-            # 4. BHT Sweep (Include if Baseline OR BHT changed)
             if is_baseline or (p['BHT'] != BASELINE['BHT']):
                 csv_buffers['BHT'].extend(generate_rows(p, 'BHT', npb_data, unix_data))
 
-    # --- WRITE TO FILES ---
-    header_row = ["config", "suite", "name", "score", "units", "instructions", "cycles", "ipc"]
+    # New Header with separate IC/DC columns
+    header_row = ["config", "ic_size", "dc_size", "suite", "name", "score", "units", "instructions", "cycles", "ipc"]
     
     for key, filename in OUTPUT_FILES.items():
         if csv_buffers[key]:
@@ -1170,10 +1288,6 @@ def main():
                 writer.writerow(header_row)
                 writer.writerows(csv_buffers[key])
             print(f"Created {filename}: {len(csv_buffers[key])} rows")
-        else:
-            print(f"Warning: No data found for {filename}")
-
-    print("Done!")
 
 if __name__ == "__main__":
     main()
@@ -1181,12 +1295,9 @@ if __name__ == "__main__":
 
 #+RESULTS:
 :results:
-#+begin_exampleStarting Processing...
-Created ./results/sweep_cache.csv: 80 rows
-Created ./results/sweep_assoc.csv: 100 rows
-Created ./results/sweep_btb.csv: 260 rows
-Created ./results/sweep_bht.csv: 220 rows
-Done!
+#+begin_exampleCreated ./results/sweep_cache_total.csv: 997 rows
+Created ./results/sweep_assoc_total.csv: 500 rows
+Created ./results/sweep_btb_total.csv: 1300 rows
+Created ./results/sweep_bht_total.csv: 1100 rows
 #+end_example
 :end:
-
