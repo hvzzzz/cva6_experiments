@@ -1371,9 +1371,23 @@ def prettify_config(conf):
     """Translates internal config names to descriptive publication labels."""
     if conf == "Ref": return "Baseline"
 
-    m = re.search(r'IC/DC (\d+)k', str(conf), re.IGNORECASE)
-    if m: return f"{m.group(1)}KB L1 Cache"
+    # Safely parses both IC and DC sizes (handles optional 'k')
+    m = re.search(r'IC(\d+)(k?)_DC(\d+)(k?)', str(conf), re.IGNORECASE)
+    if m: 
+        ic_val, ic_k, dc_val, dc_k = m.groups()
+        ic_unit = "KB" if ic_k.lower() == 'k' else "B"
+        dc_unit = "KB" if dc_k.lower() == 'k' else "B"
+        return f"IC {ic_val}{ic_unit} / DC {dc_val}{dc_unit}"
 
+    m = re.search(r'IC/DC\s*(\d+)(k?)', str(conf), re.IGNORECASE)
+    if m: 
+        unit = "KB" if m.group(2).lower() == 'k' else "B"
+        return f"IC {m.group(1)}{unit} / DC {m.group(1)}{unit}"
+
+    # Catch both "1w" and "IC1w_DC1w"
+    m = re.search(r'IC(\d+)w_DC(\d+)w', str(conf), re.IGNORECASE)
+    if m: return f"{m.group(1)}-Way Assoc"
+    
     m = re.search(r'^(\d+)w$', str(conf), re.IGNORECASE)
     if m: return f"{m.group(1)}-Way Assoc"
 
@@ -1386,9 +1400,35 @@ def prettify_config(conf):
     return conf
 
 def get_sort_value(config_str):
-    m = re.search(r'(\d+)', str(config_str))
-    if m: return int(m.group(1))
-    return 0
+    config_str = str(config_str)
+    
+    # Try to parse the *already prettified* format (since agg_data uses pretty names)
+    m = re.search(r'IC\s*(\d+)\s*(KB|B)\s*/\s*DC\s*(\d+)\s*(KB|B)', config_str, re.IGNORECASE)
+    if m:
+        ic_val = int(m.group(1)) * (1024 if m.group(2).upper() == 'KB' else 1)
+        dc_val = int(m.group(3)) * (1024 if m.group(4).upper() == 'KB' else 1)
+        return (ic_val, dc_val)
+
+    # Try raw format "IC4k_DC128"
+    m = re.search(r'IC(\d+)(k?)_DC(\d+)(k?)', config_str, re.IGNORECASE)
+    if m:
+        ic_val = int(m.group(1)) * (1024 if m.group(2).lower() == 'k' else 1)
+        dc_val = int(m.group(3)) * (1024 if m.group(4).lower() == 'k' else 1)
+        return (ic_val, dc_val)
+        
+    m = re.search(r'IC/DC\s*(\d+)(k?)', config_str, re.IGNORECASE)
+    if m:
+        val = int(m.group(1)) * (1024 if m.group(2).lower() == 'k' else 1)
+        return (val, val)
+
+    # Fallback for Associativity, BTB, etc.
+    m = re.search(r'(\d+)', config_str)
+    if m:
+        is_kilo = bool(re.search(fr'{m.group(1)}\s*(k|kb)', config_str, re.IGNORECASE))
+        val = int(m.group(1))
+        return (val * 1024 if is_kilo else val, 0)
+        
+    return (0, 0)
 
 def format_y_label(unit_str):
     unit_str = str(unit_str).strip()
@@ -1446,8 +1486,9 @@ for bench in benchmarks:
         ordered=True
     )
     
+    # UPDATE: Changed -1 to (-1, -1) to match tuple returns from get_sort_value
     subset['sort_val'] = subset.apply(
-        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
+        lambda row: (-1, -1) if row['sweep_type'] == 'Baseline' else get_sort_value(row['config']),
         axis=1
     )
     subset = subset.sort_values(by=['sweep_type', 'sort_val'])
@@ -1455,7 +1496,7 @@ for bench in benchmarks:
     # B. Apply Descriptive Labels
     subset['pretty_config'] = subset['config'].apply(prettify_config)
 
-    # C. Aggregate Data (Added observed=True to fix the first error)
+    # C. Aggregate Data
     agg_data = subset.groupby(['pretty_config', 'sweep_type'], observed=True, as_index=False).agg(
         score_mean=('score', 'mean'),
         score_min=('score', 'min'),
@@ -1466,9 +1507,9 @@ for bench in benchmarks:
         units=('units', 'first')
     )
     
-    # Re-apply sort after aggregation
+    # UPDATE: Changed -1 to (-1, -1) to match tuple returns from get_sort_value
     agg_data['sort_val'] = agg_data.apply(
-        lambda row: -1 if row['sweep_type'] == 'Baseline' else get_sort_value(row['pretty_config']),
+        lambda row: (-1, -1) if row['sweep_type'] == 'Baseline' else get_sort_value(row['pretty_config']),
         axis=1
     )
     agg_data = agg_data.sort_values(by=['sweep_type', 'sort_val'])
@@ -1484,11 +1525,10 @@ for bench in benchmarks:
         errorbar=None
     )
     
-    # Custom Error Bars for Score (Fixed precision issue)
+    # Custom Error Bars for Score
     for i, row in enumerate(agg_data.itertuples()):
         x_pos = i 
         y_mean = row.score_mean
-        # Force non-negative differences using max(0, ...)
         err_low = max(0, row.score_mean - row.score_min)
         err_high = max(0, row.score_max - row.score_mean)
         
@@ -1499,7 +1539,8 @@ for bench in benchmarks:
     raw_unit = agg_data['units'].iloc[0]
     ax1.set_ylabel(format_y_label(raw_unit), fontsize=12)
     ax1.set_xlabel("")
-    ax1.tick_params(axis='x', rotation=45, labelsize=10)
+    ax1.tick_params(axis='x', labelsize=10)
+    plt.setp(ax1.get_xticklabels(), rotation=45, ha='right', rotation_mode='anchor')
 
     # 2. Line Chart (IPC)
     ax2 = ax1.twinx()
@@ -1509,11 +1550,10 @@ for bench in benchmarks:
         markers="o", scale=0.7, ax=ax2, linestyles="-", errorbar=None
     )
     
-    # Custom Error Bars for IPC (Fixed precision issue)
+    # Custom Error Bars for IPC
     for i, row in enumerate(agg_data.itertuples()):
         x_pos = i
         y_mean = row.ipc_mean
-        # Force non-negative differences
         err_low = max(0, row.ipc_mean - row.ipc_min)
         err_high = max(0, row.ipc_max - row.ipc_mean)
 
@@ -1522,6 +1562,7 @@ for bench in benchmarks:
 
     ax2.set_ylabel(r"Efficiency [IPC]", color="red", fontsize=12)
     ax2.tick_params(axis='y', labelcolor="red")
+    ax2.set_ylim(bottom=0)
 
     # Baseline Reference Line
     base_rows = agg_data[agg_data['sweep_type'] == "Baseline"]
@@ -2143,9 +2184,12 @@ for sweep in sweeps:
     df_merged = pd.merge(df, base_clean, on=['suite', 'name'], how='inner')
 
     # Math
-    df_merged['Perf_Pct'] = (df_merged['base_score'] / df_merged['score']) * 100
-    df_merged['Cycles_Pct'] = (df_merged['base_cycles'] / df_merged['cycles']) * 100
+    # df_merged['Perf_Pct'] = (df_merged['base_score'] / df_merged['score']) * 100
+    # df_merged['Cycles_Pct'] = (df_merged['base_cycles'] / df_merged['cycles']) * 100
+    df_merged['Perf_Pct'] = (df_merged['score']/df_merged['base_score']) * 100
+    df_merged['Cycles_Pct'] = (df_merged['cycles']/df_merged['base_cycles'] ) * 100
 
+    
     # Clean Infs
     df_merged = df_merged.replace([np.inf, -np.inf], np.nan).dropna(subset=['Perf_Pct', 'Cycles_Pct'])
 
@@ -2316,11 +2360,18 @@ def prettify_config(conf):
     conf = str(conf)
     if conf == "Ref": return "Baseline"
     
-    # Cache
-    m = re.search(r'IC(\d+)k_DC(\d+)k', conf, re.IGNORECASE)
-    if m: return f"{m.group(1)}KB"
-    m = re.search(r'IC/DC (\d+)k', conf, re.IGNORECASE)
-    if m: return f"{m.group(1)}KB"
+    # Cache - Always output explicit IC / DC format
+    m = re.search(r'IC(\d+)(k?)_DC(\d+)(k?)', conf, re.IGNORECASE)
+    if m: 
+        ic_val, ic_k, dc_val, dc_k = m.groups()
+        ic_unit = "KB" if ic_k.lower() == 'k' else "B"
+        dc_unit = "KB" if dc_k.lower() == 'k' else "B"
+        return f"IC {ic_val}{ic_unit} / DC {dc_val}{dc_unit}"
+            
+    m = re.search(r'IC/DC\s*(\d+)(k?)', conf, re.IGNORECASE)
+    if m: 
+        unit = "KB" if m.group(2).lower() == 'k' else "B"
+        return f"IC {m.group(1)}{unit} / DC {m.group(1)}{unit}"
     
     # Assoc
     m = re.search(r'IC(\d+)w_DC(\d+)w', conf, re.IGNORECASE)
@@ -2337,14 +2388,33 @@ def prettify_config(conf):
     return conf
 
 def get_sort_value(config_str):
-    m = re.search(r'(\d+)', str(config_str))
-    if m: return int(m.group(1))
-    return 0
+    config_str = str(config_str)
+    
+    # Return a tuple: (IC_size, DC_size) to sort by IC first, then DC
+    m = re.search(r'IC(\d+)(k?)_DC(\d+)(k?)', config_str, re.IGNORECASE)
+    if m:
+        ic_val = int(m.group(1)) * (1024 if m.group(2).lower() == 'k' else 1)
+        dc_val = int(m.group(3)) * (1024 if m.group(4).lower() == 'k' else 1)
+        return (ic_val, dc_val)
+        
+    m = re.search(r'IC/DC\s*(\d+)(k?)', config_str, re.IGNORECASE)
+    if m:
+        val = int(m.group(1)) * (1024 if m.group(2).lower() == 'k' else 1)
+        return (val, val)
+
+    # Fallback for Associativity, BTB, etc. (returns tuple to keep sorting logic consistent)
+    m = re.search(r'(\d+)(k?)', config_str, re.IGNORECASE)
+    if m: 
+        val = int(m.group(1))
+        is_kilo = m.group(2).lower() == 'k'
+        return (val * 1024 if is_kilo else val, 0)
+        
+    return (0, 0)
 
 # --- 3. Colors ---
 RAINBOW_COLORS = [
     "#f38ba8", "#fab387", "#a6e3a1", "#74c7ec", 
-    "#fab387", "#FFD700", "#008000", "#00CED1"
+    "#cba6f7", "#FFD700", "#008000", "#00CED1"
 ]
 
 def get_rainbow_palette(n_colors):
@@ -2413,15 +2483,9 @@ for sweep in sweeps:
     df_merged = pd.merge(df, base_clean, on=['suite', 'name'], how='inner')
 
     # Math
-    # Score: (Base_Score / Current_Score) * 100 -> Lower score is better (execution time?) 
-    # OR if score is throughput (Higher is Better), usually Speedup = Current/Base.
-    # Keeping your original logic for Perf_Pct:
-    df_merged['Perf_Pct'] = (df_merged['base_score'] / df_merged['score']) * 100
-    
-    # IPC: (Baseline_IPC / Current_IPC) * 100
-    # As requested:
-    df_merged['IPC_Pct'] = (df_merged['base_ipc'] / df_merged['ipc']) * 100
-
+    df_merged['Perf_Pct'] = (df_merged['score']/df_merged['base_score']) * 100   
+    # df_merged['IPC_Pct'] = (df_merged['base_ipc'] / df_merged['ipc']) * 100
+    df_merged['IPC_Pct'] = (df_merged['ipc'] / df_merged['base_ipc']) * 100
     # Clean Infs
     df_merged = df_merged.replace([np.inf, -np.inf], np.nan).dropna(subset=['Perf_Pct', 'IPC_Pct'])
 
@@ -2473,8 +2537,7 @@ for sweep in sweeps:
             dodge=0.8,
             markers='D',
             scale=0.6,
-            join=False,       # Enable connecting lines
-            # linestyles='--', # Make them dashed
+            join=False,       
             errorbar=('pi', 100),
             err_kws={"linestyle": "--"},
             capsize=0.05,
@@ -2821,112 +2884,6 @@ Done! Plots saved to: /home/han4n/cva6_experiments/results/speedup_plot_instruct
 :end:
 
 * Utilization Automatic
-
-#+begin_src jupyter-python
-import pandas as pd
-import sys
-
-# -----------------------------------------------------------------------------
-# CONFIGURATION
-# -----------------------------------------------------------------------------
-INPUT_CSV = "cva6_experiments_stages_summary.csv"
-
-# -----------------------------------------------------------------------------
-# SCRIPT
-# -----------------------------------------------------------------------------
-try:
-    df = pd.read_csv(INPUT_CSV)
-except FileNotFoundError:
-    print(f"Error: {INPUT_CSV} not found.")
-    sys.exit(1)
-
-# Columns representing the breakdown stages
-stage_bram_cols = [
-    'S1_Fetch_BRAM', 'S2_Decode_BRAM', 'S3_Issue_Net_BRAM', 
-    'S4_Execute_Net_BRAM', 'S5_Memory_Total_BRAM', 'S6_Commit_BRAM'
-]
-
-# Filter for the two interesting cases
-# Case A: Large IC, Small DC
-case_a = df[(df['IC'] == '256k') & (df['DC'] == '4k')]
-
-# Case B: Small IC, Large DC
-case_b = df[(df['IC'] == '4k') & (df['DC'] == '256k')]
-
-def print_distribution(row, name):
-    print(f"\n{'='*40}")
-    print(f"DISTRIBUTION FOR: {name}")
-    print(f"{'='*40}")
-    
-    if row.empty:
-        print("Configuration not found in CSV.")
-        return
-
-    # Extract values
-    soc_total = row['SoC_Total_BRAM'].values[0]
-    stages_sum = row[stage_bram_cols].sum(axis=1).values[0]
-    unaccounted = soc_total - stages_sum
-    
-    # Print Table
-    print(f"{'Location':<25} | {'BRAM Count':>10}")
-    print("-" * 38)
-    
-    # Print Stages
-    for col in stage_bram_cols:
-        val = row[col].values[0]
-        # Clean up name for display
-        clean_name = col.replace('_BRAM', '')
-        print(f"{clean_name:<25} | {val:>10}")
-    
-    print("-" * 38)
-    print(f"{'Sum of Stages':<25} | {stages_sum:>10}")
-    print(f"{'UNACCOUNTED (SoC - Sum)':<25} | {unaccounted:>10}  <-- LIKELY HERE")
-    print("-" * 38)
-    print(f"{'SoC Total Reported':<25} | {soc_total:>10}")
-
-# Run analysis
-print_distribution(case_a, "IC=256k (Big IC), DC=4k")
-print_distribution(case_b, "IC=4k, DC=256k (Big DC)")
-#+end_src
-
-#+RESULTS:
-:results:
-#+begin_example
-========================================
-DISTRIBUTION FOR: IC=256k (Big IC), DC=4k
-========================================
-Location                  | BRAM Count
---------------------------------------
-S1_Fetch                  |          0
-S2_Decode                 |          0
-S3_Issue_Net              |          0
-S4_Execute_Net            |          0
-S5_Memory_Total           |         12
-S6_Commit                 |          0
---------------------------------------
-Sum of Stages             |         12
-UNACCOUNTED (SoC - Sum)   |         92  <-- LIKELY HERE
---------------------------------------
-SoC Total Reported        |        104
-
-========================================
-DISTRIBUTION FOR: IC=4k, DC=256k (Big DC)
-========================================
-Location                  | BRAM Count
---------------------------------------
-S1_Fetch                  |          0
-S2_Decode                 |          0
-S3_Issue_Net              |          0
-S4_Execute_Net            |          0
-S5_Memory_Total           |         88
-S6_Commit                 |          0
---------------------------------------
-Sum of Stages             |         88
-UNACCOUNTED (SoC - Sum)   |         16  <-- LIKELY HERE
---------------------------------------
-SoC Total Reported        |        104
-#+end_example
-:end:
 
 #+begin_src jupyter-python
 import pandas as pd
@@ -3901,12 +3858,6 @@ for metric in metrics:
 
 print(f"Success. All plots saved to {OUTPUT_DIR}")
 #+end_src
-
-#+RESULTS:
-:results:
-#+begin_exampleSuccess. All plots saved to baseline_detailed_piecharts_final
-#+end_example
-:end:
 
 #+begin_src jupyter-python
 import pandas as pd

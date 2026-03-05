@@ -767,9 +767,7 @@ BASELINE = {
     'BHT': '16'
 }
 
-FILENAME_PATTERN = re.compile(
-    r"ariane_IC(\d+k)_(\d+)w_.*?_DC(\d+k)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_"
-)
+FILENAME_PATTERN = re.compile( r"ariane_IC(\d+k?)_(\d+)w_.*?_DC(\d+k?)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_" )
 
 def parse_bitstream_name(filename):
     match = FILENAME_PATTERN.search(filename)
@@ -847,7 +845,13 @@ def main():
             
             elif p['IC_ASSOC'] != BASELINE['IC_ASSOC']:
                 sweeps['ASSOCIATIVITY'].append(f"{bitstream} [Assoc: {p['IC_ASSOC']}w]")
-
+                
+            if p['DC_SIZE'] != BASELINE['DC_SIZE']:
+                sweeps['CACHE_SIZE'].append(f"{bitstream} [Size: {p['DC_SIZE']}]")
+            
+            elif p['DC_ASSOC'] != BASELINE['DC_ASSOC']:
+                sweeps['ASSOCIATIVITY'].append(f"{bitstream} [Assoc: {p['DC_ASSOC']}w]")
+                                
             elif p['BTB'] != BASELINE['BTB']:
                 sweeps['BTB_SIZE'].append(f"{bitstream} [BTB: {p['BTB']}]")
 
@@ -904,39 +908,78 @@ if __name__ == "__main__":
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
   - ariane_IC4k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin (REF)
 
->>> CACHE_SIZE (30 items)
+>>> CACHE_SIZE (64 items)
+  - ariane_IC4k_4w_128L_DC1k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 1k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC4k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC4k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC4k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC4k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC2k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
+  - ariane_IC4k_4w_128L_DC2k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 2k]
   - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
-  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
-  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
   - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC4k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
   - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
-  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
-  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
-  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC4k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
   - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
   - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC4k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC4k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC4k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC8k_4w_128L_DC8k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 8k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC4k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC4k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC4k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC4k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
   - ariane_IC16k_4w_128L_DC4k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC4k_4w_128L_DC16k_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 16k]
+  - ariane_IC4k_4w_128L_DC128_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 128]
+  - ariane_IC4k_4w_128L_DC256_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 256]
+  - ariane_IC4k_4w_128L_DC512_4w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Size: 512]
 
->>> ASSOCIATIVITY (20 items)
+>>> ASSOCIATIVITY (40 items)
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
+  - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
   - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
   - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
   - ariane_IC4k_1w_128L_DC4k_1w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 1w]
@@ -947,11 +990,26 @@ if __name__ == "__main__":
   - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
   - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
   - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
+  - ariane_IC4k_2w_128L_DC4k_2w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 2w]
   - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
   - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
   - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
   - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
   - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_8w_128L_DC4k_8w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 8w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
+  - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
   - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
   - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
   - ariane_IC4k_16w_128L_DC4k_16w_128L_BTB16_BHT16_RAS2_ITLB4_DTLB4.bit.bin [Assoc: 16w]
@@ -1149,7 +1207,7 @@ BASELINE = {
 }
 
 FILENAME_PATTERN = re.compile(
-    r"ariane_IC(\d+k)_(\d+)w_.*?_DC(\d+k)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_"
+    r"ariane_IC(\d+k?)_(\d+)w_.*?_DC(\d+k?)_(\d+)w_.*?_BTB(\d+)_BHT(\d+)_"
 )
 
 # --- CONTENT PARSING REGEX ---
@@ -1295,7 +1353,7 @@ if __name__ == "__main__":
 
 #+RESULTS:
 :results:
-#+begin_exampleCreated ./results/sweep_cache_total.csv: 997 rows
+#+begin_exampleCreated ./results/sweep_cache_total.csv: 1077 rows
 Created ./results/sweep_assoc_total.csv: 500 rows
 Created ./results/sweep_btb_total.csv: 1300 rows
 Created ./results/sweep_bht_total.csv: 1100 rows

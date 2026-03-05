@@ -1510,19 +1510,22 @@ else:
 :results:
 #+begin_exampleReading from: /home/han4n/cva6_experiments/bitstreams/reports/full
 
-Success. Parsed 47 files.
+Success. Parsed 51 files.
 Data saved to: ./results/cva6_experiments_stages_summary_final.csv
 
 ============================================================
 FINAL INTEGRITY CHECK (SoC vs Core + Uncore)
 ============================================================
 [LUT] Status: Small Mismatch (Likely Glue Logic)
-    Avg Unaccounted: 2520.57
+    Avg Unaccounted: 2520.35
 ------------------------------------------------------------
 [FF] Status: Small Mismatch (Likely Glue Logic)
-    Avg Unaccounted: 2085.23
+    Avg Unaccounted: 2084.90
 ------------------------------------------------------------
-[BRAM] Status: PERFECT MATCH
+[BRAM] Status: Small Mismatch (Likely Glue Logic)
+    Avg Unaccounted: -12.00
+    NOTE: If BRAM Remainder is 0, the 4 BRAMs are now correctly in Uncore.
+------------------------------------------------------------
 [DSP] Status: PERFECT MATCH
 #+end_example
 :end:

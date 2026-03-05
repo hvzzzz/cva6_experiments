@@ -19,7 +19,7 @@ REMOTE_SWEEP_DIR = "sweep"
 
 KERNEL_START_SIGNALS = ["Linux version", "SBI specification", "[    0.000000]"]
 PROBE_CODE = "ARIANE_PING"
-CSV_FILENAME = "sweep_results_final_3.csv"
+CSV_FILENAME = "sweep_results_commit.csv"
 # =================================================
 
 
