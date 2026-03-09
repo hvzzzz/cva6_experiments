@@ -92,12 +92,6 @@
 #+attr_latex: :width 5.0cm :options angle=0 :placement [!htb]
 [[./figures/inria_logo.png]]
 
-
-
-# - context (background) 50%
-#   - motivation (roadmap).
-#   - CVA6.
-#   - logical blocks (where are the cache (assoc), bht,btb, commit, tlb) explain.
 ** The CVA6 Core :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
@@ -105,8 +99,8 @@
 #+BEAMER: \framesubtitle{Original Single Core Version}
 #+attr_org: :width 500
 #+name: fig:openhw
-#+attr_latex: :width 12cm :height 7cm :options angle=0 :placement [!htb]
-[[./figures/ariane_overview.png]]
+#+attr_latex: :width 12cm :options angle=0 :placement [!htb]
+[[./figures/cva6_block_complete1.jpg]]
 
 ** The CVA6 Core :B_frame:
 :PROPERTIES:
@@ -114,7 +108,7 @@
 :END:
 #+BEAMER: \framesubtitle{Benagil Team's Dual Core Version}
 #+attr_org: :width 500
-#+name: fig:openhw
+#+name: fig:dualcore
 #+attr_latex: :width \textwidth :options trim=0 0 50 0, clip :placement [H]
 [[./figures/multicore_cva6.pdf]]
 
@@ -134,7 +128,8 @@
 :BEAMER_env: exampleblock
 :END:
 
-- \small \textbf{RQ1} How does the sharing of functional units (starting with the FPU) between two CVA6 cores affect the trade-off between hardware area efficiency and multi-core performance?
+- \small How does the sharing of functional units (starting with the FPU) between two CVA6 cores affect the trade-off between hardware area efficiency and multi-core performance?
+- \small How to measure it accurately.
 
 ** Project Roadmap :B_frame:
 :PROPERTIES:
@@ -143,75 +138,234 @@
 
 #+attr_org: :width 500
 #+name: fig:roadmap
-#+latex: \vspace{-0.5cm}
-#+attr_latex: :width \paperwidth :options trim=30 480 0 10, clip :placement [H]
+#+attr_latex: :width \textwidth :options trim=0 0 0 0, clip :placement [H]
 #+results: roadmap
 [[file:roadmap.pdf]]
-* Performance Measurement
-** How do We Measure Performance? :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Experimental Setup}
-\small We evaluate the performance for well known workloads: Unixbench and NAS parallel Benchmarks (NPB).
-
-#+attr_org: :width 500
-#+name: fig:pynq
-#+attr_latex: :width 7.0cm :options angle=90 :placement [!htb]
-#+caption: CVA6 /Single Core/ deployment on a PYNQ-Z2 FPGA with PMod Modules
-[[./figures/pynq.jpeg]]
-
-# - \small CVA6 /Single Core/ deployment.
-
+* Performance and Resource Usage Measurement
 ** How do We Measure Performance? :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
 #+BEAMER: \framesubtitle{What do we measure?}
-*** Column 2 :BMCOL:
-:PROPERTIES:
-:BEAMER_col: 0.5
-:END:
+\small We evaluate performance using well-known workloads: UnixBench and the NAS Parallel Benchmarks (NPB). For each benchmark, we also measure instructions per cycle (/IPC/).
 
-\small Experimental setup
+      #+begin_equation
+#+begin_split
+$IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
+#+end_split
+#+end_equation
 
-#+attr_org: :width 500
-#+name: fig:pynq
-#+attr_latex: :width 5.0cm :options angle=90 :placement [!htb]
-[[./figures/pynq.jpeg]]
+- \small Hardware performance counters. /Single Core/ available performance counters:
+  - Number of Instructions
+  - Number of cycles
+   
+- \small Benchmark scores:
+  - \small NPB: *Mop/s (Millions of Operations per Second)*
+  - \small Unixbench: *Loops per second (lps), KB/sec, and operations per second*
 
-- \small CVA6 /Single Core/ deployment on a PYNQ-Z2 FPGA with PMod Modules.
-
-*** Column 1 :BMCOL:
-:PROPERTIES:
-:BEAMER_col: 0.5
-:END:
-
-\small Performance data:
-
-- \small Hardware counters: PAPI (instructions per cycle /IPC score/)
-- \small Benchmark scores.
-
-- experimental setup (pynq)          
-  - cross compilation of PAPI (not all counters all working).
-
-* Results
-** Performance Evaluation :B_frame:
+** How do We Measure Performance and Resource Usage? :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-- 2 slides scripts to evaluate performance 
-- graphs about the data (important ones)
-  - connect the sizes (cache, bht,...) to the results
+#+BEAMER: \framesubtitle{Experimental Setup}
+
+#+attr_org: :width 500
+#+name: fig:pynq
+#+attr_latex: :width 11.0cm :options angle=0 :placement [!htb]
+#+caption: CVA6 /Single Core/ deployment on a PYNQ-Z2 FPGA with PMod Modules
+[[./figures/pynq.jpeg]]
+    
+** How do We Measure Resource Usage? :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+*** Column 1 :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.6
+:END:
+#+attr_org: :width 500
+#+name: fig:pynq
+#+attr_latex: :width 6.3cm :options angle=0 :placement [!htb]
+#+caption: Zynq-7000 SoC
+[[./figures/PL_block.png]]
+*** Column 2 :BMCOL:
+:PROPERTIES:
+:BEAMER_col: 0.4
+:END:
+\footnotesize The SoC (System on a chip) is mapped onto the FPGA’s programmable logic, utilizing the following hardware resources to implement the CVA6 design:
+
+- \footnotesize Look Up Tables (*LUT*) for combinatorial logic.
+- \footnotesize Flip Flops (*FF*) for state storage
+- \footnotesize Block Random Access Memory (*BRAM*) for fast on-chip memory
+- \footnotesize Digital Signal Processor (*DSP*) for high-performance math calculations
+  
+** How do We Measure Resource Usage? :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEAMER: \framesubtitle{Initial LUT Usage Measurement}
+#+attr_org: :width 500
+#+name: fig:base_lut
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/soc_breakdown_bar_pie_h_final_LUT.png]]
+  
+** How do We Measure Resource Usage? :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEAMER: \framesubtitle{Initial FF Usage Measurement}
+#+attr_org: :width 500
+#+name: fig:base_ff
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/soc_breakdown_bar_pie_h_final_FF.png]]
+ 
+** How do We Measure Resource Usage? :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEAMER: \framesubtitle{Initial BRAM Usage Measurement}
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/soc_breakdown_bar_pie_h_final_BRAM.png]]
+
+** How do We Measure Resource Usage? :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEAMER: \framesubtitle{Initial DSP Usage Measurement}
+#+attr_org: :width 500
+#+name: fig:base_dsp
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/soc_breakdown_bar_pie_h_final_DSP.png]]
+* Experiments
+** Baseline Architecture :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+To study the effects of the micro-architectural parameters the following baseline parameters were used.
+#+label: tab:baseline_parameters
+#+attr_latex: :environment tabular :width \textwidth :align lll
+|------------------------------------+---------------+------------|
+| *Parameter*                          |          *Size* | *CVA6 Stage* |
+|------------------------------------+---------------+------------|
+| Data Cache                         | $4096[bytes]$ | Memory     |
+|------------------------------------+---------------+------------|
+| Data Cache Associativity           |             4 | Memory     |
+|------------------------------------+---------------+------------|
+| Data Cache Line Width              |           128 | Memory     |
+|------------------------------------+---------------+------------|
+| Instruction Cache                  | $4096[bytes]$ | Fetch      |
+|------------------------------------+---------------+------------|
+| Instruction Cache Associativity    |             4 | Fetch      |
+|------------------------------------+---------------+------------|
+| Instruction Cache Line Width       |           128 | Fetch      |
+|------------------------------------+---------------+------------|
+| Branch Target Buffer (BTB) Entries |            16 | Fetch      |
+|------------------------------------+---------------+------------|
+| Branch History Table (BHT) Entries |            16 | Fetch      |
+|------------------------------------+---------------+------------|
+| Retirement Width of the CPU        |             2 | Commit     |
+|------------------------------------+---------------+------------|
+** Parameter Sweeps :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+And the following parameters sweeps were proposed to study their effect on performance and resource utilization.
+
+#+label: tab:baseline_parameters
+#+attr_latex: :environment tabular :width \textwidth :align lll
+|---------------------+------------+----------------|
+| *Sweep*               | *Range*      | *CVA6 Stage*     |
+|---------------------+------------+----------------|
+| Data Cache          | $128[bytes]\to256k[bytes]$ | Memory         |
+|---------------------+------------+----------------|
+| Data / Instruction  | $1\to16$     | Memory / Fetch |
+| Cache Associativity |            |                |
+|---------------------+------------+----------------|
+| Instruction Cache   | $2k[bytes]\to256k[bytes]$  | Fetch          |
+|---------------------+------------+----------------|
+| BTB Entries         | $8\to32k$    | Fetch          |
+|---------------------+------------+----------------|
+| BHT Entries         | $16\to16k$   | Fetch          |
+|---------------------+------------+----------------|
+| Retirement Width    | $2\to1$      | Commit         |
+| of the CPU          |            |                |
+|---------------------+------------+----------------|
+** Automated Benchmarking Framework :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+# A script was written to automatically flash the bitstreams (Ethernet) and run the benchmarks (serial)
+To automate the design space exploration we developed a framework which uses the ARM core and the CVA6 flashed into the FPGA.
+#+attr_org: :width 500
+#+name: fig:base_dsp
+#+attr_latex: :width 7.0cm :options angle=0 :placement [!htb]
+[[./figures/bench.png]]
+
+* Results
+** Performance Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/cache_size_npb.png]]
+** Performance Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/cache_size_unixbench.png]]
+
+** Resource Usage Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/sweep_btb_BRAM.png]]
+
+** Resource Usage Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/sweep_assoc_LUT.png]]
+
+** Resource Usage Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+[[./figures/sweep_assoc_BRAM.png]]
+
+** Resource Usage Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 9.0cm :options angle=0 :placement [!htb]
+[[./figures/sweep_cache_BRAM_3d.png]]
+
 * Contributions    
 ** Contributions :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
 - contributions
-  - PR the NAS repo
-  - automated script for benchmarking
-  - analices in the performance ?
+  - PR the NAS repo link to the PR and the repo
+  - automated script for benchmarking 
+  - analices in the performance
 * Conclusion and Future work    
 ** Conclusion :B_frame:
 :PROPERTIES:
@@ -222,194 +376,13 @@
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-- future work
-
-* Contexto :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Evaluación de la energía consumida por el middleware IoTvar}
-- Para 2025, se esperan 100 mil millones de dispositivos IoT, con un impacto significativo en el consumo energético.
-- Un /middleware/ consciente de la energía optimiza el consumo del hardware al gestionar eficientemente el software.
-- *IoTvar* es un middleware de IoT que predice el consumo energético, pero solo para periodos de tiempo fijos.
-** Column 1 :BMCOL:
-:PROPERTIES:
-:BEAMER_col: 0.5
-:END:
 
 #+attr_org: :width 500
-#+name: fig:iot
-#+attr_latex: :width 5.5cm :options angle=0 :placement [!htb]
-#+caption: Plataforma IoT
-[[./figures/IoT.jpg]]
-
-** Column 2 :BMCOL:
-:PROPERTIES:
-:BEAMER_col: 0.5
-:END:
-
-#+attr_org: :width 500
-#+name: fig:iotvar_energy
-#+attr_latex: :width 5.5cm :options angle=0 :placement [!htb]
-#+caption: IoTvar energy layer
-[[./figures/iotvar_energy_components.png]]
-
-* Problema y objetivos de la investigación :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-** Problema :B_alertblock:
-:PROPERTIES:
-:BEAMER_env: alertblock
-:END:
-
-\small El modelo energético del estado del arte para middleware de IoT tiene tiempo de ejecución fijo y requiere calibración manual, lo que limita su uso más allá de entornos experimentales controlados.
-
-** Objetivos de la investigación :B_exampleblock:
-:PROPERTIES:
-:BEAMER_env: exampleblock
-:END:
-
-\small Nuestro objetivo es desarrollar un nuevo modelo energético para IoTvar que introduzca el tiempo como variable, permitiendo ajustar dinámicamente estrategias de consumo energético durante la ejecución.
-
-- \small \textbf{RQ1} ¿Cómo mejora la inclusión del tiempo como variable en el modelo energético la precisión de las predicciones de consumo de energía para el middleware IoTVar que se ejecuta en dispositivos que funcionan con baterías?
-
-* Propuesta: Un modelo basado en datos para estimar el consumo energético en el tiempo
-
-** Un modelo basado en datos :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Diseño del estudio: Setup de toma de Datos}
-
-#+attr_org: :width 500
-#+name: fig:hardware
-#+attr_latex: :width 12cm :options angle=0 :placement [!htb]
-[[./figures/hardware_setup.png]]
-
-
-
-** Un modelo basado en datos :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Diseño del estudio: IoTvar y el consumo energético}
-
-#+attr_org: :width 500
-#+name: fig:process
-#+attr_latex: :width 12cm :height 7cm :options angle=0 :placement [h]
-[[./figures/3.pdf]]
-
-
-** Un modelo basado en datos :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Simultaneous quantile regression}
-
-El modelo desarrollado tiene la siguiente estructura.
-
-#+attr_org: :width 500
-#+name: fig:process_2
-#+attr_latex: :width 12.5cm :options angle=0 :placement [h]
-[[./figures/4.pdf]]
-
-* Resultados del estudio
-
-** Resultados :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Nuestro modelo vs el modelo del estado del arte}
-
-\small Para comparar nuestro modelo se tomaron en cuenta dos casos. \\
-
-*** Column 1 :BMCOL:
-:PROPERTIES:
-:BEAMER_col: 0.5
-:END:
-
-\small Caso 1: $R_{G_{i}}=1[sec]$
-
-#+attr_org: :width 500
-#+name: fig:results_1
-#+attr_latex: :width 6.0cm :options angle=0 :placement [!htb]
-[[./figures/mine_vs.png]]
-
-*** Column 2 :BMCOL:
-:PROPERTIES:
-:BEAMER_col: 0.5
-:END:
-
-\small Caso 2: $R_{G_{i}}=60[sec]$
-
-#+attr_org: :width 500
-#+name: fig:results_2
-#+attr_latex: :width 6.0cm :options angle=0 :placement [!htb]
-[[./figures/mine_vs_2.png]]
-
-
-
-
-** Resultados :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{Nuestro modelo vs el modelo del estado del arte}
-- Caso 1: $R_{G_{i}}=1[sec]$
-#+name: tab:metrics_results
-#+attr_latex: :environment tabular :width \textwidth :align |p{6cm}|p{4cm}| :placement [!htb]
-|-----------------+-------------------|
-| Modelo          |              RMSE |
-|-----------------+-------------------|
-| Estado del arte |  2.27289223970008 |
-| Nuestro trabajo | 2.346818068057912 |
-|-----------------+-------------------|
-- Caso 2: $R_{G_{i}}=60[sec]$
-#+name: tab:metrics_results_20segs
-#+attr_latex: :environment tabular :width \textwidth :align |p{6cm}|p{4cm}| :placement [!htb]
-|-----------------+-------------------|
-| Model           |              RMSE |
-|-----------------+-------------------|
-| Estado del arte | 637.3381020863869 |
-| Nuestro trabajo | 2.760910100099958 |
-|-----------------+-------------------|
-
-** Resultados :B_frame:
-:PROPERTIES:
-:BEAMER_env: frame
-:END:
-#+BEAMER: \framesubtitle{RQ1}
-
-\small \textbf{RQ1} ¿Cómo mejora la inclusión del tiempo como variable en el modelo energético la precisión de las predicciones de consumo de energía para el middleware IoTVar que se ejecuta en dispositivos que funcionan con baterías?
-
-- \small La inclusión del tiempo como variable en el modelo energético tiene un impacto mínimo en la precisión de las predicciones.
-
-#+attr_org: :width 500
-#+name: fig:results_3
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
-[[./figures/5.pdf]]
-
-* Amenazas a la validez, conclusiones y trabajo futuro
-
-** Amenazas a la validez, conclusiones y trabajo futuro
-:PROPERTIES:
-:BEAMER_OPT: allowframebreaks
-:END:
-
-*** Amenazas a la validez
-- \small Precisión de las mediciones de consumo energético
-- \small Tasas de refresco variables en el middleware IoTvar
-- \small Limitaciones en los parámetros de IoTvar para monitoreo de energía
-*** Conclusiones
-- \small La inclusión del tiempo como variable en el modelo energético genera un modelo más general sin comprometer la precisión.
-- \small Las variables de IoTvar permiten predecir el consumo energético en función del tiempo.
-*** Trabajo Futuro
-- \small Realizar experimentos ejecutando el middleware IoTvar en otras placas (Odroid, BananaPi, etc.).
-- \small Automatizar el procedimiento para determinar la frecuencia de muestreo en diferentes dispositivos.
-- \small Ejecutar los experimentos en condiciones de temperatura controlada.
-- \small Evaluar la incorporación de variables físicas, como la temperatura, en la predicción del consumo energético.
-
+#+name: fig:roadmap
+#+attr_latex: :width \textwidth :options trim=0 0 0 0, clip :placement [H]
+#+results: roadmap_future
+[[file:roadmap_future.pdf]]
+  
 *  :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
@@ -425,40 +398,25 @@ El modelo desarrollado tiene la siguiente estructura.
 \end{huge}
 
 \begin{center}
-\textbf{hananquispec@outlook.com}
+\textbf{hanan.quispecondori@ip-paris.fr}
 
 \hspace{2.5cm}
 
-\scriptsize{\textcolor{ao-english}{This work has been partially supported by the \textbf{STIC AmSud project}: ``GreenSE4IoT - Towards Energy-efficient Software for Distributed Systems'' [STIC-AMSUD 22-STIC-04].}}
+\scriptsize{\textcolor{ao-english}{This work is being supported by the \textbf{BENAGIL TEAM}}}
 \end{center}
-
-
-\titlegraphic {
-\begin{tikzpicture}[overlay,remember picture]
-    \node[left=0.2cm] at (current page.335){
-        \includegraphics[width=1.5cm]{figures/STICAmSud.png}
-    };
-    \node[right=0.2cm] at (current page.207){
-        \includegraphics[width=1cm]{figures/logo_ENSIIE.png}
-        \includegraphics[width=2cm]{figures/E4C_logo.png}
-    };
-
-\end{tikzpicture}
-}
 
 \begin{multicols}{2}
 
 \begin{figure}
     \centering
-    \includegraphics[scale=0.25]{figures/STICAmSud.png}
+    \includegraphics[width=5cm]{figures/inria_logo.png}
 \end{figure}
 
 \columnbreak
 
-
 \begin{figure}
     \centering
-    \includegraphics[scale=0.1]{figures/listii.png}
+    \includegraphics[width=1.5cm]{figures/logo_TSP.png}
 \end{figure}
 
 \end{multicols}
@@ -467,24 +425,113 @@ El modelo desarrollado tiene la siguiente estructura.
 
 #+name: roadmap
 #+begin_src mermaid :file roadmap.pdf :args --scale 4 --pdfFit --viewportWidth 1600 --viewportHeight 600 --backgroundColor transparent :theme forest :eval never-export
-%%{init: { 
-  'theme': 'forest', 
-  'themeVariables': { 
-    'fontSize': '22px',
-    'sectionFontSize': '24px',
-    'fontFamily': 'arial'
-  },
-  'config': { 
-    'timeline': { 
-      'disableMultiline': false 
-    } 
-  } 
-} }%%
-timeline
-    Stage 1 (Baseline Measurements) : Deployment of CVA6 on the Pynq Z2 : Baseline SoC Utilization measurements (FF/LUT/BRAM) : Baseline NPB and Unixbench measurements
-    Stage 2 (Microarchitectural Study): Analysis of Data and Instruction cache sizes : Study of Branch Predictor and TLB size influence
-    Stage 3 (Performance Framework Development) : Automated framework for performance measurement : Integration of NAS Parallel Benchmarks : Integration of UnixBench suite
-    Stage 4 (Core Modification & Decoupling): Development of a modified CVA6 version : Implementation of an external module interface : Enabling connection for FPU management
-    Stage 5 (Arbitration Module Design): Development of the shared resource arbitrator : Implementation of pipeline stalling logic : Routing of results between multiple cores
-    Stage 6 (System Integration & Evaluation): Evaluation of performance and FPGA area (FF/LUT/BRAM) : Evaluation of performance NPB and Unixbench
+
+block-beta
+    columns 6
+    
+    %% ROW 1: HEADERS
+    H1["Stage 1<br>(Baseline<br>Measurements)"] 
+    H2["Stage 2<br>(Microarchitectural<br>Study)"] 
+    H3["Stage 3<br>(Performance<br>Framework<br>Development)"] 
+    H4["Stage 4<br>(Core<br>Modification &<br>Decoupling)"] 
+    H5["Stage 5<br>(Arbitration<br>Module<br>Design)"] 
+    H6["Stage 6<br>(System<br>Integration &<br>Evaluation)"]
+    
+    %% ROW 2
+    C1_1["Deployment of<br>CVA6 on the<br>Pynq Z2"] 
+    C2_1["Analysis of<br>Data and<br>Instruction<br>cache sizes"] 
+    C3_1["Automated<br>framework for<br>performance<br>measurement"] 
+    C4_1["Development<br>of a modified<br>CVA6 version"] 
+    C5_1["Development<br>of the shared<br>resource<br>arbitrator"] 
+    C6_1["Evaluation of<br>performance<br>and FPGA<br>utilization<br>(FF/LUT/BRAM)"]
+    
+    %% ROW 3
+    C1_2["Baseline SoC<br>Utilization<br>measurements<br>(FF/LUT/BRAM)"] 
+    C2_2["Study of<br>Branch<br>Predictor and<br>TLB size<br>influence"] 
+    C3_2["Integration of<br>NAS Parallel<br>Benchmarks"] 
+    C4_2["Implementation<br>of an external<br>module<br>interface [optional]"] 
+    C5_2["Implementation<br>of pipeline<br>stalling logic [optional]"] 
+    C6_2["Evaluation of<br>performance<br>NPB and<br>Unixbench"]
+    
+    %% ROW 4 (Using "space" for empty blocks so columns don't collapse)
+    C1_3["Baseline NPB<br>and Unixbench<br>measurements"] 
+    space 
+    C3_3["Integration of<br>UnixBench<br>suite"] 
+    C4_3["Enabling<br>connection for<br>FPU<br>management [optional]"] 
+    C5_3["Routing of<br>results<br>between<br>multiple cores [optional]"] 
+    space
+    
+    %% STYLES
+    classDef head1 fill:#a9cc66,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box1 fill:#d6f57d,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head2 fill:#8ef07a,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box2 fill:#bcfa96,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head3 fill:#c7da73,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box3 fill:#f7f6ad,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head4 fill:#74db69,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box4 fill:#90fa87,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head5 fill:#55d992,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box5 fill:#7afaaa,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head6 fill:#60d6c7,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box6 fill:#8bfaf1,stroke:#e0e0e0,stroke-width:2px,color:#000
+
+    class H1 head1
+    class C1_1,C1_2,C1_3 box1
+    class H2 head2
+    class C2_1,C2_2 box2
+    class H3 head3
+    class C3_1,C3_2,C3_3 box3
+    class H4 head4
+    class C4_1,C4_2,C4_3 box4
+    class H5 head5
+    class C5_1,C5_2,C5_3 box5
+    class H6 head6
+    class C6_1,C6_2 box6
+#+end_src 
+
+#+name: roadmap_future
+#+begin_src mermaid :file roadmap_future.pdf :args --scale 4 --pdfFit --viewportWidth 1600 --viewportHeight 600 --backgroundColor transparent :theme forest :eval never-export
+block-beta
+    columns 3
+    
+    %% ROW 1: HEADERS
+    H4["Stage 4<br>(Core<br>Modification &<br>Decoupling)"] 
+    H5["Stage 5<br>(Arbitration<br>Module<br>Design)"] 
+    H6["Stage 6<br>(System<br>Integration &<br>Evaluation)"]
+    
+    %% ROW 2
+    C4_1["Development<br>of a modified<br>CVA6 version"] 
+    C5_1["Development<br>of the shared<br>resource<br>arbitrator"] 
+    C6_1["Evaluation of<br>performance<br>and FPGA<br>utilization<br>(FF/LUT/BRAM)"]
+    
+    %% ROW 3
+    C4_2["Implementation<br>of an external<br>module<br>interface [optional]"] 
+    C5_2["Implementation<br>of pipeline<br>stalling logic [optional]"] 
+    C6_2["Evaluation of<br>performance<br>NPB and<br>Unixbench"]
+    
+    %% ROW 4 (Using "space" for empty blocks so columns don't collapse)
+    C4_3["Enabling<br>connection for<br>FPU<br>management [optional]"] 
+    C5_3["Routing of<br>results<br>between<br>multiple cores [optional]"] 
+    space
+    
+    %% STYLES
+    classDef head1 fill:#a9cc66,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box1 fill:#d6f57d,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head2 fill:#8ef07a,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box2 fill:#bcfa96,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head3 fill:#c7da73,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box3 fill:#f7f6ad,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head4 fill:#74db69,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box4 fill:#90fa87,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head5 fill:#55d992,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box5 fill:#7afaaa,stroke:#e0e0e0,stroke-width:2px,color:#000
+    classDef head6 fill:#60d6c7,stroke:#333,stroke-width:1px,color:#000,font-weight:bold
+    classDef box6 fill:#8bfaf1,stroke:#e0e0e0,stroke-width:2px,color:#000
+
+    class H4 head4
+    class C4_1,C4_2,C4_3 box4
+    class H5 head5
+    class C5_1,C5_2,C5_3 box5
+    class H6 head6
+    class C6_1,C6_2 box6
 #+end_src

@@ -1,4 +1,4 @@
-% Created 2026-03-05 Thu 13:50
+% Created 2026-03-09 Mon 22:56
 % Intended LaTeX compiler: pdflatex
 \documentclass[bigger]{beamer}
 \usepackage[utf8]{inputenc}
@@ -84,8 +84,8 @@ Institut Polytechnique de Paris}
   \end{frame}
 }
 \section{Motivation}
-\label{sec:org9c4c0a9}
-\begin{frame}[label={sec:org0ec493e}]{The CVA6 Core}
+\label{sec:orgcba1ffd}
+\begin{frame}[label={sec:org4ec6b59}]{The CVA6 Core}
 \framesubtitle{A 6-stage RISC-V Open-Source core}
 \begin{columns}
 \begin{column}{0.5\columnwidth}
@@ -108,278 +108,251 @@ Institut Polytechnique de Paris}
 \end{column}
 \end{columns}
 \end{frame}
-\begin{frame}[label={sec:orgb62458a}]{The CVA6 Core}
+\begin{frame}[label={sec:org2d2bdce}]{The CVA6 Core}
 \framesubtitle{Original Single Core Version}
 \begin{center}
-\includegraphics[angle=0,width=12cm,height=7cm]{./figures/ariane_overview.png}
+\includegraphics[angle=0,width=12cm]{./figures/cva6_block_complete1.jpg}
 \label{fig:openhw}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org7a92f88}]{The CVA6 Core}
+\begin{frame}[label={sec:orgf57656b}]{The CVA6 Core}
 \framesubtitle{Benagil Team's Dual Core Version}
 \begin{center}
 \includegraphics[trim=0 0 50 0, clip,width=\textwidth]{./figures/multicore_cva6.pdf}
-\label{fig:openhw}
+\label{fig:dualcore}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:orgd80fbe3}]{Problem Statement}
+\begin{frame}[label={sec:org80e1fb9}]{Problem Statement}
 \begin{alertblock}{Problem}
 \small The dual-core system is limited by a 1-request-per-cycle bandwidth at the L1D cache.
 \end{alertblock}
-\begin{exampleblock}{Research Objectives}\label{sec:org04a2449}
+\begin{exampleblock}{Research Objectives}\label{sec:org3ff24f6}
 \begin{itemize}
-\item \small \textbf{RQ1} How does the sharing of functional units (starting with the FPU) between two CVA6 cores affect the trade-off between hardware area efficiency and multi-core performance?
+\item \small How does the sharing of functional units (starting with the FPU) between two CVA6 cores affect the trade-off between hardware area efficiency and multi-core performance?
+\item \small How to measure it accurately.
 \end{itemize}
 \end{exampleblock}
 \end{frame}
-\begin{frame}[label={sec:orga2e862e}]{Project Roadmap}
-\vspace{-0.5cm}
+\begin{frame}[label={sec:org7f60640}]{Project Roadmap}
 \begin{center}
-\includegraphics[trim=30 480 0 10, clip,width=\paperwidth]{roadmap.pdf}
-\label{roadmap}
+\includegraphics[trim=0 0 0 0, clip,width=\textwidth]{roadmap.pdf}
+\label{fig:roadmap}
 \end{center}
 \end{frame}
-\section{Performance Measurement}
-\label{sec:org5c74a30}
-\begin{frame}[label={sec:org5b268f4}]{How do We Measure Performance?}
+\section{Performance and Resource Usage Measurement}
+\label{sec:orgbe66f4b}
+\begin{frame}[label={sec:orga4da74a}]{How do We Measure Performance?}
+\framesubtitle{What do we measure?}
+\small We evaluate performance using well-known workloads: UnixBench and the NAS Parallel Benchmarks (NPB). For each benchmark, we also measure instructions per cycle (\emph{IPC}).
+
+\begin{equation}
+\begin{split}
+\(IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}\)
+\end{split}
+\end{equation}
+
+\begin{itemize}
+\item \small Hardware performance counters. \emph{Single Core} available performance counters:
+\begin{itemize}
+\item Number of Instructions
+\item Number of cycles
+\end{itemize}
+
+\item \small Benchmark scores:
+\begin{itemize}
+\item \small NPB: \alert{Mop/s (Millions of Operations per Second)}
+\item \small Unixbench: \alert{Loops per second (lps), KB/sec, and operations per second}
+\end{itemize}
+\end{itemize}
+\end{frame}
+\begin{frame}[label={sec:org140a0ba}]{How do We Measure Performance and Resource Usage?}
 \framesubtitle{Experimental Setup}
-\small We evaluate the performance for well known workloads: Unixbench and NAS parallel Benchmarks (NPB).
 
 \begin{figure}[!htb]
 \centering
-\includegraphics[angle=90,width=7.0cm]{./figures/pynq.jpeg}
+\includegraphics[angle=0,width=11.0cm]{./figures/pynq.jpeg}
 \caption{\label{fig:pynq}CVA6 \emph{Single Core} deployment on a PYNQ-Z2 FPGA with PMod Modules}
 \end{figure}
 \end{frame}
-\begin{frame}[label={sec:org8448ff5}]{Experimental Setup}
+\begin{frame}[label={sec:org8918803}]{How do We Measure Resource Usage?}
 \begin{columns}
-\begin{column}{0.5\columnwidth}
-\small Experimental setup
-
-\begin{center}
-\includegraphics[angle=90,width=5.0cm]{./figures/pynq.jpeg}
-\label{fig:pynq}
-\end{center}
-
-\begin{itemize}
-\item \small CVA6 \emph{Single Core} deployment on a PYNQ-Z2 FPGA with PMod Modules.
-\end{itemize}
+\begin{column}{0.6\columnwidth}
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=6.3cm]{./figures/PL_block.png}
+\caption{\label{fig:pynq}Zynq-7000 SoC}
+\end{figure}
 \end{column}
-\begin{column}{0.5\columnwidth}
-\small Performance data:
+\begin{column}{0.4\columnwidth}
+\footnotesize The SoC (System on a chip) is mapped onto the FPGA’s programmable logic, utilizing the following hardware resources to implement the CVA6 design:
 
 \begin{itemize}
-\item \small Hardware counters: PAPI (instructions per cycle \emph{IPC score})
-\item \small Benchmark scores.
-
-\item experimental setup (pynq)          
-\begin{itemize}
-\item cross compilation of PAPI (not all counters all working).
-\end{itemize}
+\item \footnotesize Look Up Tables (\alert{LUT}) for combinatorial logic.
+\item \footnotesize Flip Flops (\alert{FF}) for state storage
+\item \footnotesize Block Random Access Memory (\alert{BRAM}) for fast on-chip memory
+\item \footnotesize Digital Signal Processor (\alert{DSP}) for high-performance math calculations
 \end{itemize}
 \end{column}
 \end{columns}
 \end{frame}
+\begin{frame}[label={sec:org64148f6}]{How do We Measure Resource Usage?}
+\framesubtitle{Initial LUT Usage Measurement}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_LUT.png}
+\label{fig:base_lut}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org59663b9}]{How do We Measure Resource Usage?}
+\framesubtitle{Initial FF Usage Measurement}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_FF.png}
+\label{fig:base_ff}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org1e333fc}]{How do We Measure Resource Usage?}
+\framesubtitle{Initial BRAM Usage Measurement}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_BRAM.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org96c26a1}]{How do We Measure Resource Usage?}
+\framesubtitle{Initial DSP Usage Measurement}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_DSP.png}
+\label{fig:base_dsp}
+\end{center}
+\end{frame}
+\section{Experiments}
+\label{sec:org822c091}
+\begin{frame}[label={sec:orgcec8fc3}]{Baseline Architecture}
+To study the effects of the micro-architectural parameters the following baseline parameters were used.
+\begin{table}[htbp]
+\label{tab:baseline_parameters}
+\centering
+\begin{tabular}{lll}
+\hline
+\alert{Parameter} & \alert{Size} & \alert{CVA6 Stage}\\
+\hline
+Data Cache & \(4096[bytes]\) & Memory\\
+\hline
+Data Cache Associativity & 4 & Memory\\
+\hline
+Data Cache Line Width & 128 & Memory\\
+\hline
+Instruction Cache & \(4096[bytes]\) & Fetch\\
+\hline
+Instruction Cache Associativity & 4 & Fetch\\
+\hline
+Instruction Cache Line Width & 128 & Fetch\\
+\hline
+Branch Target Buffer (BTB) Entries & 16 & Fetch\\
+\hline
+Branch History Table (BHT) Entries & 16 & Fetch\\
+\hline
+Retirement Width of the CPU & 2 & Commit\\
+\hline
+\end{tabular}
+\end{table}
+\end{frame}
+\begin{frame}[label={sec:org9e3504d}]{Parameter Sweeps}
+And the following parameters sweeps were proposed to study their effect on performance and resource utilization.
+
+\begin{table}[htbp]
+\label{tab:baseline_parameters}
+\centering
+\begin{tabular}{lll}
+\hline
+\alert{Sweep} & \alert{Range} & \alert{CVA6 Stage}\\
+\hline
+Data Cache & \(128[bytes]\to256k[bytes]\) & Memory\\
+\hline
+Data / Instruction & \(1\to16\) & Memory / Fetch\\
+Cache Associativity &  & \\
+\hline
+Instruction Cache & \(2k[bytes]\to256k[bytes]\) & Fetch\\
+\hline
+BTB Entries & \(8\to32k\) & Fetch\\
+\hline
+BHT Entries & \(16\to16k\) & Fetch\\
+\hline
+Retirement Width & \(2\to1\) & Commit\\
+of the CPU &  & \\
+\hline
+\end{tabular}
+\end{table}
+\end{frame}
+\begin{frame}[label={sec:org8937449}]{Automated Benchmarking Framework}
+To automate the design space exploration we developed a framework which uses the ARM core and the CVA6 flashed into the FPGA.
+\begin{center}
+\includegraphics[angle=0,width=7.0cm]{./figures/bench.png}
+\label{fig:base_dsp}
+\end{center}
+\end{frame}
 \section{Results}
-\label{sec:org0762e3a}
-\begin{frame}[label={sec:orga7cc958}]{Performance Evaluation}
-\begin{itemize}
-\item 2 slides scripts to evaluate performance
-\item graphs about the data (important ones)
-\begin{itemize}
-\item connect the sizes (cache, bht,\ldots{}) to the results
-\end{itemize}
-\end{itemize}
+\label{sec:orgfa7efe1}
+\begin{frame}[label={sec:org5a85932}]{Performance Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/cache_size_npb.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:orga376672}]{Performance Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/cache_size_unixbench.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org278df0f}]{Resource Usage Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/sweep_btb_BRAM.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org1ed111a}]{Resource Usage Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/sweep_assoc_LUT.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org2dc1421}]{Resource Usage Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=12.0cm]{./figures/sweep_assoc_BRAM.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org763f4d1}]{Resource Usage Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=9.0cm]{./figures/sweep_cache_BRAM_3d.png}
+\label{fig:base_bram}
+\end{center}
 \end{frame}
 \section{Contributions}
-\label{sec:org1847069}
-\begin{frame}[label={sec:org6cf17e4}]{Contributions}
+\label{sec:org1a6a5f2}
+\begin{frame}[label={sec:orgfa88dc3}]{Contributions}
 \begin{itemize}
 \item contributions
 \begin{itemize}
-\item PR the NAS repo
+\item PR the NAS repo link to the PR and the repo
 \item automated script for benchmarking
-\item analices in the performance ?
+\item analices in the performance
 \end{itemize}
 \end{itemize}
 \end{frame}
 \section{Conclusion and Future work}
-\label{sec:org71ec194}
-\begin{frame}[label={sec:org1cf0971}]{Conclusion}
+\label{sec:org78a595a}
+\begin{frame}[label={sec:org6a02c37}]{Conclusion}
 \begin{itemize}
 \item Conclusion
 \end{itemize}
 \end{frame}
-\begin{frame}[label={sec:org5bd385f}]{Future Work}
-\begin{itemize}
-\item future work
-\end{itemize}
-\end{frame}
-\begin{frame}[label={sec:orgf3615aa}]{Contexto}
-\framesubtitle{Evaluación de la energía consumida por el middleware IoTvar}
-\begin{itemize}
-\item Para 2025, se esperan 100 mil millones de dispositivos IoT, con un impacto significativo en el consumo energético.
-\item Un \emph{middleware} consciente de la energía optimiza el consumo del hardware al gestionar eficientemente el software.
-\item \alert{IoTvar} es un middleware de IoT que predice el consumo energético, pero solo para periodos de tiempo fijos.
-\end{itemize}
-\begin{columns}
-\begin{column}{0.5\columnwidth}
-\begin{figure}[!htb]
-\centering
-\includegraphics[angle=0,width=5.5cm]{./figures/IoT.jpg}
-\caption{\label{fig:iot}Plataforma IoT}
-\end{figure}
-\end{column}
-\begin{column}{0.5\columnwidth}
-\begin{figure}[!htb]
-\centering
-\includegraphics[angle=0,width=5.5cm]{./figures/iotvar_energy_components.png}
-\caption{\label{fig:iotvar_energy}IoTvar energy layer}
-\end{figure}
-\end{column}
-\end{columns}
-\end{frame}
-\begin{frame}[label={sec:org21a5e5f}]{Problema y objetivos de la investigación}
-\begin{alertblock}{Problema}
-\small El modelo energético del estado del arte para middleware de IoT tiene tiempo de ejecución fijo y requiere calibración manual, lo que limita su uso más allá de entornos experimentales controlados.
-\end{alertblock}
-\begin{exampleblock}{Objetivos de la investigación}\label{sec:orge49c019}
-\small Nuestro objetivo es desarrollar un nuevo modelo energético para IoTvar que introduzca el tiempo como variable, permitiendo ajustar dinámicamente estrategias de consumo energético durante la ejecución.
-
-\begin{itemize}
-\item \small \textbf{RQ1} ¿Cómo mejora la inclusión del tiempo como variable en el modelo energético la precisión de las predicciones de consumo de energía para el middleware IoTVar que se ejecuta en dispositivos que funcionan con baterías?
-\end{itemize}
-\end{exampleblock}
-\end{frame}
-\section{Propuesta: Un modelo basado en datos para estimar el consumo energético en el tiempo}
-\label{sec:org3e4e42c}
-
-\begin{frame}[label={sec:orgf50d7e5}]{Un modelo basado en datos}
-\framesubtitle{Diseño del estudio: Setup de toma de Datos}
-
+\begin{frame}[label={sec:orgb8ee5f9}]{Future Work}
 \begin{center}
-\includegraphics[angle=0,width=12cm]{./figures/hardware_setup.png}
-\label{fig:hardware}
+\includegraphics[trim=0 0 0 0, clip,width=\textwidth]{roadmap_future.pdf}
+\label{fig:roadmap}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org58ce41e}]{Un modelo basado en datos}
-\framesubtitle{Diseño del estudio: IoTvar y el consumo energético}
-
-\begin{center}
-\includegraphics[angle=0,width=12cm,height=7cm]{./figures/3.pdf}
-\label{fig:process}
-\end{center}
-\end{frame}
-\begin{frame}[label={sec:org4ab5652}]{Un modelo basado en datos}
-\framesubtitle{Simultaneous quantile regression}
-
-El modelo desarrollado tiene la siguiente estructura.
-
-\begin{center}
-\includegraphics[angle=0,width=12.5cm]{./figures/4.pdf}
-\label{fig:process_2}
-\end{center}
-\end{frame}
-\section{Resultados del estudio}
-\label{sec:org342f107}
-
-\begin{frame}[label={sec:org7e96541}]{Resultados}
-\framesubtitle{Nuestro modelo vs el modelo del estado del arte}
-
-\small Para comparar nuestro modelo se tomaron en cuenta dos casos. \\
-\begin{columns}
-\begin{column}{0.5\columnwidth}
-\small Caso 1: \(R_{G_{i}}=1[sec]\)
-
-\begin{center}
-\includegraphics[angle=0,width=6.0cm]{./figures/mine_vs.png}
-\label{fig:results_1}
-\end{center}
-\end{column}
-\begin{column}{0.5\columnwidth}
-\small Caso 2: \(R_{G_{i}}=60[sec]\)
-
-\begin{center}
-\includegraphics[angle=0,width=6.0cm]{./figures/mine_vs_2.png}
-\label{fig:results_2}
-\end{center}
-\end{column}
-\end{columns}
-\end{frame}
-\begin{frame}[label={sec:org6a16f1a}]{Resultados}
-\framesubtitle{Nuestro modelo vs el modelo del estado del arte}
-\begin{itemize}
-\item Caso 1: \(R_{G_{i}}=1[sec]\)
-\end{itemize}
-\begin{table}[!htb]
-\label{tab:metrics_results}
-\centering
-\begin{tabular}{|p{6cm}|p{4cm}|}
-\hline
-Modelo & RMSE\\
-\hline
-Estado del arte & 2.27289223970008\\
-Nuestro trabajo & 2.346818068057912\\
-\hline
-\end{tabular}
-\end{table}
-\begin{itemize}
-\item Caso 2: \(R_{G_{i}}=60[sec]\)
-\end{itemize}
-\begin{table}[!htb]
-\label{tab:metrics_results_20segs}
-\centering
-\begin{tabular}{|p{6cm}|p{4cm}|}
-\hline
-Model & RMSE\\
-\hline
-Estado del arte & 637.3381020863869\\
-Nuestro trabajo & 2.760910100099958\\
-\hline
-\end{tabular}
-\end{table}
-\end{frame}
-\begin{frame}[label={sec:org5feb5e4}]{Resultados}
-\framesubtitle{RQ1}
-
-\small \textbf{RQ1} ¿Cómo mejora la inclusión del tiempo como variable en el modelo energético la precisión de las predicciones de consumo de energía para el middleware IoTVar que se ejecuta en dispositivos que funcionan con baterías?
-
-\begin{itemize}
-\item \small La inclusión del tiempo como variable en el modelo energético tiene un impacto mínimo en la precisión de las predicciones.
-\end{itemize}
-
-\begin{center}
-\includegraphics[angle=0,width=12.0cm]{./figures/5.pdf}
-\label{fig:results_3}
-\end{center}
-\end{frame}
-\section{Amenazas a la validez, conclusiones y trabajo futuro}
-\label{sec:org2974098}
-
-\begin{frame}[allowframebreaks]{Amenazas a la validez, conclusiones y trabajo futuro}
-\begin{block}{Amenazas a la validez}
-\begin{itemize}
-\item \small Precisión de las mediciones de consumo energético
-\item \small Tasas de refresco variables en el middleware IoTvar
-\item \small Limitaciones en los parámetros de IoTvar para monitoreo de energía
-\end{itemize}
-\end{block}
-\begin{block}{Conclusiones}
-\begin{itemize}
-\item \small La inclusión del tiempo como variable en el modelo energético genera un modelo más general sin comprometer la precisión.
-\item \small Las variables de IoTvar permiten predecir el consumo energético en función del tiempo.
-\end{itemize}
-\end{block}
-\begin{block}{Trabajo Futuro}
-\begin{itemize}
-\item \small Realizar experimentos ejecutando el middleware IoTvar en otras placas (Odroid, BananaPi, etc.).
-\item \small Automatizar el procedimiento para determinar la frecuencia de muestreo en diferentes dispositivos.
-\item \small Ejecutar los experimentos en condiciones de temperatura controlada.
-\item \small Evaluar la incorporación de variables físicas, como la temperatura, en la predicción del consumo energético.
-\end{itemize}
-\end{block}
-\end{frame}
-\begin{frame}[label={sec:org76d468b}]{}
+\begin{frame}[label={sec:org15b8c41}]{}
 \frametitle{}
 
 \begin{huge}
@@ -390,40 +363,25 @@ Nuestro trabajo & 2.760910100099958\\
 \end{huge}
 
 \begin{center}
-\textbf{hananquispec@outlook.com}
+\textbf{hanan.quispecondori@ip-paris.fr}
 
 \hspace{2.5cm}
 
-\scriptsize{\textcolor{ao-english}{This work has been partially supported by the \textbf{STIC AmSud project}: ``GreenSE4IoT - Towards Energy-efficient Software for Distributed Systems'' [STIC-AMSUD 22-STIC-04].}}
+\scriptsize{\textcolor{ao-english}{This work is being supported by the \textbf{BENAGIL TEAM}}}
 \end{center}
-
-
-\titlegraphic {
-\begin{tikzpicture}[overlay,remember picture]
-    \node[left=0.2cm] at (current page.335){
-        \includegraphics[width=1.5cm]{figures/STICAmSud.png}
-    };
-    \node[right=0.2cm] at (current page.207){
-        \includegraphics[width=1cm]{figures/logo_ENSIIE.png}
-        \includegraphics[width=2cm]{figures/E4C_logo.png}
-    };
-
-\end{tikzpicture}
-}
 
 \begin{multicols}{2}
 
 \begin{figure}
     \centering
-    \includegraphics[scale=0.25]{figures/STICAmSud.png}
+    \includegraphics[width=5cm]{figures/inria_logo.png}
 \end{figure}
 
 \columnbreak
 
-
 \begin{figure}
     \centering
-    \includegraphics[scale=0.1]{figures/listii.png}
+    \includegraphics[width=1.5cm]{figures/logo_TSP.png}
 \end{figure}
 
 \end{multicols}
