@@ -284,23 +284,20 @@ And the following parameters sweeps were proposed to study their effect on perfo
 
 #+label: tab:baseline_parameters
 #+attr_latex: :environment tabular :width \textwidth :align lll
-|---------------------+------------+----------------|
-| *Sweep*               | *Range*      | *CVA6 Stage*     |
-|---------------------+------------+----------------|
+|---------------------+--------------------------+----------------|
+| *Sweep*               | *Range*                    | *CVA6 Stage*     |
+|---------------------+--------------------------+----------------|
 | Data Cache          | $128[bytes]\to256k[bytes]$ | Memory         |
-|---------------------+------------+----------------|
-| Data / Instruction  | $1\to16$     | Memory / Fetch |
-| Cache Associativity |            |                |
-|---------------------+------------+----------------|
+|---------------------+--------------------------+----------------|
+| Data / Instruction  | $1\to16$                   | Memory / Fetch |
+| Cache Associativity |                          |                |
+|---------------------+--------------------------+----------------|
 | Instruction Cache   | $2k[bytes]\to256k[bytes]$  | Fetch          |
-|---------------------+------------+----------------|
-| BTB Entries         | $8\to32k$    | Fetch          |
-|---------------------+------------+----------------|
-| BHT Entries         | $16\to16k$   | Fetch          |
-|---------------------+------------+----------------|
-| Retirement Width    | $2\to1$      | Commit         |
-| of the CPU          |            |                |
-|---------------------+------------+----------------|
+|---------------------+--------------------------+----------------|
+| BTB Entries         | $8\to32k$                  | Fetch          |
+|---------------------+--------------------------+----------------|
+| BHT Entries         | $16\to16k$                 | Fetch          |
+|---------------------+--------------------------+----------------|
 ** Automated Benchmarking Framework :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
@@ -321,6 +318,15 @@ To automate design space exploration, we developed a framework which uses the AR
 #+name: fig:base_bram
 #+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
 [[./figures/cache_size_unixbench.png]]
+** Performance Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+[[./figures/cache_size_npb.png]]
+
 ** Performance Dynamics :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame

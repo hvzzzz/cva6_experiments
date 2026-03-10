@@ -1,4 +1,4 @@
-% Created 2026-03-10 Tue 01:36
+% Created 2026-03-10 Tue 09:56
 % Intended LaTeX compiler: pdflatex
 \documentclass[bigger]{beamer}
 \usepackage[utf8]{inputenc}
@@ -84,8 +84,8 @@ Institut Polytechnique de Paris}
   \end{frame}
 }
 \section{Motivation}
-\label{sec:org831fae7}
-\begin{frame}[label={sec:orgf1cb720}]{The CVA6 Core}
+\label{sec:org909c355}
+\begin{frame}[label={sec:org604fe0e}]{The CVA6 Core}
 \framesubtitle{A 6-stage RISC-V Open-Source core}
 \begin{columns}
 \begin{column}{0.5\columnwidth}
@@ -108,40 +108,40 @@ Institut Polytechnique de Paris}
 \end{column}
 \end{columns}
 \end{frame}
-\begin{frame}[label={sec:orgb05552c}]{The CVA6 Core}
+\begin{frame}[label={sec:orgd36dde3}]{The CVA6 Core}
 \framesubtitle{Original Single Core Version}
 \begin{center}
 \includegraphics[angle=0,width=12cm]{./figures/cva6_block_diagram.png}
 \label{fig:openhw}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org933efe9}]{The CVA6 Core}
+\begin{frame}[label={sec:org92021a8}]{The CVA6 Core}
 \framesubtitle{Benagil Team's Dual Core Version}
 \begin{center}
 \includegraphics[trim=0 0 50 0, clip,width=\textwidth]{./figures/multicore_cva6.pdf}
 \label{fig:dualcore}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org902d755}]{Problem Statement}
+\begin{frame}[label={sec:org8d6cbd1}]{Problem Statement}
 \begin{alertblock}{Problem}
 \small The dual-core system is limited by a 1-request-per-cycle bandwidth at the L1D cache.
 \end{alertblock}
-\begin{exampleblock}{Research Objectives}\label{sec:orga6aeb9b}
+\begin{exampleblock}{Research Objectives}\label{sec:orgd0994b6}
 \begin{itemize}
 \item \small How does the sharing of functional units (starting with the FPU) between two CVA6 cores affect the trade-off between hardware area efficiency and multi-core performance?
 \item \small How to measure it accurately.
 \end{itemize}
 \end{exampleblock}
 \end{frame}
-\begin{frame}[label={sec:orgd54e04a}]{Project Roadmap}
+\begin{frame}[label={sec:org62ca8b4}]{Project Roadmap}
 \begin{center}
 \includegraphics[trim=0 0 0 0, clip,width=\textwidth]{roadmap.pdf}
 \label{fig:roadmap}
 \end{center}
 \end{frame}
 \section{Performance and Resource Usage Measurement}
-\label{sec:orgc89283a}
-\begin{frame}[label={sec:orgb7d380b}]{How do We Measure Performance?}
+\label{sec:orgf8cb060}
+\begin{frame}[label={sec:org1c0648f}]{How do We Measure Performance?}
 \framesubtitle{What do we measure?}
 \small We evaluate performance using well-known workloads: UnixBench and the NAS Parallel Benchmarks (NPB). For each benchmark, we also measure instructions per cycle (\emph{IPC}).
 
@@ -165,7 +165,7 @@ Institut Polytechnique de Paris}
 \end{itemize}
 \end{itemize}
 \end{frame}
-\begin{frame}[label={sec:org93c71c2}]{How do We Measure Performance and Resource Usage?}
+\begin{frame}[label={sec:orge5bdeff}]{How do We Measure Performance and Resource Usage?}
 \framesubtitle{Experimental Setup}
 
 \begin{figure}[!htb]
@@ -174,7 +174,7 @@ Institut Polytechnique de Paris}
 \caption{\label{fig:pynq}CVA6 \emph{Single Core} deployment on a PYNQ-Z2 FPGA with PMod Modules}
 \end{figure}
 \end{frame}
-\begin{frame}[label={sec:org036a103}]{How do We Measure Resource Usage?}
+\begin{frame}[label={sec:orgba3b42c}]{How do We Measure Resource Usage?}
 \begin{columns}
 \begin{column}{0.6\columnwidth}
 \begin{figure}[!htb]
@@ -195,34 +195,34 @@ Institut Polytechnique de Paris}
 \end{column}
 \end{columns}
 \end{frame}
-\begin{frame}[label={sec:org05c256c}]{How do We Measure Resource Usage?}
+\begin{frame}[label={sec:org4045e9d}]{How do We Measure Resource Usage?}
 \begin{center}
 \includegraphics[trim=0 0 230 0, clip,width=\textwidth]{./figures/cva6_stages_annotated.pdf}
 \label{fig:stages}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org5472027}]{How do We Measure Resource Usage?}
+\begin{frame}[label={sec:orgf33ad2e}]{How do We Measure Resource Usage?}
 \framesubtitle{Initial LUT Usage Measurement}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_LUT.png}
 \label{fig:base_lut}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:orgb547a8c}]{How do We Measure Resource Usage?}
+\begin{frame}[label={sec:orgee63ba7}]{How do We Measure Resource Usage?}
 \framesubtitle{Initial FF Usage Measurement}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_FF.png}
 \label{fig:base_ff}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org8b0ecc5}]{How do We Measure Resource Usage?}
+\begin{frame}[label={sec:orgf84c4f3}]{How do We Measure Resource Usage?}
 \framesubtitle{Initial BRAM Usage Measurement}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_BRAM.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:orge50d87d}]{How do We Measure Resource Usage?}
+\begin{frame}[label={sec:orgb59a77e}]{How do We Measure Resource Usage?}
 \framesubtitle{Initial DSP Usage Measurement}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/soc_breakdown_bar_pie_h_final_DSP.png}
@@ -230,8 +230,8 @@ Institut Polytechnique de Paris}
 \end{center}
 \end{frame}
 \section{Experiments}
-\label{sec:org76414c5}
-\begin{frame}[label={sec:org85bdf4e}]{Baseline Architecture}
+\label{sec:org29bc705}
+\begin{frame}[label={sec:orgfdd9ced}]{Baseline Architecture}
 To study the effects of the micro-architectural parameters the following baseline parameters were used.
 \begin{table}[htbp]
 \label{tab:baseline_parameters}
@@ -261,7 +261,7 @@ Retirement Width of the CPU & 2 & Commit\\
 \end{tabular}
 \end{table}
 \end{frame}
-\begin{frame}[label={sec:org9fac94d}]{Parameter Sweeps}
+\begin{frame}[label={sec:orga6a1aed}]{Parameter Sweeps}
 And the following parameters sweeps were proposed to study their effect on performance and resource utilization.
 
 \begin{table}[htbp]
@@ -282,13 +282,10 @@ BTB Entries & \(8\to32k\) & Fetch\\
 \hline
 BHT Entries & \(16\to16k\) & Fetch\\
 \hline
-Retirement Width & \(2\to1\) & Commit\\
-of the CPU &  & \\
-\hline
 \end{tabular}
 \end{table}
 \end{frame}
-\begin{frame}[label={sec:org4cd0a25}]{Automated Benchmarking Framework}
+\begin{frame}[label={sec:org0f5c680}]{Automated Benchmarking Framework}
 To automate design space exploration, we developed a framework which uses the ARM core and the CVA6 core, the full run of the benchmarks for all the parameter sweeps takes 21 hours.
 \begin{center}
 \includegraphics[angle=0,width=7.0cm]{./figures/bench.png}
@@ -296,58 +293,64 @@ To automate design space exploration, we developed a framework which uses the AR
 \end{center}
 \end{frame}
 \section{Results}
-\label{sec:org900a5bf}
-\begin{frame}[label={sec:orgfa8c678}]{Performance Dynamics}
+\label{sec:org108d5f5}
+\begin{frame}[label={sec:org4ad9f9f}]{Performance Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.4cm]{./figures/cache_size_unixbench.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:orgedc6852}]{Performance Dynamics}
+\begin{frame}[label={sec:org71958a1}]{Performance Dynamics}
+\begin{center}
+\includegraphics[angle=0,width=12.4cm]{./figures/cache_size_npb.png}
+\label{fig:base_bram}
+\end{center}
+\end{frame}
+\begin{frame}[label={sec:org387465c}]{Performance Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.4cm]{./figures/associativity_unixbench.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org59a1f0c}]{Performance Dynamics}
+\begin{frame}[label={sec:org7598c63}]{Performance Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.4cm]{./figures/btb_size_unixbench.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org478de4d}]{Performance Dynamics}
+\begin{frame}[label={sec:org0f2e209}]{Performance Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.4cm]{./figures/bht_size_unixbench.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org236351b}]{Resource Usage Dynamics}
+\begin{frame}[label={sec:org1dc939a}]{Resource Usage Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/sweep_btb_BRAM.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org9789a64}]{Resource Usage Dynamics}
+\begin{frame}[label={sec:org160a548}]{Resource Usage Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/sweep_assoc_LUT.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org3a98f21}]{Resource Usage Dynamics}
+\begin{frame}[label={sec:org2d167f9}]{Resource Usage Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=12.0cm]{./figures/sweep_assoc_BRAM.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org2a10964}]{Resource Usage Dynamics}
+\begin{frame}[label={sec:orga44a3fb}]{Resource Usage Dynamics}
 \begin{center}
 \includegraphics[angle=0,width=9.0cm]{./figures/sweep_cache_BRAM_3d.png}
 \label{fig:base_bram}
 \end{center}
 \end{frame}
 \section{Contributions}
-\label{sec:orgcad1f05}
-\begin{frame}[label={sec:org4731ce8}]{Contributions}
+\label{sec:orgf0ee8ce}
+\begin{frame}[label={sec:org1bc3bd4}]{Contributions}
 \begin{itemize}
 \item PR to the NPB repository
 \end{itemize}
@@ -362,8 +365,8 @@ To automate design space exploration, we developed a framework which uses the AR
 \end{itemize}
 \end{frame}
 \section{Conclusion and Future work}
-\label{sec:org1057370}
-\begin{frame}[label={sec:orgebc2070}]{Conclusion}
+\label{sec:org8a7b9a2}
+\begin{frame}[label={sec:org370146d}]{Conclusion}
 \begin{itemize}
 \item \emph{Automated Benchmarking Established}: Successfully developed an automated evaluation tool for the PYNQ-Z2 , securing complete single-core performance and resource baselines.
 
@@ -374,13 +377,13 @@ To automate design space exploration, we developed a framework which uses the AR
 \item \emph{Prepared for Multi-Core Expansion}: The established baselines clear the path for the next project phase: developing the shared resource arbitrator and decoupling the core.
 \end{itemize}
 \end{frame}
-\begin{frame}[label={sec:org453e87c}]{Future Work}
+\begin{frame}[label={sec:orgab3a42f}]{Future Work}
 \begin{center}
 \includegraphics[trim=0 0 0 0, clip,width=\textwidth]{roadmap_future.pdf}
 \label{fig:roadmap}
 \end{center}
 \end{frame}
-\begin{frame}[label={sec:org5503c01}]{}
+\begin{frame}[label={sec:orga8b491e}]{}
 \frametitle{}
 
 \begin{huge}
