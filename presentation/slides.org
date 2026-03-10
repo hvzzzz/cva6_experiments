@@ -2,7 +2,7 @@
 :properties:
 #+language: en
 #+exclude_tags: journal code noexport
-#+date: March 9, 2026
+#+date: March 10, 2026
 #+BEAMER_HEADER: \title[PDS Research Project]{Customization of the CVA6 core}
 #+latex_header: \usepackage[style=apa,backend=bibtex]{biblatex}
 #+LATEX_HEADER: \definecolor{purple_plain}{RGB}{94,129,172}
