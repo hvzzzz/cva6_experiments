@@ -100,7 +100,7 @@
 #+attr_org: :width 500
 #+name: fig:openhw
 #+attr_latex: :width 12cm :options angle=0 :placement [!htb]
-[[./figures/cva6_block_complete1.jpg]]
+[[./figures/cva6_block_diagram.png]]
 
 ** The CVA6 Core :B_frame:
 :PROPERTIES:
@@ -203,6 +203,15 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
+#+attr_org: :width 500
+#+name: fig:stages
+#+attr_latex: :width \textwidth :options trim=0 0 230 0, clip :placement [H]
+[[./figures/cva6_stages_annotated.pdf]]
+   
+** How do We Measure Resource Usage? :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
 #+BEAMER: \framesubtitle{Initial LUT Usage Measurement}
 #+attr_org: :width 500
 #+name: fig:base_lut
@@ -297,7 +306,7 @@ And the following parameters sweeps were proposed to study their effect on perfo
 :BEAMER_env: frame
 :END:
 # A script was written to automatically flash the bitstreams (Ethernet) and run the benchmarks (serial)
-To automate the design space exploration we developed a framework which uses the ARM core and the CVA6 flashed into the FPGA.
+To automate design space exploration, we developed a framework which uses the ARM core and the CVA6 core, the full run of the benchmarks for all the parameter sweeps takes 21 hours.
 #+attr_org: :width 500
 #+name: fig:base_dsp
 #+attr_latex: :width 7.0cm :options angle=0 :placement [!htb]
@@ -310,16 +319,34 @@ To automate the design space exploration we developed a framework which uses the
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
-[[./figures/cache_size_npb.png]]
+#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+[[./figures/cache_size_unixbench.png]]
 ** Performance Dynamics :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
-[[./figures/cache_size_unixbench.png]]
+#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+[[./figures/associativity_unixbench.png]]
+
+** Performance Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+[[./figures/btb_size_unixbench.png]]
+
+** Performance Dynamics :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+attr_org: :width 500
+#+name: fig:base_bram
+#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+[[./figures/bht_size_unixbench.png]]
 
 ** Resource Usage Dynamics :B_frame:
 :PROPERTIES:
@@ -362,16 +389,27 @@ To automate the design space exploration we developed a framework which uses the
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-- contributions
-  - PR the NAS repo link to the PR and the repo
-  - automated script for benchmarking 
-  - analices in the performance
+- PR to the NPB repository
+/https://github.com/benchmark-subsetting/NPB3.0-omp-C/pull/2/
+#+attr_org: :width 500
+#+name: fig:gitHub_repo
+#+attr_latex: :width 10cm :options angle=0 :placement [!htb]
+[[./figures/github.png]]
+- Automated tool for benchmarking architectural changes on the PYNQ Z2
+- Baseline performance / utilization measurements for CVA6 multi-core 
 * Conclusion and Future work    
 ** Conclusion :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-- Conclusion
+- /Automated Benchmarking Established/: Successfully developed an automated evaluation tool for the PYNQ-Z2 , securing complete single-core performance and resource baselines.
+ 
+- /Cache Size Trade-offs/: Larger instruction and data caches significantly accelerate workloads like context switching and system calls , though they require substantially more BRAM.
+
+- /Inefficient Scaling Returns/: Scaling cache associativity and branch predictors (BTB/BHT) yields negligible performance improvements while heavily increasing LUT and BRAM consumption.
+
+- /Prepared for Multi-Core Expansion/: The established baselines clear the path for the next project phase: developing the shared resource arbitrator and decoupling the core.
+
 ** Future Work :B_frame:
 :PROPERTIES:
 :BEAMER_env: frame

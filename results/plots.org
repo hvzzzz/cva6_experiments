@@ -2584,7 +2584,7 @@ for sweep in sweeps:
             linestyle='--', 
             linewidth=1.5, 
             markersize=6, 
-            label='IPC (Baseline / Current)'
+            label='IPC (Current / Baseline)'
         )
         
         final_handles = bar_handles + [diamond_proxy]
@@ -2600,7 +2600,7 @@ for sweep in sweeps:
         # Explanatory Text
         plt.figtext(
             0.5, 0.01,
-            r"Bars: Score Speedup | Red Line: IPC Ratio ($Baseline/Current$) | Error Bars: Min/Max",
+            r"Bars: Score Speedup | Red Line: IPC Ratio ($Current/Baseline$) | Error Bars: Min/Max",
             ha="center", fontsize=10, style='italic'
         )
 
