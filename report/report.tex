@@ -1,6 +1,5 @@
-% Created 2026-02-18 Wed 22:21
+% Created 2026-03-19 Thu 05:37
 % Intended LaTeX compiler: pdflatex
-
 \documentclass[preprint]{sigplanconf}
 \usepackage{amsmath}
                  
@@ -38,18 +37,43 @@
 
 \input{title}
 \begin{abstract}
-The CVA6 is a low-power, open source CPU written in SystemVerilog. In the team, we use it to run a small hypervisor, Fork-Nox. The goal of this project is to identify, quantify and if possible implement microarchitectural characteristics that would decrease the overhead of Fork-nox compared to native execution. One lead is to study the influence of data / instruction cache sizes, branch predictor, frequency and TLB size. Another lead is to modify the granularity of virtual-to-hypervisor interception mechanisms, which requires deeper modification of the code base.
+This study investigates the performance and resource trade-offs of hardware sharing in the CVA6 RISC-V core, specifically targeting the Floating Point Unit (FPU). The research followed a three stage methodology: an initial microarchitectural design space exploration on a single core configuration to establish a baseline using UnixBench and NAS Parallel Benchmarks, the design of a custom arbitrator for shared FPU access, and a final evaluation of system performance. Critically, the hardware impact is assessed through resource utilization measuring FF, LUT, BRAM, and DSP. This approach quantifies the logic to performance trade-off, providing actionable insights for ASIC-targeted research within the OpenHW and PULP ecosystems.
 \end{abstract}
-\chapter{}
-\label{sec:org2ba1223}
-\section{Usage Summary}
-\label{sec:org27ed2c4}
+\section{Introduction}
+\label{sec:org33b8566}
+
+The optimization of performance, power, and area (PPA) through the sharing of underutilized execution units is a foundational strategy in multicore architecture.\cite{rodrigues_does_2015} establish a critical baseline for this approach by examining the sharing of floating-point (FP) datapaths between pairs of cores, an architecture similar to AMD’s Bulldozer. Their findings highlight a distinct trade-off: while sharing can yield significant power savings, it may result in performance losses of up to 28\%, though these losses can be halved by maintaining individual reservation stations while sharing only the execution units. This focus on efficiency is echoed in the RISC-V domain by \cite{islam_efficient_2021}, who demonstrate that sharing functional units in a five-stage scalar pipeline can reduce FPGA resource utilization—specifically saving up to 23.5\% in LUT usage and 75\% in DSP usage—with average performance drops ranging from 2.9\% to 22.3\%. Furthering the case for low-power applications, the Florian project \cite{park_florian_2023} and subsequent studies on IoT endnodes \cite{park_designing_2024}  argue that dedicated FPUs are often "overkill" for lightweight cores, proposing an external shared FPU that can achieve energy savings of nearly 80\% in quad-core configurations. Complementing these architectural shifts, \cite{kumar_32-bit_2025}  explore switchable FPUs compliant with IEEE 754-2008, emphasizing that dynamic switching between integer and floating-point operations can significantly enhance computational efficiency and reduce execution latency.
+
+However, scaling these resource-sharing techniques to an application-class core like the CVA6 \cite{sa_cva6_2023} introduces a level of complexity not addressed in simpler designs. The CVA6 is a significantly more complex core than what previous shared-FPU studies have utilized.It features a 6-stage, single-issue, out-of-order execution pipeline with an integrated FPU. Sharing its FPU between two cores raises sophisticated architectural questions, particularly regarding how to handle the scoreboard interaction, writeback arbitration, and pipeline stalls that do not arise with simpler in-order cores. Because CVA6 serves as the reference core for the OpenHW Group and is widely utilized in European research SoCs like the PULP ecosystem, this research is of high practical relevance.
+\section{Microarchitectural Design Space Exploration}
+\label{sec:org28d3da0}
+Microarchitectural design space exploration necessitated a evaluation of both performance and resource utilization. To assess performance, we utilized standard workloads, specifically UnixBench and the NAS Parallel Benchmarks (NPB). Resource utilization was quantified using Vivado’s post-implementation utilization reports.
+\subsection{Experimental Setup}
+\label{sec:org4e0c3e2}
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=6.5cm]{../presentation/figures/pynq.jpeg}
+\caption{\label{fig:org7405b0d}CVA6 \emph{Single Core} deployment on a PYNQ-Z2 FPGA with PMod Modules}
+\end{figure}
+
+Experiments were conducted on a PYNQ-Z2 FPGA, supplemented by two PMOD modules providing a microSD interface and a UART port for serial communication.
+
+In addition to the setup described in figure \ref{fig:org7405b0d} for automation purposes an additional Ethernet connection was used, resulting in the final experimental setup.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=8.5cm]{../presentation/figures/bench.png}
+\caption{\label{fig:org74a6fb4}Experimental Setup}
+\end{figure}
+\subsection{Resource Utilization Measurement}
+\label{sec:org41d6f16}
 The first part of this project consisted in evaluating the resource usage due to different parameters of the CVA6 architecture. For evaluation purposes a baseline configuration is given with the following parameters.
 
 \begin{table}[htbp]
-\caption{\label{tab:baseline_parameters}Baseline Bitstream Configuration}
+\caption{\label{tab:org461a19d}Baseline Bitstream Configuration}
 \centering
-\begin{tabular}{ll}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}ll}
 \hline
 \textbf{Parameter} & \textbf{Size}\\
 \hline
@@ -62,10 +86,8 @@ Instruction Cache Line Width & 128\\
 BTB Entries & 16\\
 BHT Entries & 16\\
 \hline
-\end{tabular}
+\end{tabular*}
 \end{table}
-
-
 
 The CVA6 architecture was then implemented in a Pynq-Z2 FPGA. The resources of the FPGA can be mainly separated into 4 groups which are:
 
@@ -81,27 +103,34 @@ To start let's see the resource usage of the baseline bitstream.
 \begin{figure}[htbp]
 \centering
 \includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/6d418cdc26afcb3286bf55b14a87eb79d9db3585.png}
-\caption{\label{fig:base_lut}Baseline LUT Usage}
+\caption{\label{fig:org0e3340a}Baseline LUT Usage}
 \end{figure}
+
+Figure \ref{fig:org0e3340a} illustrates that the baseline bitstream nearly saturates the Pynq-Z2's logic resources, with the CPU Core (83.9\%) driven primarily by the heavy combinatorial requirements of the Memory (30.1\%), Issue (28.1\%), and Execute (26.2\%) stages. Even with a lean 4KB cache, the 4-way associativity and 128-bit lines necessitate complex tag matching logic in the Memory stage, while the dual issue retirement width forces the scoreboard in the Issue stage to manage simultaneous instruction hazards, significantly increasing the LUT count. While the area efficient 16-entry branch predictor keeps the Fetch stage (7.0\%) minimal, the overall total of 47,683 LUTs confirms that this CVA6 configuration is pushing the absolute limits of the Zynq-7020 hardware, leaving almost no room for additional logic without scaling back core features.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/e4d6697b7be537fc3301cd3a6344119c279273ad.png}
-\caption{\label{fig:base_bram}Baseline BRAM Usage}
+\caption{\label{fig:org1785236}Baseline BRAM Usage}
 \end{figure}
+
+Figure \ref{fig:org1785236} shows a total of 28 blocks, with the CPU Core claiming 85.7\% (24 blocks) and the remaining 14.3\% split equally between the Northbridge and "Other" logic. Within the core, resources are distributed in a perfectly symmetrical 50/50 split between the Fetch (12 blocks) and Memory (12 blocks) stages, while the Decode, Issue, Execute, and Commit stages utilize zero BRAM. This distribution reflects your 4KB cache configurations; the wide 128-bit lines and 4-way associativity require these blocks for both data and tag storage in the Instruction and Data caches. Notably, your 16-entry branch predictor is small enough to be synthesized into LUTs rather than BRAM, contributing to a very low overall memory footprint that leaves 80\% of the Zynq-7020’s BRAM available for future expansion.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/73db4fd4e22795f06758f1a0af374f689f820794.png}
-\caption{\label{fig:base_dsp}Baseline DSP Usage}
+\caption{\label{fig:org5c7b524}Baseline DSP Usage}
 \end{figure}
+
+Figure \ref{fig:org5c7b524} shows that 100.0\% of the 27 utilized DSP slices are concentrated within the CPU Core, specifically dedicated to the Execute (100.0\%) stage. This absolute concentration is expected, as DSP slices are the specialized hardware primitives used to implement the high speed multipliers, dividers, and the Floating Point Unit (FPU) within the CVA6 pipeline.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[angle=0,width=8.5cm]{./.ob-jupyter/ffe8f34629f68d4b5268b20ceb31afb9b53800d5.png}
-\caption{\label{fig:base_ff}Baseline FF Usage}
+\caption{\label{fig:org6187771}Baseline FF Usage}
 \end{figure}
 
+Figure \ref{fig:org6187771} reveals a total of 22.319 Flip-Flops, where the CPU Core accounts for 68.6\% (15,313 FF) of the state-holding elements, a lower share than its LUT dominance which indicates that components like the Northbridge (15.0\%) require significant buffering for the AXI interconnect. Inside the core, the Memory stage (36.0\%) is the largest consumer, housing the wide 128-bit registers needed to pipeline data from the caches and MMU. The Issue (21.9\%) and Commit (18.7\%) stages also show high utilization, representing the physical storage for the scoreboard's dependency tracking and the Reorder Buffer (ROB) required to maintain state for dual-issue retirement. This distribution highlights that while the logic is concentrated in execution, the "memory" of the processor—its pipeline registers and buffers—is distributed across the stages responsible for managing data flow and instruction order.
 
 For visualization purposes the following fields have been included in the \emph{other} category:
 \begin{itemize}
@@ -116,9 +145,9 @@ For visualization purposes the following fields have been included in the \emph{
 Also the calculation of the 6 stages involved the following modules from the utilization reports obtained from Vivado.
 
 \begin{table}[htbp]
-\caption{\label{tab:usage_params}Utilization Report Modules used for Usage Calculation}
+\caption{\label{tab:org27de567}Utilization Report Modules}
 \centering
-\begin{tabular}{ll}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}ll}
 \hline
 \textbf{Stage} & \textbf{Modules}\\
 \hline
@@ -129,6 +158,147 @@ Execute & \texttt{ex\_stage\_i}\\
 Memory & \texttt{lsu\_i + i\_wt\_dcache}\\
 Commit & \texttt{i\_scoreboard}\\
 \hline
-\end{tabular}
+\end{tabular*}
 \end{table}
+\subsection{Performance measurement}
+\label{sec:org5376675}
+
+Performance measurement is based on the work by \cite{domingos_supporting_2023} as their work enabled hardware performance counter usage. For our setup the following counters are available:
+
+\begin{itemize}
+\item Number of Instructions
+\item Number of cycles
+\end{itemize}
+
+Those two counters enabled us to use the instruction per cycle (\emph{IPC}) metric.
+
+\begin{equation}
+\begin{split}
+\(IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}\)
+\end{split}
+\label{org82baf45}
+\end{equation}
+
+Additionally Unixbench and NBP benchmark scores are reported too.   
+\begin{itemize}
+\item NPB: \textbf{Mop/s (Millions of Operations per Second)}
+\item Unixbench: \textbf{Loops per second (lps), KB/sec, and operations per second}
+\end{itemize}
+
+Moreover, each benchmark was executed 5 times to ensure statistical significance in the measurements.
+\subsection{Parameter Sweeps}
+\label{sec:org84e0534}
+
+The following baseline parameters were established to evaluate the impact of microarchitectural configurations on performance and resource utilization.
+
+\begin{table}[htbp]
+\caption{\label{tab:org73ba2c7}Baseline Parameters}
+\centering
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lll}
+\hline
+\textbf{Parameter} & \textbf{Size} & \textbf{CVA6 Stage}\\
+\hline
+Data Cache & \(4096[bytes]\) & Memory\\
+\hline
+Data Cache & 4 & Memory\\
+Associativity &  & \\
+\hline
+Data Cache Line Width & 128 & Memory\\
+\hline
+Instruction Cache & \(4096[bytes]\) & Fetch\\
+\hline
+Instruction Cache & 4 & Fetch\\
+Associativity &  & \\
+\hline
+Instruction Cache & 128 & Fetch\\
+Line Width &  & \\
+\hline
+Branch Target Buffer & 16 & Fetch\\
+(BTB) Entries &  & \\
+\hline
+Branch History Table & 16 & Fetch\\
+(BHT) Entries &  & \\
+\hline
+Retirement Width & 2 & Commit\\
+of the CPU &  & \\
+\hline
+\end{tabular*}
+\end{table}
+
+And the following parameters sweeps were proposed to study their effect on performance and resource utilization.
+
+\begin{table}[htbp]
+\caption{\label{tab:org06386f0}Parameter Sweeps}
+\centering
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lll}
+\hline
+\textbf{Sweep} & \textbf{Range} & \textbf{CVA6}\\
+ &  & \textbf{Stage}\\
+\hline
+Data Cache & \(128\to256k[bytes]\) & Memory\\
+\hline
+Data / Instruction & \(1\to16\) & Memory\\
+Cache Associativity &  & Fetch\\
+\hline
+Instruction Cache & \(2k\to256k[bytes]\) & Fetch\\
+\hline
+BTB Entries & \(8\to32k\) & Fetch\\
+\hline
+BHT Entries & \(16\to16k\) & Fetch\\
+\hline
+\end{tabular*}
+\end{table}
+
+Next, we show the results of the parameter sweeps.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=8.5cm]{../presentation/figures/cache_size_unixbench.png}
+\caption{\label{fig:orgb78c735}Cache size Sweep Unixbench}
+\end{figure}
+
+Figure \ref{fig:orgb78c735} highlights that OS-intensive tasks, particularly Pipe Throughput and Context Switching, are the primary beneficiaries of larger caches, achieving nearly 190\% of baseline performance at the 16KB/16KB level. In contrast, standard arithmetic tests show more linear, modest improvements, suggesting that the "heavy lifting" of system calls and process state management is where the 4KB baseline most acutely fails the CVA6 core. Since your earlier BRAM analysis showed substantial headroom on the Pynq-Z2, these results suggest that doubling or tripling your cache size would provide a massive ROI for system responsiveness without saturating the FPGA’s remaining memory blocks.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=8.5cm]{../presentation/figures/cache_size_npb.png}
+\caption{\label{fig:org974d360}Cache size Sweep NPB}
+\end{figure}
+
+Figure \ref{fig:org974d360} demonstrates that scientific workloads like MG and CG are severely bottlenecked by small caches, with performance plummeting by over 70\% when the data cache is reduced to sub-kilobyte levels. Scaling to a 16KB/16KB (yellow bars) configuration yields significant speedups—up to 135\% for memory-intensive kernels—while EP remains predictably insensitive due to its low data-sharing requirements. The tight correlation between IPC (red diamonds) and overall score confirms that the dual-issue CVA6 pipeline is frequently stalled by memory latency in your 4KB baseline, making cache expansion the most effective lever for boosting performance in compute-heavy simulations.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=8.5cm]{../presentation/figures/sweep_cache_BRAM_3d.png}
+\caption{\label{fig:org443e9ce}Cache size Sweep Utilization}
+\end{figure}
+
+Figure \ref{fig:org443e9ce} maps out the entire design space for cache scaling, showing how the Fetch (blue) and Memory (green) stacks grow proportionally as Instruction and Data cache capacities are increased. The plot highlights the "resource cliffs" inherent to the Zynq-7020; while the 4k/4k baseline is conservative, moving toward the 256k/256k corner of the graph would completely saturate the hardware’s 140 available BRAM blocks. This visualization is critical for identifying which configurations allow for performance gains without preventing the inclusion of other logic-heavy features.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[angle=0,width=8.5cm]{../presentation/figures/sweep_assoc_BRAM.png}
+\caption{\label{fig:org7be948e}Associativity Sweep Utilization}
+\end{figure}
+
+The Associativity Sweep: BRAM Distribution plot reveals a strictly linear scaling between cache associativity and memory resources; doubling the "ways" from your 4-way baseline to 8 or 16 ways directly doubles the BRAM count to 48 and 96 blocks, respectively. The perfectly symmetrical distribution between the Fetch (blue) and Memory (green) stages indicates that increasing associativity impacts the Instruction and Data caches identically. While 16-way associativity provides better hit rates, it consumes nearly 70\% of the Pynq-Z2's 140 BRAMs just for the caches, suggesting that the 4-way or 8-way configuration is likely the "sweet spot" for balancing performance against the remaining FPGA resource budget.
+\subsection{Contributions}
+\label{sec:org884ac49}
+\begin{itemize}
+\item PR to the NPB repository
+
+\url{https://github.com/benchmark-subsetting/NPB3.0-omp-C/pull/2}
+\end{itemize}
+\begin{center}
+\includegraphics[angle=0,width=8.5cm]{../presentation/figures/github.png}
+\label{org829ead4}
+\end{center}
+
+\begin{itemize}
+\item Automated tool for benchmarking architectural changes on the PYNQ Z2
+\item Baseline performance / utilization measurements for CVA6 multi-core
+\end{itemize}
+
+\bibliographystyle{IEEEtranN}
+\bibliography{../../Documents/org/zotero}
 \end{document}

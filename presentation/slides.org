@@ -32,9 +32,9 @@
 #+LATEX_HEADER: 	Institut Polytechnique de Paris}
 #+LATEX_HEADER: \titlegraphic {
 #+LATEX_HEADER: \begin{tikzpicture}[overlay,remember picture]
-#+LATEX_HEADER:     \node[left=0.7cm] at (current page.335){
+#+LATEX_HEADER:     \node[left=0.7cm] at (current page.340){
 #+LATEX_HEADER:         \includegraphics[width=1.8cm]{figures/logo_ip.png}};
-#+LATEX_HEADER:     \node[right=0.7cm] at (current page.207){
+#+LATEX_HEADER:     \node[right=0.7cm] at (current page.200){
 #+LATEX_HEADER:         \includegraphics[width=1.5cm]{figures/logo_TSP.png}};
 #+LATEX_HEADER: \end{tikzpicture}
 #+LATEX_HEADER: }
@@ -45,6 +45,7 @@
 # #+BIND: org-beamer-frame-default-options "allowframebreaks"
 #+LaTeX_CLASS: beamer
 #+LaTeX_CLASS_OPTIONS: [bigger]
+#+LATEX_CLASS_OPTIONS: [aspectratio=1610]
 :end:
 #+begin_export latex
 \begin{frame}
@@ -99,7 +100,7 @@
 #+BEAMER: \framesubtitle{Original Single Core Version}
 #+attr_org: :width 500
 #+name: fig:openhw
-#+attr_latex: :width 12cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15cm :options angle=0 :placement [!htb]
 [[./figures/cva6_block_diagram.png]]
 
 ** The CVA6 Core :B_frame:
@@ -109,7 +110,7 @@
 #+BEAMER: \framesubtitle{Benagil Team's Dual Core Version}
 #+attr_org: :width 500
 #+name: fig:dualcore
-#+attr_latex: :width \textwidth :options trim=0 0 50 0, clip :placement [H]
+#+attr_latex: :width 12cm :options trim=0 0 50 0, clip :placement [H]
 [[./figures/multicore_cva6.pdf]]
 
 ** Problem Statement :B_frame:
@@ -129,7 +130,6 @@
 :END:
 
 - \small How does the sharing of functional units (starting with the FPU) between two CVA6 cores affect the trade-off between hardware area efficiency and multi-core performance?
-- \small How to measure it accurately.
 
 ** Project Roadmap :B_frame:
 :PROPERTIES:
@@ -171,7 +171,7 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 
 #+attr_org: :width 500
 #+name: fig:pynq
-#+attr_latex: :width 11.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 14.0cm :options angle=0 :placement [!htb]
 #+caption: CVA6 /Single Core/ deployment on a PYNQ-Z2 FPGA with PMod Modules
 [[./figures/pynq.jpeg]]
     
@@ -185,7 +185,7 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 :END:
 #+attr_org: :width 500
 #+name: fig:pynq
-#+attr_latex: :width 6.3cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 7.5cm :options angle=0 :placement [!htb]
 #+caption: Zynq-7000 SoC
 [[./figures/PL_block.png]]
 *** Column 2 :BMCOL:
@@ -215,7 +215,7 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 #+BEAMER: \framesubtitle{Initial LUT Usage Measurement}
 #+attr_org: :width 500
 #+name: fig:base_lut
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15.0cm :options angle=0 :placement [!htb]
 [[./figures/soc_breakdown_bar_pie_h_final_LUT.png]]
   
 ** How do We Measure Resource Usage? :B_frame:
@@ -225,7 +225,7 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 #+BEAMER: \framesubtitle{Initial FF Usage Measurement}
 #+attr_org: :width 500
 #+name: fig:base_ff
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15.0cm :options angle=0 :placement [!htb]
 [[./figures/soc_breakdown_bar_pie_h_final_FF.png]]
  
 ** How do We Measure Resource Usage? :B_frame:
@@ -235,7 +235,7 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 #+BEAMER: \framesubtitle{Initial BRAM Usage Measurement}
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15.0cm :options angle=0 :placement [!htb]
 [[./figures/soc_breakdown_bar_pie_h_final_BRAM.png]]
 
 ** How do We Measure Resource Usage? :B_frame:
@@ -245,7 +245,7 @@ $IPC = \frac{\text{Number of Instructions}}{\text{Number of cycles}}$
 #+BEAMER: \framesubtitle{Initial DSP Usage Measurement}
 #+attr_org: :width 500
 #+name: fig:base_dsp
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15.0cm :options angle=0 :placement [!htb]
 [[./figures/soc_breakdown_bar_pie_h_final_DSP.png]]
 * Experiments
 ** Baseline Architecture :B_frame:
@@ -306,7 +306,7 @@ And the following parameters sweeps were proposed to study their effect on perfo
 To automate design space exploration, we developed a framework which uses the ARM core and the CVA6 core, the full run of the benchmarks for all the parameter sweeps takes 21 hours.
 #+attr_org: :width 500
 #+name: fig:base_dsp
-#+attr_latex: :width 7.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 8.0cm :options angle=0 :placement [!htb]
 [[./figures/bench.png]]
 
 * Results
@@ -316,7 +316,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15cm :options angle=0 :placement [!htb]
 [[./figures/cache_size_unixbench.png]]
 ** Performance Dynamics :B_frame:
 :PROPERTIES:
@@ -324,7 +324,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 14cm :options angle=0 :placement [!htb]
 [[./figures/cache_size_npb.png]]
 
 ** Performance Dynamics :B_frame:
@@ -333,7 +333,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15cm :options angle=0 :placement [!htb]
 [[./figures/associativity_unixbench.png]]
 
 ** Performance Dynamics :B_frame:
@@ -342,7 +342,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15cm :options angle=0 :placement [!htb]
 [[./figures/btb_size_unixbench.png]]
 
 ** Performance Dynamics :B_frame:
@@ -351,7 +351,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.4cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 15cm :options angle=0 :placement [!htb]
 [[./figures/bht_size_unixbench.png]]
 
 ** Resource Usage Dynamics :B_frame:
@@ -360,7 +360,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 14cm :options angle=0 :placement [!htb]
 [[./figures/sweep_btb_BRAM.png]]
 
 ** Resource Usage Dynamics :B_frame:
@@ -369,7 +369,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 14cm :options angle=0 :placement [!htb]
 [[./figures/sweep_assoc_LUT.png]]
 
 ** Resource Usage Dynamics :B_frame:
@@ -378,7 +378,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 12.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 14cm :options angle=0 :placement [!htb]
 [[./figures/sweep_assoc_BRAM.png]]
 
 ** Resource Usage Dynamics :B_frame:
@@ -387,7 +387,7 @@ To automate design space exploration, we developed a framework which uses the AR
 :END:
 #+attr_org: :width 500
 #+name: fig:base_bram
-#+attr_latex: :width 9.0cm :options angle=0 :placement [!htb]
+#+attr_latex: :width 9cm :options angle=0 :placement [!htb]
 [[./figures/sweep_cache_BRAM_3d.png]]
 
 * Contributions    
